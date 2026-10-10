@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.domain.enums import EventStatus, Role
@@ -22,6 +22,10 @@ class User(SQLModel, table=True):
 
 class Event(SQLModel, table=True):
     __tablename__ = "event"
+    __table_args__ = (
+        CheckConstraint("capacity >= 1", name="ck_event_capacity_positive"),
+        CheckConstraint("end_at > start_at", name="ck_event_dates_order"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(max_length=200, index=True)
@@ -38,18 +42,21 @@ class Speaker(SQLModel, table=True):
     __tablename__ = "speaker"
     __table_args__ = (UniqueConstraint("email", name="uq_speaker_email"),)
 
-
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(max_length=200)
     bio: str = Field(default="")
-    email: str = Field(max_length=255)
+    email: str | None = Field(default=None, max_length=255)
 
 
 class Session(SQLModel, table=True):
     __tablename__ = "session"
+    __table_args__ = (
+        CheckConstraint("capacity >= 1", name="ck_session_capacity_positive"),
+        CheckConstraint("end_at > start_at", name="ck_session_dates_order"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
-    event_id: int = Field(foreign_key="event.id", index=True)
+    event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
     speaker_id: int = Field(foreign_key="speaker.id", index=True)
     title: str = Field(max_length=200)
     start_at: datetime = Field(sa_type=DateTime(timezone=True))
@@ -63,5 +70,5 @@ class Registration(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
-    event_id: int = Field(foreign_key="event.id", index=True)
+    event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))
