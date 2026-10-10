@@ -71,6 +71,31 @@ def test_update_by_owner_and_admin(service: EventService) -> None:
     assert service.update(ADMIN, event.id, details(name="Admin")).name == "Admin"
 
 
+def test_update_capacity_below_largest_session_conflicts(
+    service: EventService, repo: FakeEventRepository
+) -> None:
+    event = service.create(OWNER, details(capacity=10))
+    repo.max_session_capacities[event.id] = 8
+    with pytest.raises(EventStateError):
+        service.update(OWNER, event.id, details(capacity=7))
+    assert service.update(OWNER, event.id, details(capacity=8)).capacity == 8
+
+
+def test_update_dates_must_still_contain_sessions(
+    service: EventService, repo: FakeEventRepository
+) -> None:
+    event = service.create(OWNER, details())
+    first = NOW + timedelta(days=1, hours=2)
+    last = NOW + timedelta(days=1, hours=5)
+    repo.session_bounds_by_event[event.id] = (first, last)
+    with pytest.raises(EventStateError):
+        service.update(OWNER, event.id, details(start_at=first + timedelta(hours=1)))
+    with pytest.raises(EventStateError):
+        service.update(OWNER, event.id, details(end_at=last - timedelta(hours=1)))
+    wider = details(start_at=first - timedelta(hours=1), end_at=last + timedelta(hours=1))
+    assert service.update(OWNER, event.id, wider).start_at == wider.start_at
+
+
 def test_update_by_other_organizer_denied(service: EventService) -> None:
     event = service.create(OWNER, details())
     with pytest.raises(PermissionDeniedError):

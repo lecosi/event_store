@@ -115,6 +115,26 @@ def ensure_editable(status: EventStatus) -> None:
         raise EventStateError(f"A {status.value} event cannot be edited")
 
 
+def ensure_capacity_covers_sessions(capacity: int, largest_session: int) -> None:
+    if capacity < largest_session:
+        raise EventStateError(
+            f"capacity cannot be lower than the largest session capacity ({largest_session})"
+        )
+
+
+def ensure_dates_cover_sessions(
+    start_at: datetime,
+    end_at: datetime,
+    session_bounds: tuple[datetime, datetime] | None,
+) -> None:
+    """Reject new event dates that would leave an existing session outside them."""
+    if session_bounds is None:
+        return
+    first_start, last_end = session_bounds
+    if ensure_utc(start_at) > ensure_utc(first_start) or ensure_utc(end_at) < ensure_utc(last_end):
+        raise EventStateError("event dates must still contain all of its existing sessions")
+
+
 def can_view(event: Event, viewer_id: int | None, is_admin: bool) -> bool:
     """Published events are public; the rest only for their organizer or an admin."""
     if event.status is EventStatus.PUBLISHED:

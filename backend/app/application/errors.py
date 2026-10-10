@@ -19,3 +19,19 @@ class PermissionDeniedError(Exception):
 
 class EventNotFoundError(Exception):
     pass
+
+
+class SpeakerNotFoundError(Exception):
+    pass
+
+
+class SessionNotFoundError(Exception):
+    pass
+
+
+class SpeakerEmailTakenError(Exception):
+    pass
+
+
+class SpeakerInUseError(Exception):
+    """The speaker still has sessions assigned and cannot be deleted."""

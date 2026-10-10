@@ -7,6 +7,8 @@ from app.domain.event import (
     EventPage,
     EventStateError,
     EventValidationError,
+    ensure_capacity_covers_sessions,
+    ensure_dates_cover_sessions,
     ensure_editable,
     validate_capacity,
     validate_schedule,
@@ -71,6 +73,12 @@ def test_start_must_be_in_future() -> None:
         validate_starts_in_future(NOW, NOW)
 
 
+def test_capacity_cannot_drop_below_largest_session() -> None:
+    ensure_capacity_covers_sessions(8, 8)
+    with pytest.raises(EventStateError):
+        ensure_capacity_covers_sessions(7, 8)
+
+
 @pytest.mark.parametrize("status", [EventStatus.CANCELLED, EventStatus.FINISHED])
 def test_closed_events_are_not_editable(status: EventStatus) -> None:
     with pytest.raises(EventStateError):
@@ -87,3 +95,14 @@ def test_open_events_are_editable(status: EventStatus) -> None:
 )
 def test_page_count(total: int, size: int, pages: int) -> None:
     assert EventPage(items=[], total=total, page=1, size=size).pages == pages
+
+
+def test_dates_must_cover_existing_sessions() -> None:
+    first, last = NOW + timedelta(hours=1), NOW + timedelta(hours=3)
+    ensure_dates_cover_sessions(NOW, NOW + timedelta(hours=4), (first, last))
+    ensure_dates_cover_sessions(first, last, (first, last))
+    ensure_dates_cover_sessions(NOW, NOW + timedelta(hours=1), None)
+    with pytest.raises(EventStateError):
+        ensure_dates_cover_sessions(first + timedelta(hours=1), last, (first, last))
+    with pytest.raises(EventStateError):
+        ensure_dates_cover_sessions(NOW, NOW + timedelta(hours=2), (first, last))

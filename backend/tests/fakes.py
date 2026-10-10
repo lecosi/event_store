@@ -1,6 +1,10 @@
+from datetime import datetime
+
 from app.application.errors import EmailAlreadyRegisteredError, InvalidTokenError
 from app.domain.enums import EventStatus, Role
 from app.domain.event import Event, EventFilters
+from app.domain.session import Session
+from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 
 
@@ -28,6 +32,8 @@ class FakeEventRepository:
     def __init__(self) -> None:
         self._events: dict[int, Event] = {}
         self._next_id = 1
+        self.max_session_capacities: dict[int, int] = {}
+        self.session_bounds_by_event: dict[int, tuple[datetime, datetime]] = {}
 
     def add(self, event: Event) -> Event:
         event.id = self._next_id
@@ -61,6 +67,79 @@ class FakeEventRepository:
 
     def delete(self, event_id: int) -> None:
         self._events.pop(event_id, None)
+
+    def max_session_capacity(self, event_id: int) -> int:
+        return self.max_session_capacities.get(event_id, 0)
+
+    def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
+        return self.session_bounds_by_event.get(event_id)
+
+
+class FakeSessionRepository:
+    def __init__(self) -> None:
+        self._sessions: dict[int, Session] = {}
+        self._next_id = 1
+
+    def add(self, session: Session) -> Session:
+        session.id = self._next_id
+        self._next_id += 1
+        self._sessions[session.id] = session
+        return session
+
+    def get(self, session_id: int) -> Session | None:
+        return self._sessions.get(session_id)
+
+    def list_for_event(self, event_id: int) -> list[Session]:
+        found = [s for s in self._sessions.values() if s.event_id == event_id]
+        return sorted(found, key=lambda s: s.start_at)
+
+    def list_for_speaker(self, speaker_id: int) -> list[Session]:
+        return [s for s in self._sessions.values() if s.speaker_id == speaker_id]
+
+    def update(self, session: Session) -> Session:
+        assert session.id is not None
+        self._sessions[session.id] = session
+        return session
+
+    def delete(self, session_id: int) -> None:
+        self._sessions.pop(session_id, None)
+
+
+class FakeSpeakerRepository:
+    def __init__(self, sessions: FakeSessionRepository | None = None) -> None:
+        self._speakers: dict[int, Speaker] = {}
+        self._next_id = 1
+        self._sessions = sessions or FakeSessionRepository()
+
+    def add(self, speaker: Speaker) -> Speaker:
+        speaker.id = self._next_id
+        self._next_id += 1
+        self._speakers[speaker.id] = speaker
+        return speaker
+
+    def get(self, speaker_id: int) -> Speaker | None:
+        return self._speakers.get(speaker_id)
+
+    def get_by_email(self, email: str) -> Speaker | None:
+        return next((s for s in self._speakers.values() if s.email == email), None)
+
+    def list_page(self, q: str | None, page: int, size: int) -> tuple[list[Speaker], int]:
+        term = q.lower() if q else None
+        matching = [s for s in self._speakers.values() if term is None or term in s.name.lower()]
+        matching.sort(key=lambda s: (s.name, s.id or 0))
+        start = (page - 1) * size
+        return matching[start : start + size], len(matching)
+
+    def update(self, speaker: Speaker) -> Speaker:
+        assert speaker.id is not None
+        self._speakers[speaker.id] = speaker
+        return speaker
+
+    def delete(self, speaker_id: int) -> None:
+        self._speakers.pop(speaker_id, None)
+
+    def count_sessions(self, speaker_id: int) -> int:
+        return len(self._sessions.list_for_speaker(speaker_id))
 
 
 class FakePasswordHasher:

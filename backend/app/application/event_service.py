@@ -12,6 +12,8 @@ from app.domain.event import (
     EventFilters,
     EventPage,
     can_view,
+    ensure_capacity_covers_sessions,
+    ensure_dates_cover_sessions,
     ensure_editable,
     validate_details,
     validate_starts_in_future,
@@ -76,6 +78,12 @@ class EventService:
         event = self._get_managed(actor, event_id)
         ensure_editable(event.status)
         validate_details(details)
+        ensure_capacity_covers_sessions(
+            details.capacity, self._events.max_session_capacity(event_id)
+        )
+        ensure_dates_cover_sessions(
+            details.start_at, details.end_at, self._events.session_bounds(event_id)
+        )
         return self._events.update(event.with_details(details))
 
     def change_status(self, actor: UserAccount, event_id: int, target: EventStatus) -> Event:

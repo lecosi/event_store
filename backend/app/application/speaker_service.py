@@ -1,0 +1,67 @@
+"""Speaker use cases. Depend only on ports and pure domain rules."""
+
+from app.application.errors import (
+    PermissionDeniedError,
+    SpeakerEmailTakenError,
+    SpeakerInUseError,
+    SpeakerNotFoundError,
+)
+from app.application.ports import SpeakerRepository
+from app.domain.enums import Role
+from app.domain.speaker import Speaker, SpeakerDetails, SpeakerPage
+from app.domain.user import UserAccount
+
+MANAGING_ROLES = (Role.ORGANIZER, Role.ADMIN)
+
+
+def _normalize(details: SpeakerDetails) -> SpeakerDetails:
+    email = details.email.strip().lower() if details.email else None
+    return SpeakerDetails(name=details.name.strip(), bio=details.bio, email=email or None)
+
+
+class SpeakerService:
+    def __init__(self, speakers: SpeakerRepository) -> None:
+        self._speakers = speakers
+
+    def create(self, actor: UserAccount, details: SpeakerDetails) -> Speaker:
+        self._require_manager(actor)
+        details = _normalize(details)
+        self._ensure_email_free(details.email, speaker_id=None)
+        return self._speakers.add(Speaker(name=details.name, bio=details.bio, email=details.email))
+
+    def get(self, speaker_id: int) -> Speaker:
+        speaker = self._speakers.get(speaker_id)
+        if speaker is None:
+            raise SpeakerNotFoundError(speaker_id)
+        return speaker
+
+    def list_page(self, q: str | None = None, page: int = 1, size: int = 10) -> SpeakerPage:
+        term = q.strip() if q else None
+        items, total = self._speakers.list_page(term or None, page, size)
+        return SpeakerPage(items=items, total=total, page=page, size=size)
+
+    def update(self, actor: UserAccount, speaker_id: int, details: SpeakerDetails) -> Speaker:
+        self._require_manager(actor)
+        speaker = self.get(speaker_id)
+        details = _normalize(details)
+        self._ensure_email_free(details.email, speaker_id=speaker_id)
+        return self._speakers.update(speaker.with_details(details))
+
+    def delete(self, actor: UserAccount, speaker_id: int) -> None:
+        self._require_manager(actor)
+        self.get(speaker_id)
+        if self._speakers.count_sessions(speaker_id) > 0:
+            raise SpeakerInUseError(speaker_id)
+        self._speakers.delete(speaker_id)
+
+    def _ensure_email_free(self, email: str | None, speaker_id: int | None) -> None:
+        if email is None:
+            return
+        existing = self._speakers.get_by_email(email)
+        if existing is not None and existing.id != speaker_id:
+            raise SpeakerEmailTakenError(email)
+
+    @staticmethod
+    def _require_manager(actor: UserAccount) -> None:
+        if actor.role not in MANAGING_ROLES:
+            raise PermissionDeniedError
