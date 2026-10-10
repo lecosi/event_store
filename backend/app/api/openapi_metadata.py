@@ -62,6 +62,10 @@ TAGS_METADATA = [
         ),
     },
     {
+        "name": "admin",
+        "description": "User administration. Restricted to the `admin` role.",
+    },
+    {
         "name": "registrations",
         "description": (
             "Attendee registration to events and the caller's registered events. "

@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session
 
-from app.application.auth_service import AuthService
+from app.application.auth_service import AuthService, UserAdminService
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
 from app.application.ports import (
@@ -56,6 +56,12 @@ def get_auth_service(
     tokens: TokenService = Depends(get_token_service),
 ) -> AuthService:
     return AuthService(users, hasher, tokens)
+
+
+def get_user_admin_service(
+    users: UserRepository = Depends(get_user_repository),
+) -> UserAdminService:
+    return UserAdminService(users)
 
 
 def get_current_user(

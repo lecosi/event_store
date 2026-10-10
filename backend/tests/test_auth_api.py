@@ -11,6 +11,7 @@ from app.infrastructure.security.jwt_tokens import JwtTokenService
 REGISTER = "/api/v1/auth/register"
 LOGIN = "/api/v1/auth/login"
 ME = "/api/v1/users/me"
+ADMIN_USERS = "/api/v1/admin/users"
 
 
 def register(client: TestClient, email: str = "ana@example.com", password: str = "supersecret"):
@@ -124,3 +125,102 @@ def test_require_role_rejects_other_roles() -> None:
     with pytest.raises(HTTPException) as excinfo:
         require_role(Role.ADMIN)(user)
     assert excinfo.value.status_code == 403
+
+
+def test_admin_endpoints_forbidden_for_non_admins(client: TestClient, session: Session) -> None:
+    attendee = make_user(client, session, "att@example.com", Role.ATTENDEE)
+    organizer = make_user(client, session, "org@example.com", Role.ORGANIZER)
+    for headers in (attendee, organizer):
+        assert client.get(ADMIN_USERS, headers=headers).status_code == 403
+        assert (
+            client.patch(f"{ADMIN_USERS}/1", json={"role": "admin"}, headers=headers).status_code
+            == 403
+        )
+    assert client.get(ADMIN_USERS).status_code == 401
+
+
+def test_admin_lists_and_updates_users(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    listing = client.get(ADMIN_USERS, headers=admin)
+    assert listing.status_code == 200
+    users = listing.json()["items"]
+    assert {u["email"] for u in users} == {"admin@example.com", "ana@example.com"}
+    assert all("password_hash" not in u for u in users)
+
+    ana_id = next(u["id"] for u in users if u["email"] == "ana@example.com")
+    patched = client.patch(
+        f"{ADMIN_USERS}/{ana_id}", json={"role": "organizer", "is_active": False}, headers=admin
+    )
+    assert patched.status_code == 200
+    assert patched.json()["role"] == "organizer"
+    assert patched.json()["is_active"] is False
+    assert (
+        client.patch(f"{ADMIN_USERS}/999", json={"role": "admin"}, headers=admin).status_code == 404
+    )
+    assert (
+        client.patch(f"{ADMIN_USERS}/{ana_id}", json={"role": "root"}, headers=admin).status_code
+        == 422
+    )
+
+
+def _my_id(client: TestClient, headers: dict[str, str]) -> int:
+    return client.get(ME, headers=headers).json()["id"]
+
+
+def test_admin_cannot_demote_or_deactivate_self(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    me = _my_id(client, admin)
+    for body in ({"role": "organizer"}, {"role": "attendee"}, {"is_active": False}):
+        response = client.patch(f"{ADMIN_USERS}/{me}", json=body, headers=admin)
+        assert response.status_code == 409
+        assert response.json() == {"detail": "Admins cannot demote or deactivate their own account"}
+    current = client.get(ME, headers=admin).json()
+    assert (current["role"], current["is_active"]) == ("admin", True)
+
+
+def test_admin_self_noop_update_still_succeeds(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    me = _my_id(client, admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{me}", json={"role": "admin", "is_active": True}, headers=admin
+    )
+    assert response.status_code == 200
+
+
+def test_admin_can_demote_and_deactivate_another_admin(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    second = _my_id(client, make_user(client, session, "second@example.com", Role.ADMIN))
+    third = _my_id(client, make_user(client, session, "third@example.com", Role.ADMIN))
+    demoted = client.patch(f"{ADMIN_USERS}/{second}", json={"role": "organizer"}, headers=admin)
+    assert demoted.status_code == 200 and demoted.json()["role"] == "organizer"
+    off = client.patch(f"{ADMIN_USERS}/{third}", json={"is_active": False}, headers=admin)
+    assert off.status_code == 200 and off.json()["is_active"] is False
+
+
+def test_admin_users_pagination(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    for i in range(24):
+        register(client, f"user{i:02d}@example.com")
+
+    first = client.get(ADMIN_USERS, params={"page": 1, "size": 10}, headers=admin).json()
+    assert (first["total"], first["page"], first["size"], first["pages"]) == (25, 1, 10, 3)
+    ids = [u["id"] for u in first["items"]]
+    assert ids == sorted(ids) and len(ids) == 10
+    last = client.get(ADMIN_USERS, params={"page": 3, "size": 10}, headers=admin).json()
+    assert len(last["items"]) == 5
+    beyond = client.get(ADMIN_USERS, params={"page": 4, "size": 10}, headers=admin).json()
+    assert beyond["items"] == [] and beyond["total"] == 25
+    default = client.get(ADMIN_USERS, headers=admin).json()
+    assert (default["page"], default["size"], len(default["items"])) == (1, 10, 10)
+
+
+def test_admin_users_param_validation_and_permissions(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    for params in ({"page": 0}, {"size": 0}, {"size": 101}):
+        response = client.get(ADMIN_USERS, params=params, headers=admin)
+        assert response.status_code == 422, params
+    organizer = make_user(client, session, "org@example.com", Role.ORGANIZER)
+    assert client.get(ADMIN_USERS, headers=organizer).status_code == 403
