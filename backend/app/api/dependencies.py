@@ -9,12 +9,23 @@ from sqlmodel import Session
 from app.application.auth_service import AuthService
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
-from app.application.ports import EventRepository, PasswordHasher, TokenService, UserRepository
+from app.application.ports import (
+    EventRepository,
+    PasswordHasher,
+    SessionRepository,
+    SpeakerRepository,
+    TokenService,
+    UserRepository,
+)
+from app.application.session_service import SessionService
+from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.user import UserAccount
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.session import get_session
+from app.infrastructure.db.session_repository import SqlSessionRepository
+from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
@@ -80,6 +91,28 @@ def get_event_repository(session: Session = Depends(get_session)) -> EventReposi
 
 def get_event_service(events: EventRepository = Depends(get_event_repository)) -> EventService:
     return EventService(events)
+
+
+def get_speaker_repository(session: Session = Depends(get_session)) -> SpeakerRepository:
+    return SqlSpeakerRepository(session)
+
+
+def get_session_repository(session: Session = Depends(get_session)) -> SessionRepository:
+    return SqlSessionRepository(session)
+
+
+def get_speaker_service(
+    speakers: SpeakerRepository = Depends(get_speaker_repository),
+) -> SpeakerService:
+    return SpeakerService(speakers)
+
+
+def get_session_service(
+    events: EventRepository = Depends(get_event_repository),
+    sessions: SessionRepository = Depends(get_session_repository),
+    speakers: SpeakerRepository = Depends(get_speaker_repository),
+) -> SessionService:
+    return SessionService(events, sessions, speakers)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:

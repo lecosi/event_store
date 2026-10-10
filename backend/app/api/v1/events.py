@@ -2,8 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from app.api.dependencies import get_event_service, get_optional_user, require_role
+from app.api.dependencies import (
+    get_event_service,
+    get_optional_user,
+    get_session_service,
+    require_role,
+)
 from app.api.event_schemas import (
+    EventDetailResponse,
     EventPageResponse,
     EventRequest,
     EventResponse,
@@ -16,8 +22,10 @@ from app.api.openapi_responses import (
     combine,
     conflict,
 )
+from app.api.speaker_schemas import SessionResponse
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
+from app.application.session_service import SessionService
 from app.domain.enums import EventStatus, Role
 from app.domain.event import Event, EventDetails, EventStateError, EventValidationError
 from app.domain.user import UserAccount
@@ -31,8 +39,10 @@ def _details(body: EventRequest) -> EventDetails:
     return EventDetails(**body.model_dump())
 
 
-def _response(event: Event) -> EventResponse:
-    return EventResponse.model_validate(event, from_attributes=True)
+def _response(event: Event, sessions: SessionService) -> EventDetailResponse:
+    base = EventResponse.model_validate(event, from_attributes=True)
+    items = [SessionResponse.from_domain(s) for s in sessions.list_for_event(event.id)]
+    return EventDetailResponse(**base.model_dump(), sessions=items)
 
 
 def _translate(exc: Exception) -> HTTPException:
@@ -52,7 +62,7 @@ HANDLED = (EventNotFoundError, PermissionDeniedError, EventValidationError, Even
 
 @router.post(
     "",
-    response_model=EventResponse,
+    response_model=EventDetailResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create an event",
     responses=ORGANIZER_OR_ADMIN,
@@ -61,14 +71,15 @@ def create_event(
     body: EventRequest,
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
-) -> EventResponse:
+    sessions: SessionService = Depends(get_session_service),
+) -> EventDetailResponse:
     """Create an event owned by the caller. Requires the `organizer` or `admin` role.
 
     The event starts in `draft` status (not public until published). Business rules (422):
     `start_at` must be in the future, `end_at` after `start_at`, and `capacity` at least 1.
     """
     try:
-        return _response(service.create(user, _details(body)))
+        return _response(service.create(user, _details(body)), sessions)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
@@ -120,7 +131,7 @@ def list_events(
 
 @router.get(
     "/{event_id}",
-    response_model=EventResponse,
+    response_model=EventDetailResponse,
     summary="Get an event",
     responses=EVENT_NOT_FOUND,
 )
@@ -128,28 +139,29 @@ def get_event(
     event_id: EventId,
     viewer: UserAccount | None = Depends(get_optional_user),
     service: EventService = Depends(get_event_service),
-) -> EventResponse:
-    """Event detail. Public.
+    sessions: SessionService = Depends(get_session_service),
+) -> EventDetailResponse:
+    """Event detail with its sessions. Public.
 
     Non-published events are only visible to their organizer and admins; for anyone else they
     answer 404, exactly as if they did not exist.
     """
     try:
-        return _response(service.get(event_id, viewer))
+        return _response(service.get(event_id, viewer), sessions)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
 
 @router.put(
     "/{event_id}",
-    response_model=EventResponse,
+    response_model=EventDetailResponse,
     summary="Update an event",
     responses=combine(
         ORGANIZER_OR_ADMIN,
         EVENT_NOT_FOUND,
         conflict(
-            "The event cannot be edited in its current status.",
-            "A cancelled event cannot be edited",
+            "The event cannot be edited in its state or the new values contradict its sessions.",
+            "capacity cannot be lower than the largest session capacity (30)",
         ),
     ),
 )
@@ -158,21 +170,23 @@ def update_event(
     body: EventRequest,
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
-) -> EventResponse:
+    sessions: SessionService = Depends(get_session_service),
+) -> EventDetailResponse:
     """Replace the editable fields of an event. Only its organizer or an admin.
 
-    Conflicts (409): `cancelled` and `finished` events cannot be edited. Invalid dates or
-    capacity answer 422.
+    Conflicts (409): `cancelled` and `finished` events cannot be edited; `capacity` cannot be
+    lower than the largest session; the new dates must still contain every existing session.
+    Invalid dates or capacity answer 422.
     """
     try:
-        return _response(service.update(user, event_id, _details(body)))
+        return _response(service.update(user, event_id, _details(body)), sessions)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
 
 @router.patch(
     "/{event_id}/status",
-    response_model=EventResponse,
+    response_model=EventDetailResponse,
     summary="Change the status of an event",
     responses=combine(
         ORGANIZER_OR_ADMIN,
@@ -188,7 +202,8 @@ def change_event_status(
     body: EventStatusRequest,
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
-) -> EventResponse:
+    sessions: SessionService = Depends(get_session_service),
+) -> EventDetailResponse:
     """Move an event through its lifecycle. Only its organizer or an admin.
 
     Status values: `draft` (default, hidden), `published` (public),
@@ -203,7 +218,7 @@ def change_event_status(
     Any other transition answers 409.
     """
     try:
-        return _response(service.change_status(user, event_id, body.status))
+        return _response(service.change_status(user, event_id, body.status), sessions)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
@@ -219,7 +234,7 @@ def delete_event(
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
 ) -> Response:
-    """Permanently delete an event. Only its organizer or an admin."""
+    """Permanently delete an event and its sessions. Only its organizer or an admin."""
     try:
         service.delete(user, event_id)
     except HANDLED as exc:

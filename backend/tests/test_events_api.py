@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.domain.enums import Role
-from app.infrastructure.db.models import Event, User
+from app.infrastructure.db.models import Event, Speaker, User
+from app.infrastructure.db.models import Session as SessionRow
 
 EVENTS = "/api/v1/events"
 
@@ -71,6 +72,7 @@ def test_create_ok_defaults_to_draft(client: TestClient, session: Session) -> No
     body = create(client, headers)
     assert body["status"] == "draft"
     assert body["name"] == "PyCon"
+    assert body["sessions"] == []
 
 
 def test_create_validation(client: TestClient, session: Session) -> None:
@@ -155,6 +157,28 @@ def test_delete_permissions(client: TestClient, session: Session) -> None:
     assert client.delete(f"{EVENTS}/{first['id']}", headers=owner).status_code == 404
     assert client.delete(f"{EVENTS}/{second['id']}", headers=admin).status_code == 204
     assert session.exec(select(Event)).all() == []
+
+
+def test_delete_removes_sessions(client: TestClient, session: Session) -> None:
+    owner = organizer(client, session)
+    event = create(client, owner)
+    speaker = Speaker(name="Ada")
+    session.add(speaker)
+    session.commit()
+    session.add(
+        SessionRow(
+            event_id=event["id"],
+            speaker_id=speaker.id,
+            title="Keynote",
+            start_at=datetime.fromisoformat(event["start_at"]),
+            end_at=datetime.fromisoformat(event["end_at"]),
+            capacity=5,
+        )
+    )
+    session.commit()
+    assert client.delete(f"{EVENTS}/{event['id']}", headers=owner).status_code == 204
+    assert session.exec(select(SessionRow)).all() == []
+    assert session.exec(select(Speaker)).all() == [speaker]
 
 
 def seed_published(client: TestClient, headers: dict[str, str], names: list[str]) -> None:

@@ -12,8 +12,8 @@ sessions and speakers; attendees browse, search and register until the capacity 
 3. Click **Authorize** (top right) and paste the token. Swagger sends it as
    `Authorization: Bearer <token>` on every request.
 
-Endpoints marked with a lock require a token. Browsing events is public; a valid token
-additionally reveals the caller's own non-published events.
+Endpoints marked with a lock require a token. Browsing events and speakers is public; a valid
+token additionally reveals the caller's own non-published events.
 
 ## Roles
 
@@ -27,9 +27,9 @@ additionally reveals the caller's own non-published events.
 
 Errors use the shape `{"detail": "<message>"}` with these status codes: `401` (not
 authenticated), `403` (role or ownership does not allow it), `404` (not found, or an
-unpublished event hidden from the caller), `409` (conflicts with the current state, e.g. email
-already registered) and `422` (invalid input; for malformed bodies `detail` is a list of field
-errors, for business rules it is a message).
+unpublished event hidden from the caller), `409` (conflicts with the current state, e.g. an
+overlapping session or email already registered) and `422` (invalid input; for malformed bodies
+`detail` is a list of field errors, for business rules it is a message).
 
 ## Pagination
 
@@ -52,6 +52,20 @@ TAGS_METADATA = [
             "Event catalogue and lifecycle. Reading is public for `published` events; "
             "`draft`, `cancelled` and `finished` events are only visible to their organizer "
             "and admins. Writing requires `organizer` (own events) or `admin`."
+        ),
+    },
+    {
+        "name": "sessions",
+        "description": (
+            "Sessions (talks) scheduled inside an event. They must fit within the event dates, "
+            "not exceed its capacity, and a speaker cannot have two overlapping sessions."
+        ),
+    },
+    {
+        "name": "speakers",
+        "description": (
+            "Speaker directory, reusable across events. Reading is public; writing requires "
+            "`organizer` or `admin`."
         ),
     },
 ]

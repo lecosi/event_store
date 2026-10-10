@@ -66,6 +66,8 @@ def combine(*parts: Responses) -> Responses:
 
 
 EVENT_NOT_FOUND = not_found("Event")
+SESSION_NOT_FOUND = not_found("Session")
+SPEAKER_NOT_FOUND = not_found("Speaker")
 
 # Typical combination for organizer/admin-only endpoints.
 ORGANIZER_OR_ADMIN = combine(UNAUTHORIZED, FORBIDDEN)

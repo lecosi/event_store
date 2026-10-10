@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.speaker_schemas import SessionResponse
 from app.domain.enums import EventStatus
 
 
@@ -50,7 +51,10 @@ class EventRequest(BaseModel):
     )
     capacity: int = Field(
         ge=1,
-        description="Maximum number of attendees.",
+        description=(
+            "Maximum number of attendees. On update it cannot be lower than the largest "
+            "session capacity."
+        ),
         examples=[300],
     )
 
@@ -88,6 +92,14 @@ class EventResponse(BaseModel):
         examples=["published"],
     )
     organizer_id: int = Field(description="User who owns the event.", examples=[1])
+
+
+class EventDetailResponse(EventResponse):
+    """An event with its sessions."""
+
+    sessions: list[SessionResponse] = Field(
+        default=[], description="Sessions scheduled in the event, ordered by start time."
+    )
 
 
 class EventPageResponse(BaseModel):
