@@ -1,5 +1,3 @@
-"""In-memory fakes of the application ports, for DB-free unit tests."""
-
 from app.application.errors import EmailAlreadyRegisteredError, InvalidTokenError
 from app.domain.enums import EventStatus, Role
 from app.domain.event import Event, EventFilters

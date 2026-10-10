@@ -18,7 +18,7 @@ def test_hash_is_argon2_and_verifies() -> None:
     assert "supersecret" not in hashed
     assert hasher.verify("supersecret", hashed)
     assert not hasher.verify("other-password", hashed)
-    assert hasher.hash("supersecret") != hashed  # salted
+    assert hasher.hash("supersecret") != hashed
 
 
 def test_token_roundtrip() -> None:

@@ -1,6 +1,5 @@
 import os
 
-# Must be set before the app reads its settings (avoids short-HMAC-key warnings).
 os.environ.setdefault("JWT_SECRET", "test-only-secret-0123456789-0123456789")
 
 from collections.abc import Iterator
@@ -29,8 +28,11 @@ POSTGRES_URL = os.environ.get("TEST_POSTGRES_URL")
 POSTGRES_POOL_SIZE = 12
 
 
+def _enable_sqlite_foreign_keys(dbapi_connection, _record) -> None:
+    dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+
 def _truncate_all(engine: Engine) -> None:
-    """Empty every application table. Names come from the metadata, never from user input."""
     quote = engine.dialect.identifier_preparer.quote
     tables = ", ".join(quote(table.name) for table in SQLModel.metadata.sorted_tables)
     with engine.begin() as connection:
@@ -39,10 +41,6 @@ def _truncate_all(engine: Engine) -> None:
 
 @pytest.fixture(scope="session")
 def postgres_engine() -> Iterator[Engine]:
-    """Migrated PostgreSQL engine (alembic upgrade head, once per session).
-
-    The database behind TEST_POSTGRES_URL is truncated between tests: use a disposable one.
-    """
     if not POSTGRES_URL:
         pytest.skip("set TEST_POSTGRES_URL to run against PostgreSQL")
     alembic_config = Config("alembic.ini")
@@ -68,12 +66,7 @@ def session(request: pytest.FixtureRequest) -> Iterator[Session]:
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
-        # SQLite ignores FKs (and ON DELETE CASCADE) unless this is on; PostgreSQL always enforces.
-        event.listen(
-            engine,
-            "connect",
-            lambda dbapi_connection, _record: dbapi_connection.execute("PRAGMA foreign_keys=ON"),
-        )
+        event.listen(engine, "connect", _enable_sqlite_foreign_keys)
         SQLModel.metadata.create_all(engine)
     with Session(engine) as db_session:
         yield db_session

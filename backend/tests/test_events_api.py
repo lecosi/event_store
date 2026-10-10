@@ -238,5 +238,4 @@ def test_search_escapes_wildcards_and_resists_injection(
     assert search("_") == ["a_b"]
     assert search("a_b") == ["a_b"]
     assert search("\\") == ["back\\slash"]
-    # The table is intact after the hostile inputs above.
     assert client.get(EVENTS).json()["total"] == 5
