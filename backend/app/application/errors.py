@@ -17,6 +17,14 @@ class PermissionDeniedError(Exception):
     """The actor is not allowed to perform the operation."""
 
 
+class UserNotFoundError(Exception):
+    pass
+
+
+class SelfLockoutError(Exception):
+    """An admin tried to demote or deactivate their own account."""
+
+
 class EventNotFoundError(Exception):
     pass
 

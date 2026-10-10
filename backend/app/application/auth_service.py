@@ -1,4 +1,4 @@
-"""Authentication use cases.
+"""Authentication and user-management use cases.
 
 Depends only on the ports in ``app.application.ports``.
 """
@@ -7,10 +7,12 @@ from app.application.errors import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     InvalidTokenError,
+    SelfLockoutError,
+    UserNotFoundError,
 )
 from app.application.ports import PasswordHasher, TokenService, UserRepository
 from app.domain.enums import Role
-from app.domain.user import UserAccount, validate_password
+from app.domain.user import UserAccount, UserPage, validate_password
 
 
 def normalize_email(email: str) -> str:
@@ -48,3 +50,33 @@ class AuthService:
         if user is None or not user.is_active:
             raise InvalidTokenError
         return user
+
+
+class UserAdminService:
+    def __init__(self, users: UserRepository) -> None:
+        self._users = users
+
+    def list_users(self, page: int = 1, size: int = 10) -> UserPage:
+        items, total = self._users.list_page(page, size)
+        return UserPage(items=items, total=total, page=page, size=size)
+
+    def update_user(
+        self,
+        actor: UserAccount,
+        user_id: int,
+        role: Role | None = None,
+        is_active: bool | None = None,
+    ) -> UserAccount:
+        """Apply a partial update; an admin may not demote or deactivate themselves."""
+        if actor.id == user_id and (
+            (role is not None and role is not Role.ADMIN) or is_active is False
+        ):
+            raise SelfLockoutError(user_id)
+        user = self._users.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError(user_id)
+        if role is not None:
+            user.role = role
+        if is_active is not None:
+            user.is_active = is_active
+        return self._users.save(user)

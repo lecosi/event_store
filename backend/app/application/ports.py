@@ -21,8 +21,18 @@ class UserRepository(Protocol):
 
     def get_by_email(self, email: str) -> UserAccount | None: ...
 
+    def list_all(self) -> list[UserAccount]: ...
+
+    def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
+        """Return the requested page (ordered by id) and the total number of users."""
+        ...
+
     def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
         """Persist a new user; raise EmailAlreadyRegisteredError on duplicate email."""
+        ...
+
+    def save(self, user: UserAccount) -> UserAccount:
+        """Persist changes to an existing user."""
         ...
 
 

@@ -1,14 +1,18 @@
 import pytest
 
-from app.application.auth_service import AuthService
+from app.application.auth_service import AuthService, UserAdminService
 from app.application.errors import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     InvalidTokenError,
+    SelfLockoutError,
+    UserNotFoundError,
 )
 from app.domain.enums import Role
-from app.domain.user import WeakPasswordError
+from app.domain.user import UserAccount, WeakPasswordError
 from tests.fakes import FakePasswordHasher, FakeTokenService, FakeUserRepository
+
+ADMIN_ACTOR = UserAccount(email="root@example.com", password_hash="h", role=Role.ADMIN, id=100)
 
 
 @pytest.fixture
@@ -78,3 +82,61 @@ def test_authenticate_rejects_inactive_user(service: AuthService) -> None:
     user.is_active = False
     with pytest.raises(InvalidTokenError):
         service.authenticate(f"token-{user.id}")
+
+
+def test_admin_updates_role_and_active_flag(service: AuthService, repo: FakeUserRepository) -> None:
+    user = service.register("ana@example.com", "supersecret")
+    admin = UserAdminService(repo)
+    updated = admin.update_user(ADMIN_ACTOR, user.id, role=Role.ORGANIZER, is_active=False)
+    assert updated.role is Role.ORGANIZER
+    assert updated.is_active is False
+    assert [u.email for u in admin.list_users().items] == ["ana@example.com"]
+
+
+def test_admin_update_unknown_user_fails(repo: FakeUserRepository) -> None:
+    with pytest.raises(UserNotFoundError):
+        UserAdminService(repo).update_user(ADMIN_ACTOR, 42, role=Role.ADMIN)
+
+
+def _admin_in_repo(service: AuthService, repo: FakeUserRepository, email: str) -> UserAccount:
+    user = service.register(email, "supersecret")
+    user.role = Role.ADMIN
+    return repo.save(user)
+
+
+def test_admin_cannot_demote_self(service: AuthService, repo: FakeUserRepository) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    with pytest.raises(SelfLockoutError):
+        UserAdminService(repo).update_user(me, me.id, role=Role.ORGANIZER)
+    assert repo.get_by_id(me.id).role is Role.ADMIN
+
+
+def test_admin_cannot_deactivate_self(service: AuthService, repo: FakeUserRepository) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    with pytest.raises(SelfLockoutError):
+        UserAdminService(repo).update_user(me, me.id, is_active=False)
+    assert repo.get_by_id(me.id).is_active is True
+
+
+def test_admin_self_noop_updates_succeed(service: AuthService, repo: FakeUserRepository) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    updated = UserAdminService(repo).update_user(me, me.id, role=Role.ADMIN, is_active=True)
+    assert (updated.role, updated.is_active) == (Role.ADMIN, True)
+
+
+def test_admin_can_demote_and_deactivate_another_admin(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    other = _admin_in_repo(service, repo, "other@example.com")
+    updated = UserAdminService(repo).update_user(me, other.id, role=Role.ORGANIZER, is_active=False)
+    assert (updated.role, updated.is_active) == (Role.ORGANIZER, False)
+
+
+def test_list_users_pages_ordered_by_id(service: AuthService, repo: FakeUserRepository) -> None:
+    for i in range(5):
+        service.register(f"u{i}@example.com", "supersecret")
+    page = UserAdminService(repo).list_users(page=2, size=2)
+    assert [u.email for u in page.items] == ["u2@example.com", "u3@example.com"]
+    assert (page.total, page.page, page.size, page.pages) == (5, 2, 2, 3)
+    assert UserAdminService(repo).list_users(page=9, size=2).items == []

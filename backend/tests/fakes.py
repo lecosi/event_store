@@ -24,12 +24,25 @@ class FakeUserRepository:
     def get_by_email(self, email: str) -> UserAccount | None:
         return next((u for u in self._by_id.values() if u.email == email), None)
 
+    def list_all(self) -> list[UserAccount]:
+        return list(self._by_id.values())
+
+    def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
+        users = sorted(self._by_id.values(), key=lambda u: u.id or 0)
+        start = (page - 1) * size
+        return users[start : start + size], len(users)
+
     def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
         if self.get_by_email(email):
             raise EmailAlreadyRegisteredError(email)
         user = UserAccount(
             email=email, password_hash=password_hash, role=role, id=len(self._by_id) + 1
         )
+        self._by_id[user.id] = user
+        return user
+
+    def save(self, user: UserAccount) -> UserAccount:
+        assert user.id is not None
         self._by_id[user.id] = user
         return user
 
