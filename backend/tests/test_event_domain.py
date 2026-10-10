@@ -7,6 +7,7 @@ from app.domain.event import (
     EventPage,
     EventStateError,
     EventValidationError,
+    ensure_capacity_covers_registrations,
     ensure_capacity_covers_sessions,
     ensure_dates_cover_sessions,
     ensure_editable,
@@ -77,6 +78,12 @@ def test_capacity_cannot_drop_below_largest_session() -> None:
     ensure_capacity_covers_sessions(8, 8)
     with pytest.raises(EventStateError):
         ensure_capacity_covers_sessions(7, 8)
+
+
+def test_capacity_cannot_drop_below_registrations() -> None:
+    ensure_capacity_covers_registrations(5, 5)
+    with pytest.raises(EventStateError):
+        ensure_capacity_covers_registrations(4, 5)
 
 
 @pytest.mark.parametrize("status", [EventStatus.CANCELLED, EventStatus.FINISHED])

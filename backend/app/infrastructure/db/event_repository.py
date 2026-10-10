@@ -6,6 +6,7 @@ from sqlmodel import Session, col, delete, select
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ensure_utc
 from app.infrastructure.db.models import Event as EventRow
+from app.infrastructure.db.models import Registration
 from app.infrastructure.db.models import Session as SessionRow
 
 LIKE_ESCAPE = "\\"
@@ -99,9 +100,16 @@ class SqlEventRepository:
         return _to_domain(row)
 
     def delete(self, event_id: int) -> None:
-        # Sessions go with the event through ON DELETE CASCADE.
+        # Sessions and registrations go with the event through ON DELETE CASCADE.
         self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))
         self._session.commit()
+
+    def count_registrations(self, event_id: int) -> int:
+        return self._session.exec(
+            select(func.count())
+            .select_from(Registration)
+            .where(col(Registration.event_id) == event_id)
+        ).one()
 
     def max_session_capacity(self, event_id: int) -> int:
         largest = self._session.exec(

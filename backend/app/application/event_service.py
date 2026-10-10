@@ -12,6 +12,7 @@ from app.domain.event import (
     EventFilters,
     EventPage,
     can_view,
+    ensure_capacity_covers_registrations,
     ensure_capacity_covers_sessions,
     ensure_dates_cover_sessions,
     ensure_editable,
@@ -80,6 +81,9 @@ class EventService:
         validate_details(details)
         ensure_capacity_covers_sessions(
             details.capacity, self._events.max_session_capacity(event_id)
+        )
+        ensure_capacity_covers_registrations(
+            details.capacity, self._events.count_registrations(event_id)
         )
         ensure_dates_cover_sessions(
             details.start_at, details.end_at, self._events.session_bounds(event_id)

@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.domain.enums import Role
-from app.infrastructure.db.models import Event, Speaker, User
+from app.infrastructure.db.models import Event, Registration, Speaker, User
 from app.infrastructure.db.models import Session as SessionRow
 
 EVENTS = "/api/v1/events"
@@ -115,6 +115,24 @@ def test_update_permissions_and_ownership(client: TestClient, session: Session) 
     assert client.put(url, json=body, headers=owner).json()["name"] == "Renamed"
     assert client.put(url, json=payload(name="ByAdmin"), headers=admin).json()["name"] == "ByAdmin"
     assert client.put(f"{EVENTS}/9999", json=body, headers=owner).status_code == 404
+
+
+def test_update_capacity_below_registrations_conflicts(
+    client: TestClient, session: Session
+) -> None:
+    headers = organizer(client, session)
+    event = create(client, headers, capacity=10)
+    for number in range(3):
+        attendee = User(email=f"u{number}@example.com", password_hash="x")
+        session.add(attendee)
+        session.commit()
+        session.refresh(attendee)
+        session.add(Registration(user_id=attendee.id, event_id=event["id"]))
+    session.commit()
+
+    url = f"{EVENTS}/{event['id']}"
+    assert client.put(url, json=payload(capacity=2), headers=headers).status_code == 409
+    assert client.put(url, json=payload(capacity=3), headers=headers).status_code == 200
 
 
 def test_cannot_edit_cancelled_event(client: TestClient, session: Session) -> None:

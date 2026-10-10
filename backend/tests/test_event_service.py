@@ -96,6 +96,16 @@ def test_update_dates_must_still_contain_sessions(
     assert service.update(OWNER, event.id, wider).start_at == wider.start_at
 
 
+def test_update_capacity_below_registrations_conflicts(
+    service: EventService, repo: FakeEventRepository
+) -> None:
+    event = service.create(OWNER, details(capacity=10))
+    repo.registrations[event.id] = 5
+    with pytest.raises(EventStateError):
+        service.update(OWNER, event.id, details(capacity=4))
+    assert service.update(OWNER, event.id, details(capacity=5)).capacity == 5
+
+
 def test_update_by_other_organizer_denied(service: EventService) -> None:
     event = service.create(OWNER, details())
     with pytest.raises(PermissionDeniedError):

@@ -122,6 +122,13 @@ def ensure_capacity_covers_sessions(capacity: int, largest_session: int) -> None
         )
 
 
+def ensure_capacity_covers_registrations(capacity: int, registrations: int) -> None:
+    if capacity < registrations:
+        raise EventStateError(
+            f"capacity cannot be lower than the current registrations ({registrations})"
+        )
+
+
 def ensure_dates_cover_sessions(
     start_at: datetime,
     end_at: datetime,
