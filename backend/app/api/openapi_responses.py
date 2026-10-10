@@ -38,8 +38,34 @@ UNAUTHORIZED: Responses = error_response(
     "Missing, invalid or expired Bearer token, or the account is deactivated.",
     "Could not validate credentials",
 )
+FORBIDDEN: Responses = error_response(
+    403,
+    "The authenticated user's role (or ownership of the resource) does not allow this action.",
+    "Insufficient permissions",
+)
+
+
+def not_found(what: str = "Resource") -> Responses:
+    """404 for a missing (or, for events, not visible to the caller) resource."""
+    return error_response(
+        404, f"{what} does not exist or is not visible to the caller.", f"{what} not found"
+    )
 
 
 def conflict(description: str, detail: str) -> Responses:
     """409 for a request that clashes with the current state of the data."""
     return error_response(409, description, detail)
+
+
+def combine(*parts: Responses) -> Responses:
+    """Merge several response fragments; a later fragment wins on the same status code."""
+    merged: Responses = {}
+    for part in parts:
+        merged.update(part)
+    return merged
+
+
+EVENT_NOT_FOUND = not_found("Event")
+
+# Typical combination for organizer/admin-only endpoints.
+ORGANIZER_OR_ADMIN = combine(UNAUTHORIZED, FORBIDDEN)

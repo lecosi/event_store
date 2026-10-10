@@ -8,10 +8,12 @@ from sqlmodel import Session
 
 from app.application.auth_service import AuthService
 from app.application.errors import InvalidTokenError
-from app.application.ports import PasswordHasher, TokenService, UserRepository
+from app.application.event_service import EventService
+from app.application.ports import EventRepository, PasswordHasher, TokenService, UserRepository
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.user import UserAccount
+from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.session import get_session
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
@@ -57,6 +59,27 @@ def get_current_user(
         return auth.authenticate(credentials.credentials)
     except InvalidTokenError as exc:
         raise unauthorized from exc
+
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    auth: AuthService = Depends(get_auth_service),
+) -> UserAccount | None:
+    """Resolve the caller when a valid token is sent; anonymous otherwise (never raises)."""
+    if credentials is None:
+        return None
+    try:
+        return auth.authenticate(credentials.credentials)
+    except InvalidTokenError:
+        return None
+
+
+def get_event_repository(session: Session = Depends(get_session)) -> EventRepository:
+    return SqlEventRepository(session)
+
+
+def get_event_service(events: EventRepository = Depends(get_event_repository)) -> EventService:
+    return EventService(events)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:
