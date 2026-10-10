@@ -1,0 +1,127 @@
+"""Event aggregate and business rules (pure domain, no framework imports)."""
+
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
+from math import ceil
+
+from app.domain.enums import EventStatus
+
+
+class EventValidationError(ValueError):
+    """The event data violates a business rule (maps to HTTP 422)."""
+
+
+class EventStateError(Exception):
+    """The operation conflicts with the event's current state (maps to HTTP 409)."""
+
+
+ALLOWED_TRANSITIONS: dict[EventStatus, frozenset[EventStatus]] = {
+    EventStatus.DRAFT: frozenset({EventStatus.PUBLISHED, EventStatus.CANCELLED}),
+    EventStatus.PUBLISHED: frozenset({EventStatus.FINISHED, EventStatus.CANCELLED}),
+    EventStatus.CANCELLED: frozenset(),
+    EventStatus.FINISHED: frozenset(),
+}
+
+
+@dataclass(frozen=True)
+class EventDetails:
+    """Editable attributes of an event."""
+
+    name: str
+    description: str
+    location: str
+    start_at: datetime
+    end_at: datetime
+    capacity: int
+
+
+@dataclass
+class Event:
+    name: str
+    description: str
+    location: str
+    start_at: datetime
+    end_at: datetime
+    capacity: int
+    organizer_id: int
+    status: EventStatus = EventStatus.DRAFT
+    id: int | None = None
+
+    def with_details(self, details: EventDetails) -> "Event":
+        return replace(
+            self,
+            name=details.name,
+            description=details.description,
+            location=details.location,
+            start_at=details.start_at,
+            end_at=details.end_at,
+            capacity=details.capacity,
+        )
+
+
+@dataclass(frozen=True)
+class EventFilters:
+    """Criteria for listing events.
+
+    ``unrestricted`` lets the caller see every status; otherwise only PUBLISHED
+    events plus the ones owned by ``viewer_id`` are visible.
+    """
+
+    q: str | None = None
+    status: EventStatus | None = None
+    viewer_id: int | None = None
+    unrestricted: bool = False
+
+
+@dataclass(frozen=True)
+class EventPage:
+    items: list[Event]
+    total: int
+    page: int
+    size: int
+
+    @property
+    def pages(self) -> int:
+        return ceil(self.total / self.size) if self.total else 0
+
+
+def ensure_utc(value: datetime) -> datetime:
+    """Treat naive datetimes as UTC so comparisons never mix naive and aware values."""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def validate_schedule(start_at: datetime, end_at: datetime) -> None:
+    if ensure_utc(end_at) <= ensure_utc(start_at):
+        raise EventValidationError("end_at must be after start_at")
+
+
+def validate_capacity(capacity: int) -> None:
+    if capacity < 1:
+        raise EventValidationError("capacity must be at least 1")
+
+
+def validate_starts_in_future(start_at: datetime, now: datetime) -> None:
+    if ensure_utc(start_at) <= ensure_utc(now):
+        raise EventValidationError("start_at must be in the future")
+
+
+def validate_details(details: EventDetails) -> None:
+    validate_schedule(details.start_at, details.end_at)
+    validate_capacity(details.capacity)
+
+
+def ensure_editable(status: EventStatus) -> None:
+    if status in (EventStatus.CANCELLED, EventStatus.FINISHED):
+        raise EventStateError(f"A {status.value} event cannot be edited")
+
+
+def can_view(event: Event, viewer_id: int | None, is_admin: bool) -> bool:
+    """Published events are public; the rest only for their organizer or an admin."""
+    if event.status is EventStatus.PUBLISHED:
+        return True
+    return viewer_id is not None and (is_admin or event.organizer_id == viewer_id)
+
+
+def validate_transition(current: EventStatus, target: EventStatus) -> None:
+    if target not in ALLOWED_TRANSITIONS[current]:
+        raise EventStateError(f"Cannot change status from {current.value} to {target.value}")

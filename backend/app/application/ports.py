@@ -7,6 +7,7 @@ Each port is small and focused (interface segregation).
 from typing import Protocol
 
 from app.domain.enums import Role
+from app.domain.event import Event, EventFilters
 from app.domain.user import UserAccount
 
 
@@ -17,6 +18,22 @@ class UserRepository(Protocol):
 
     def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
         """Persist a new user; raise EmailAlreadyRegisteredError on duplicate email."""
+        ...
+
+
+class EventRepository(Protocol):
+    def add(self, event: Event) -> Event: ...
+
+    def get(self, event_id: int) -> Event | None: ...
+
+    def list_page(self, filters: EventFilters, page: int, size: int) -> tuple[list[Event], int]:
+        """Return the requested page (ordered by start_at) and the total matching count."""
+        ...
+
+    def update(self, event: Event) -> Event: ...
+
+    def delete(self, event_id: int) -> None:
+        """Delete the event together with its dependent rows."""
         ...
 
 

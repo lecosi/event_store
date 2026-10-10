@@ -11,3 +11,11 @@ class InvalidCredentialsError(Exception):
 
 class InvalidTokenError(Exception):
     """The access token is malformed, tampered with or expired."""
+
+
+class PermissionDeniedError(Exception):
+    """The actor is not allowed to perform the operation."""
+
+
+class EventNotFoundError(Exception):
+    pass
