@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "mis-eventos-backend"
+version = "0.1.0"
+description = "Mis Eventos - event management API"
+authors = ["Mis Eventos"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+sqlmodel = "^0.0.22"
+alembic = "^1.13.0"
+psycopg = {extras = ["binary"], version = "^3.2.0"}
+pydantic-settings = "^2.6.0"
+pyjwt = "^2.9.0"
+pwdlib = {extras = ["argon2"], version = "^0.2.1"}
+email-validator = "^2.2.0"
+python-multipart = "^0.0.12"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-cov = "^6.0.0"
+httpx = "^0.27.0"
+ruff = "^0.7.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Security"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*" = ["E501"]
+"tests/conftest.py" = ["E402", "I001"]
