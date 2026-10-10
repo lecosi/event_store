@@ -52,8 +52,8 @@ class EventRequest(BaseModel):
     capacity: int = Field(
         ge=1,
         description=(
-            "Maximum number of attendees. On update it cannot be lower than the largest "
-            "session capacity."
+            "Maximum number of attendees. On update it cannot be lower than the current "
+            "registrations or the largest session capacity."
         ),
         examples=[300],
     )
@@ -95,11 +95,52 @@ class EventResponse(BaseModel):
 
 
 class EventDetailResponse(EventResponse):
-    """An event with its sessions."""
+    """An event with its sessions and the availability for the caller."""
 
     sessions: list[SessionResponse] = Field(
         default=[], description="Sessions scheduled in the event, ordered by start time."
     )
+    registered_count: int = Field(
+        default=0, description="Number of attendees currently registered.", examples=[42]
+    )
+    available_spots: int = Field(
+        default=0,
+        description="Remaining seats: capacity minus registrations (never negative).",
+        examples=[258],
+    )
+    is_registered: bool = Field(
+        default=False,
+        description="Whether the authenticated caller is registered (always false if anonymous).",
+        examples=[False],
+    )
+
+
+class RegistrationResponse(BaseModel):
+    """A registration of a user to an event."""
+
+    user_id: int = Field(description="Registered user.", examples=[2])
+    event_id: int = Field(description="Event the user registered to.", examples=[1])
+    created_at: datetime = Field(
+        description="When the registration was made (ISO 8601).", examples=["2030-01-10T15:30:00Z"]
+    )
+
+
+class RegisteredEventResponse(EventResponse):
+    """An event the caller is registered to."""
+
+    registered_at: datetime = Field(
+        description="When the caller registered (ISO 8601).", examples=["2030-01-10T15:30:00Z"]
+    )
+
+
+class RegisteredEventPageResponse(BaseModel):
+    """One page of the caller's registered events."""
+
+    items: list[RegisteredEventResponse] = Field(description="Events on this page.")
+    total: int = Field(description="Total registered events across all pages.", examples=[25])
+    page: int = Field(description="Current 1-based page number.", examples=[1])
+    size: int = Field(description="Requested page size.", examples=[10])
+    pages: int = Field(description="Total number of pages (0 when empty).", examples=[3])
 
 
 class EventPageResponse(BaseModel):

@@ -69,5 +69,6 @@ EVENT_NOT_FOUND = not_found("Event")
 SESSION_NOT_FOUND = not_found("Session")
 SPEAKER_NOT_FOUND = not_found("Speaker")
 
-# Typical combination for organizer/admin-only endpoints.
+# Typical combinations: authenticated-only, and organizer/admin-only endpoints.
+AUTHENTICATED = combine(UNAUTHORIZED)
 ORGANIZER_OR_ADMIN = combine(UNAUTHORIZED, FORBIDDEN)

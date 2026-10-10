@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from app.api.dependencies import (
     get_event_service,
     get_optional_user,
+    get_registration_service,
     get_session_service,
     require_role,
 )
@@ -25,6 +27,7 @@ from app.api.openapi_responses import (
 from app.api.speaker_schemas import SessionResponse
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
+from app.application.registration_service import RegistrationService
 from app.application.session_service import SessionService
 from app.domain.enums import EventStatus, Role
 from app.domain.event import Event, EventDetails, EventStateError, EventValidationError
@@ -39,10 +42,16 @@ def _details(body: EventRequest) -> EventDetails:
     return EventDetails(**body.model_dump())
 
 
-def _response(event: Event, sessions: SessionService) -> EventDetailResponse:
+def _detail(
+    event: Event,
+    sessions: SessionService,
+    registrations: RegistrationService,
+    viewer: UserAccount | None,
+) -> EventDetailResponse:
     base = EventResponse.model_validate(event, from_attributes=True)
     items = [SessionResponse.from_domain(s) for s in sessions.list_for_event(event.id)]
-    return EventDetailResponse(**base.model_dump(), sessions=items)
+    availability = registrations.availability(event, viewer)
+    return EventDetailResponse(**base.model_dump(), sessions=items, **asdict(availability))
 
 
 def _translate(exc: Exception) -> HTTPException:
@@ -72,6 +81,7 @@ def create_event(
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
+    registrations: RegistrationService = Depends(get_registration_service),
 ) -> EventDetailResponse:
     """Create an event owned by the caller. Requires the `organizer` or `admin` role.
 
@@ -79,7 +89,7 @@ def create_event(
     `start_at` must be in the future, `end_at` after `start_at`, and `capacity` at least 1.
     """
     try:
-        return _response(service.create(user, _details(body)), sessions)
+        return _detail(service.create(user, _details(body)), sessions, registrations, user)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
@@ -140,14 +150,16 @@ def get_event(
     viewer: UserAccount | None = Depends(get_optional_user),
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
+    registrations: RegistrationService = Depends(get_registration_service),
 ) -> EventDetailResponse:
-    """Event detail with its sessions. Public.
+    """Event detail with its sessions, registered count and available spots. Public.
 
     Non-published events are only visible to their organizer and admins; for anyone else they
-    answer 404, exactly as if they did not exist.
+    answer 404, exactly as if they did not exist. With a token, `is_registered` tells whether
+    the caller is registered.
     """
     try:
-        return _response(service.get(event_id, viewer), sessions)
+        return _detail(service.get(event_id, viewer), sessions, registrations, viewer)
     except HANDLED as exc:
         raise _translate(exc) from exc
 
@@ -160,8 +172,8 @@ def get_event(
         ORGANIZER_OR_ADMIN,
         EVENT_NOT_FOUND,
         conflict(
-            "The event cannot be edited in its state or the new values contradict its sessions.",
-            "capacity cannot be lower than the largest session capacity (30)",
+            "The event cannot be edited in its state or the new values contradict existing data.",
+            "capacity cannot be lower than the current registrations (3)",
         ),
     ),
 )
@@ -171,15 +183,18 @@ def update_event(
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
+    registrations: RegistrationService = Depends(get_registration_service),
 ) -> EventDetailResponse:
     """Replace the editable fields of an event. Only its organizer or an admin.
 
     Conflicts (409): `cancelled` and `finished` events cannot be edited; `capacity` cannot be
-    lower than the largest session; the new dates must still contain every existing session.
-    Invalid dates or capacity answer 422.
+    lower than the current registrations or than the largest session; the new dates must still
+    contain every existing session. Invalid dates or capacity answer 422.
     """
     try:
-        return _response(service.update(user, event_id, _details(body)), sessions)
+        return _detail(
+            service.update(user, event_id, _details(body)), sessions, registrations, user
+        )
     except HANDLED as exc:
         raise _translate(exc) from exc
 
@@ -203,10 +218,11 @@ def change_event_status(
     user: UserAccount = Depends(organizer_or_admin),
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
+    registrations: RegistrationService = Depends(get_registration_service),
 ) -> EventDetailResponse:
     """Move an event through its lifecycle. Only its organizer or an admin.
 
-    Status values: `draft` (default, hidden), `published` (public),
+    Status values: `draft` (default, hidden), `published` (public, accepts registrations),
     `cancelled` and `finished` (final).
 
     Allowed transitions:
@@ -218,7 +234,9 @@ def change_event_status(
     Any other transition answers 409.
     """
     try:
-        return _response(service.change_status(user, event_id, body.status), sessions)
+        return _detail(
+            service.change_status(user, event_id, body.status), sessions, registrations, user
+        )
     except HANDLED as exc:
         raise _translate(exc) from exc
 

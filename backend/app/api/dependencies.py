@@ -12,17 +12,20 @@ from app.application.event_service import EventService
 from app.application.ports import (
     EventRepository,
     PasswordHasher,
+    RegistrationRepository,
     SessionRepository,
     SpeakerRepository,
     TokenService,
     UserRepository,
 )
+from app.application.registration_service import RegistrationService
 from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.user import UserAccount
 from app.infrastructure.db.event_repository import SqlEventRepository
+from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session import get_session
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
@@ -113,6 +116,19 @@ def get_session_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
 ) -> SessionService:
     return SessionService(events, sessions, speakers)
+
+
+def get_registration_repository(
+    session: Session = Depends(get_session),
+) -> RegistrationRepository:
+    return SqlRegistrationRepository(session)
+
+
+def get_registration_service(
+    events: EventRepository = Depends(get_event_repository),
+    registrations: RegistrationRepository = Depends(get_registration_repository),
+) -> RegistrationService:
+    return RegistrationService(events, registrations)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:
