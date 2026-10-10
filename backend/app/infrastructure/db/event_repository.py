@@ -1,4 +1,4 @@
-from datetime import UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import func, or_
 from sqlmodel import Session, col, delete, select
@@ -6,6 +6,7 @@ from sqlmodel import Session, col, delete, select
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ensure_utc
 from app.infrastructure.db.models import Event as EventRow
+from app.infrastructure.db.models import Session as SessionRow
 
 LIKE_ESCAPE = "\\"
 
@@ -98,9 +99,25 @@ class SqlEventRepository:
         return _to_domain(row)
 
     def delete(self, event_id: int) -> None:
-        # Dependent rows go with the event through ON DELETE CASCADE.
+        # Sessions go with the event through ON DELETE CASCADE.
         self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))
         self._session.commit()
+
+    def max_session_capacity(self, event_id: int) -> int:
+        largest = self._session.exec(
+            select(func.max(SessionRow.capacity)).where(col(SessionRow.event_id) == event_id)
+        ).one()
+        return largest or 0
+
+    def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
+        first, last = self._session.exec(
+            select(func.min(SessionRow.start_at), func.max(SessionRow.end_at)).where(
+                col(SessionRow.event_id) == event_id
+            )
+        ).one()
+        if first is None or last is None:
+            return None
+        return ensure_utc(first), ensure_utc(last)
 
 
 def _fields(event: Event) -> dict[str, object]:
