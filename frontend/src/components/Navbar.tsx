@@ -18,7 +18,11 @@ export function Navbar() {
       <nav className={styles.links}>
         {token ? (
           <>
-            {canCreateEvents(user) && <NavLink to="/events/new" className={styles.cta}>{es.nav.newEvent}</NavLink>}
+            {canCreateEvents(user) && (
+              <NavLink to="/events/new" className={styles.cta}>
+                {es.nav.newEvent}
+              </NavLink>
+            )}
             {canCreateEvents(user) && <NavLink to="/speakers/new">{es.nav.newSpeaker}</NavLink>}
             <NavLink to="/profile">{es.nav.myEvents}</NavLink>
             {user && <span className={styles.email}>{user.email}</span>}

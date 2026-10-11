@@ -37,7 +37,12 @@ describe('EventForm', () => {
 
   it('is prefilled from the initial event when editing', () => {
     render(
-      <EventForm initial={initial} submitLabel="Guardar" requireFutureStart={false} onSubmit={vi.fn()} />,
+      <EventForm
+        initial={initial}
+        submitLabel="Guardar"
+        requireFutureStart={false}
+        onSubmit={vi.fn()}
+      />,
     )
     expect(screen.getByLabelText('Nombre')).toHaveValue('PyCon')
     expect(screen.getByLabelText('Descripción')).toHaveValue('Charlas')
@@ -54,7 +59,9 @@ describe('EventForm', () => {
     expect(await screen.findByText('El nombre es obligatorio')).toBeInTheDocument()
     expect(screen.getByText('El lugar es obligatorio')).toBeInTheDocument()
     expect(screen.getByText('La fecha de inicio es obligatoria')).toBeInTheDocument()
-    expect(screen.getByText('La capacidad debe ser un número entero de al menos 1')).toBeInTheDocument()
+    expect(
+      screen.getByText('La capacidad debe ser un número entero de al menos 1'),
+    ).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 

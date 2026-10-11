@@ -97,7 +97,9 @@ describe('validateEventForm', () => {
   })
 
   it.each(['', '0', '-1', '2.5', 'abc'])('rejects the capacity "%s"', (capacity) => {
-    expect(validate({ capacity }).capacity).toBe('La capacidad debe ser un número entero de al menos 1')
+    expect(validate({ capacity }).capacity).toBe(
+      'La capacidad debe ser un número entero de al menos 1',
+    )
   })
 
   it('accepts a capacity of 1', () => {
@@ -105,7 +107,10 @@ describe('validateEventForm', () => {
   })
 
   it('uses the current time when none is given', () => {
-    const errors = validateEventForm({ ...valid, start_at: '2000-01-01T09:00' }, { requireFuture: true })
+    const errors = validateEventForm(
+      { ...valid, start_at: '2000-01-01T09:00' },
+      { requireFuture: true },
+    )
     expect(errors.start_at).toBe('El inicio debe estar en el futuro')
   })
 })
@@ -132,7 +137,11 @@ describe('validateSessionForm', () => {
 
   it('accepts a session that starts and ends exactly with the event', () => {
     expect(
-      validateSession({ start_at: '2030-05-20T09:00', end_at: '2030-05-21T18:00', capacity: '100' }),
+      validateSession({
+        start_at: '2030-05-20T09:00',
+        end_at: '2030-05-21T18:00',
+        capacity: '100',
+      }),
     ).toEqual({})
   })
 

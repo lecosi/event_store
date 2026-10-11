@@ -6,7 +6,9 @@ import { toast, useToastStore } from '../store/toastStore'
 import { Layout } from './Layout'
 
 function renderLayout(page: React.ReactNode) {
-  const router = createMemoryRouter([{ element: <Layout />, children: [{ path: '/', element: page }] }])
+  const router = createMemoryRouter([
+    { element: <Layout />, children: [{ path: '/', element: page }] },
+  ])
   return render(<RouterProvider router={router} />)
 }
 

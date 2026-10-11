@@ -48,8 +48,14 @@ describe('Navbar', () => {
   it.each<Role>(['organizer', 'admin'])('shows the creation links to an %s', (role) => {
     loggedInAs(role)
     renderNavbar()
-    expect(screen.getByRole('link', { name: 'Nuevo evento' })).toHaveAttribute('href', '/events/new')
-    expect(screen.getByRole('link', { name: 'Nuevo ponente' })).toHaveAttribute('href', '/speakers/new')
+    expect(screen.getByRole('link', { name: 'Nuevo evento' })).toHaveAttribute(
+      'href',
+      '/events/new',
+    )
+    expect(screen.getByRole('link', { name: 'Nuevo ponente' })).toHaveAttribute(
+      'href',
+      '/speakers/new',
+    )
   })
 
   it('logs the user out and shows the login links again', () => {

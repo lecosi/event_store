@@ -26,7 +26,12 @@ describe('canCreateEvents', () => {
 
 describe('canManageEvent', () => {
   const event = { organizer_id: 1 }
-  const userWithId = (role: Role, id: number): User => ({ id, email: 'a@b.co', role, is_active: true })
+  const userWithId = (role: Role, id: number): User => ({
+    id,
+    email: 'a@b.co',
+    role,
+    is_active: true,
+  })
 
   it('allows an admin on any event', () => {
     expect(canManageEvent(userWithId('admin', 99), event)).toBe(true)

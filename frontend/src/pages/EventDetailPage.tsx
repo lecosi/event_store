@@ -16,7 +16,12 @@ import { useEventStore } from '../store/eventStore'
 import { toast } from '../store/toastStore'
 import type { EventStatus, Session, SessionPayload } from '../types'
 import { formatDateTime } from '../utils/format'
-import { canCancelRegistration, canManageEvent, isEditableStatus, nextStatuses } from '../utils/permissions'
+import {
+  canCancelRegistration,
+  canManageEvent,
+  isEditableStatus,
+  nextStatuses,
+} from '../utils/permissions'
 import styles from './Pages.module.css'
 
 function messageOf(error: unknown): string {
@@ -75,7 +80,10 @@ export default function EventDetailPage() {
 
   async function handleApplyStatus() {
     const target = newStatus as EventStatus
-    const changed = await run(() => updateStatus(id, target), es.events.statusChanged(statusLabel(target)))
+    const changed = await run(
+      () => updateStatus(id, target),
+      es.events.statusChanged(statusLabel(target)),
+    )
     if (changed) setNewStatus('')
   }
 
@@ -153,11 +161,7 @@ export default function EventDetailPage() {
           >
             {event.is_registered ? es.events.cancelRegistration : es.events.register}
           </Button>
-          {registerDisabled && (
-            <span className={styles.muted}>
-              {disabledReason}
-            </span>
-          )}
+          {registerDisabled && <span className={styles.muted}>{disabledReason}</span>}
         </div>
       </section>
 
@@ -199,9 +203,7 @@ export default function EventDetailPage() {
 
       <section className={styles.panel} aria-label={es.sessions.heading}>
         <h2>{es.sessions.heading}</h2>
-        {canManage && !canEditSessions && (
-          <p className={styles.muted}>{es.sessions.notEditable}</p>
-        )}
+        {canManage && !canEditSessions && <p className={styles.muted}>{es.sessions.notEditable}</p>}
         {canEditSessions && editing === null && (
           <div className={styles.actions}>
             <Button onClick={() => setEditing('new')}>{es.sessions.add}</Button>

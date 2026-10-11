@@ -41,7 +41,8 @@ export function validateEventForm(
   else if (values.name.length > NAME_MAX) errors.name = validators.nameMax(NAME_MAX)
 
   if (!values.location.trim()) errors.location = validators.locationRequired
-  else if (values.location.length > LOCATION_MAX) errors.location = validators.locationMax(LOCATION_MAX)
+  else if (values.location.length > LOCATION_MAX)
+    errors.location = validators.locationMax(LOCATION_MAX)
 
   if (values.description.length > DESCRIPTION_MAX)
     errors.description = validators.descriptionMax(DESCRIPTION_MAX)

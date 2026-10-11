@@ -36,7 +36,13 @@ function backendAcceptsLogin(role: Role = 'organizer') {
 beforeEach(() => {
   vi.resetAllMocks()
   useAuthStore.setState({ token: null, user: null })
-  vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
+  vi.mocked(eventsApi.listEvents).mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    size: 9,
+    pages: 0,
+  })
 })
 
 describe('LoginPage', () => {

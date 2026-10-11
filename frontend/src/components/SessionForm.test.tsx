@@ -61,7 +61,9 @@ describe('SessionForm', () => {
 
   it('submits the chosen speaker with the trimmed title and UTC dates', async () => {
     const { onSubmit } = renderForm()
-    fireEvent.change(screen.getByLabelText('Título de la sesión'), { target: { value: ' Taller ' } })
+    fireEvent.change(screen.getByLabelText('Título de la sesión'), {
+      target: { value: ' Taller ' },
+    })
     fireEvent.change(screen.getByLabelText('Inicio de la sesión'), {
       target: { value: '2030-05-20T12:00' },
     })

@@ -1,14 +1,7 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { apiClient } from './client'
-import {
-  createEvent,
-  deleteEvent,
-  getEvent,
-  listEvents,
-  updateEvent,
-  updateStatus,
-} from './events'
+import { createEvent, deleteEvent, getEvent, listEvents, updateEvent, updateStatus } from './events'
 import type { EventPayload } from '../types'
 
 let sent: InternalAxiosRequestConfig | undefined

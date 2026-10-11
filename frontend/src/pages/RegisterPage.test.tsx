@@ -19,14 +19,22 @@ function renderRegister() {
 function submit(email: string, password: string, confirmation: string) {
   fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: email } })
   fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: password } })
-  fireEvent.change(screen.getByLabelText('Confirmar contraseña'), { target: { value: confirmation } })
+  fireEvent.change(screen.getByLabelText('Confirmar contraseña'), {
+    target: { value: confirmation },
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
   useAuthStore.setState({ token: null, user: null })
-  vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
+  vi.mocked(eventsApi.listEvents).mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    size: 9,
+    pages: 0,
+  })
 })
 
 describe('RegisterPage', () => {

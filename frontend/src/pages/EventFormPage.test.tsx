@@ -165,7 +165,10 @@ describe('EventFormPage edit', () => {
     renderAt('/events/5/edit')
     expect(await screen.findByRole('heading', { name: 'Editar evento' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre')).toHaveValue('PyCon Latam')
-    expect(screen.getByRole('link', { name: 'Volver al evento' })).toHaveAttribute('href', '/events/5')
+    expect(screen.getByRole('link', { name: 'Volver al evento' })).toHaveAttribute(
+      'href',
+      '/events/5',
+    )
   })
 
   it('saves the changes, shows a toast and returns to the detail', async () => {

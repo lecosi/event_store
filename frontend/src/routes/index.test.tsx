@@ -14,6 +14,9 @@ describe('routes', () => {
   it('links back to the home page from the not found page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/does-not-exist'] })
     render(<RouterProvider router={router} />)
-    expect(await screen.findByRole('link', { name: 'Volver al inicio' })).toHaveAttribute('href', '/')
+    expect(await screen.findByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
+      'href',
+      '/',
+    )
   })
 })

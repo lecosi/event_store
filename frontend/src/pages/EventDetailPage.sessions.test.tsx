@@ -111,7 +111,9 @@ describe('EventDetailPage session actions visibility', () => {
     await screen.findByText('Apertura')
     expect(screen.queryByRole('button', { name: 'Agregar sesión' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Editar sesión Apertura' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Eliminar sesión Apertura' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Eliminar sesión Apertura' }),
+    ).not.toBeInTheDocument()
   })
 
   it.each<EventStatus>(['cancelled', 'finished'])(
@@ -127,8 +129,12 @@ describe('EventDetailPage session actions visibility', () => {
         ),
       ).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Agregar sesión' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Editar sesión Apertura' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Eliminar sesión Apertura' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Editar sesión Apertura' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Eliminar sesión Apertura' }),
+      ).not.toBeInTheDocument()
     },
   )
 
@@ -260,7 +266,9 @@ describe('EventDetailPage session management', () => {
 
   it('shows the backend message in a toast when deleting fails', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    vi.mocked(sessionsApi.deleteSession).mockRejectedValue(new ApiError('Sesión no encontrada.', 404))
+    vi.mocked(sessionsApi.deleteSession).mockRejectedValue(
+      new ApiError('Sesión no encontrada.', 404),
+    )
     renderAt()
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar sesión Apertura' }))
     await waitFor(() => expect(toastMessages()).toContain('Sesión no encontrada.'))

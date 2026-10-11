@@ -53,7 +53,9 @@ describe('EventListPage', () => {
   })
 
   it('reads the search and the page from the URL', async () => {
-    vi.mocked(eventsApi.listEvents).mockResolvedValue(pageOf([event(3, 'Python')], { page: 2, pages: 3 }))
+    vi.mocked(eventsApi.listEvents).mockResolvedValue(
+      pageOf([event(3, 'Python')], { page: 2, pages: 3 }),
+    )
     renderAt('/?q=python&page=2')
     await screen.findByRole('link', { name: 'Python' })
     expect(eventsApi.listEvents).toHaveBeenCalledWith({ q: 'python', page: 2, size: 9 })
@@ -105,9 +107,7 @@ describe('EventListPage', () => {
   })
 
   it('keeps the search when changing page', async () => {
-    vi.mocked(eventsApi.listEvents).mockResolvedValue(
-      pageOf([event(1, 'Taller')], { pages: 3 }),
-    )
+    vi.mocked(eventsApi.listEvents).mockResolvedValue(pageOf([event(1, 'Taller')], { pages: 3 }))
     const router = renderAt('/?q=react')
     await screen.findByRole('link', { name: 'Taller' })
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))

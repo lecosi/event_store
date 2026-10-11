@@ -31,7 +31,13 @@ beforeEach(() => {
   vi.resetAllMocks()
   useAuthStore.setState({ token: null, user: null })
   useToastStore.setState({ toasts: [] })
-  vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
+  vi.mocked(eventsApi.listEvents).mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    size: 9,
+    pages: 0,
+  })
   vi.mocked(eventsApi.getEvent).mockRejectedValue(new ApiError('Evento no encontrado.', 404))
 })
 
@@ -50,7 +56,9 @@ describe('SpeakerFormPage', () => {
   it('tells an attendee that only organizers and admins can create speakers', async () => {
     loginAs('attendee')
     renderPage()
-    expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permiso para crear ponentes.')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No tienes permiso para crear ponentes.',
+    )
     expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument()
   })
 
@@ -86,7 +94,9 @@ describe('SpeakerFormPage', () => {
 
   it('stays on the form and shows the backend message when creation fails', async () => {
     loginAs('organizer')
-    vi.mocked(speakersApi.createSpeaker).mockRejectedValue(new ApiError('El ponente ya existe.', 500))
+    vi.mocked(speakersApi.createSpeaker).mockRejectedValue(
+      new ApiError('El ponente ya existe.', 500),
+    )
     const router = renderPage()
     fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: 'Grace Hopper' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear ponente' }))

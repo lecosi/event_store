@@ -25,7 +25,11 @@ describe('SpeakerForm', () => {
   it('submits the trimmed name, the bio and the email', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<SpeakerForm onSubmit={onSubmit} />)
-    fill({ Nombre: '  Grace Hopper ', Biografía: 'Almirante', 'Correo electrónico': 'grace@example.com' })
+    fill({
+      Nombre: '  Grace Hopper ',
+      Biografía: 'Almirante',
+      'Correo electrónico': 'grace@example.com',
+    })
     submit()
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledWith({
@@ -46,11 +50,15 @@ describe('SpeakerForm', () => {
   it('shows a taken email on the email field', async () => {
     const onSubmit = vi
       .fn()
-      .mockRejectedValue(new ApiError('Este correo electrónico ya está en uso por otro ponente.', 409))
+      .mockRejectedValue(
+        new ApiError('Este correo electrónico ya está en uso por otro ponente.', 409),
+      )
     render(<SpeakerForm onSubmit={onSubmit} />)
     fill({ Nombre: 'Grace Hopper', 'Correo electrónico': 'grace@example.com' })
     submit()
-    expect(await screen.findByText('Este correo electrónico ya está en uso por otro ponente.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Este correo electrónico ya está en uso por otro ponente.'),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Correo electrónico')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('button', { name: 'Crear ponente' })).toBeEnabled()
   })

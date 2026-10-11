@@ -161,7 +161,9 @@ describe('EventDetailPage registration', () => {
 
   it('shows the backend message in an error toast when registering fails', async () => {
     loginAs('attendee', 7)
-    vi.mocked(registrationsApi.register).mockRejectedValue(new ApiError('El evento está lleno.', 409))
+    vi.mocked(registrationsApi.register).mockRejectedValue(
+      new ApiError('El evento está lleno.', 409),
+    )
     renderAt()
     fireEvent.click(await screen.findByRole('button', { name: 'Inscribirme' }))
     await waitFor(() => expect(toastMessages()).toContain('El evento está lleno.'))
@@ -188,7 +190,9 @@ describe('EventDetailPage registration', () => {
 
   it('keeps cancelling enabled for a registered user when the event is full', async () => {
     loginAs('attendee', 7)
-    vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ available_spots: 0, is_registered: true }))
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(
+      detail({ available_spots: 0, is_registered: true }),
+    )
     renderAt()
     expect(await screen.findByRole('button', { name: 'Cancelar inscripción' })).toBeEnabled()
   })
@@ -272,7 +276,9 @@ describe('EventDetailPage management', () => {
     loginAs('organizer', 1)
     renderAt()
     const select = await screen.findByLabelText('Cambiar estado')
-    const options = within(select).getAllByRole('option').map((o) => o.textContent)
+    const options = within(select)
+      .getAllByRole('option')
+      .map((o) => o.textContent)
     expect(options).toEqual(['Selecciona un estado', 'Finalizado', 'Cancelado'])
   })
 
@@ -311,7 +317,13 @@ describe('EventDetailPage management', () => {
     loginAs('organizer', 1)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(eventsApi.deleteEvent).mockResolvedValue()
-    vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
+    vi.mocked(eventsApi.listEvents).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      size: 9,
+      pages: 0,
+    })
     const router = renderAt()
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar evento' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))

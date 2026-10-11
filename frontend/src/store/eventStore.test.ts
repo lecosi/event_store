@@ -162,6 +162,10 @@ describe('eventStore detail', () => {
     useEventStore.setState({ currentEvent: detail(5), detailError: 'x', detailLoading: true })
     useEventStore.getState().clearCurrent()
     const state = useEventStore.getState()
-    expect([state.currentEvent, state.detailError, state.detailLoading]).toEqual([null, null, false])
+    expect([state.currentEvent, state.detailError, state.detailLoading]).toEqual([
+      null,
+      null,
+      false,
+    ])
   })
 })

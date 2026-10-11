@@ -58,7 +58,13 @@ beforeEach(() => {
   vi.resetAllMocks()
   loginAs()
   useToastStore.setState({ toasts: [] })
-  vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
+  vi.mocked(eventsApi.listEvents).mockResolvedValue({
+    items: [],
+    total: 0,
+    page: 1,
+    size: 9,
+    pages: 0,
+  })
   vi.mocked(registrationsApi.listMyEvents).mockResolvedValue(
     pageOf([registered(1, 'PyCon Latam'), registered(2, 'Taller de React', 'draft')]),
   )
@@ -109,7 +115,9 @@ describe('ProfilePage', () => {
 
   it('loads the requested page with the pagination controls', async () => {
     vi.mocked(registrationsApi.listMyEvents).mockImplementation(async (page) =>
-      page === 2 ? pageOf([registered(11, 'Evento once')], 2, 2) : pageOf([registered(1, 'PyCon Latam')], 1, 2),
+      page === 2
+        ? pageOf([registered(11, 'Evento once')], 2, 2)
+        : pageOf([registered(1, 'PyCon Latam')], 1, 2),
     )
     renderPage()
     await screen.findByRole('link', { name: 'PyCon Latam' })
@@ -140,7 +148,9 @@ describe('ProfilePage cancelling a registration', () => {
   it('cancels the registration, confirms with a toast and reloads the page', async () => {
     vi.mocked(registrationsApi.unregister).mockResolvedValue()
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar inscripción en PyCon Latam' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cancelar inscripción en PyCon Latam' }),
+    )
     await waitFor(() => expect(toastMessages()).toContain('Inscripción en "PyCon Latam" cancelada'))
     expect(registrationsApi.unregister).toHaveBeenCalledWith(1)
     await waitFor(() => expect(registrationsApi.listMyEvents).toHaveBeenCalledTimes(2))
@@ -150,7 +160,9 @@ describe('ProfilePage cancelling a registration', () => {
   it('steps back one page when the last item of a page is cancelled', async () => {
     vi.mocked(registrationsApi.unregister).mockResolvedValue()
     vi.mocked(registrationsApi.listMyEvents).mockImplementation(async (page) =>
-      page === 2 ? pageOf([registered(11, 'Evento once')], 2, 2) : pageOf([registered(1, 'PyCon Latam')], 1, 2),
+      page === 2
+        ? pageOf([registered(11, 'Evento once')], 2, 2)
+        : pageOf([registered(1, 'PyCon Latam')], 1, 2),
     )
     renderPage()
     await screen.findByRole('link', { name: 'PyCon Latam' })
@@ -159,9 +171,7 @@ describe('ProfilePage cancelling a registration', () => {
       await screen.findByRole('button', { name: 'Cancelar inscripción en Evento once' }),
     )
     await waitFor(() => expect(registrationsApi.unregister).toHaveBeenCalledWith(11))
-    await waitFor(() =>
-      expect(registrationsApi.listMyEvents).toHaveBeenLastCalledWith(1, 10),
-    )
+    await waitFor(() => expect(registrationsApi.listMyEvents).toHaveBeenLastCalledWith(1, 10))
     expect(await screen.findByRole('link', { name: 'PyCon Latam' })).toBeInTheDocument()
   })
 
@@ -170,7 +180,9 @@ describe('ProfilePage cancelling a registration', () => {
       new ApiError('No estás inscrito en este evento.', 404),
     )
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar inscripción en PyCon Latam' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cancelar inscripción en PyCon Latam' }),
+    )
     await waitFor(() => expect(toastMessages()).toContain('No estás inscrito en este evento.'))
     expect(registrationsApi.listMyEvents).toHaveBeenCalledTimes(1)
   })
