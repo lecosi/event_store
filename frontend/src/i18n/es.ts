@@ -23,6 +23,12 @@ export const es = {
     page: (page: number, pages: number) => `Página ${page} de ${pages}`,
   },
 
+  notFoundPage: {
+    title: 'Página no encontrada',
+    message: 'La página que buscas no existe o fue movida.',
+    home: 'Volver al inicio',
+  },
+
   nav: {
     newEvent: 'Nuevo evento',
     newSpeaker: 'Nuevo ponente',
