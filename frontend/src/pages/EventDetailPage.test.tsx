@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as eventsApi from '../api/events'
@@ -380,5 +380,20 @@ describe('EventDetailPage management', () => {
     await waitFor(() => expect(toastMessages()).toContain('Sin permisos.'))
     expect(router.state.location.pathname).toBe('/events/5')
     expect(screen.getByRole('button', { name: 'Eliminar evento' })).toBeEnabled()
+  })
+})
+
+describe('EventDetailPage when the session ends', () => {
+  it('reloads the event and stops showing it when it is no longer visible', async () => {
+    loginAs('organizer', 1)
+    renderAt()
+    await screen.findByRole('heading', { name: 'PyCon Latam' })
+    vi.mocked(eventsApi.getEvent).mockRejectedValue(new ApiError('Evento no encontrado.', 404))
+
+    act(() => useAuthStore.getState().logout())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Evento no encontrado.')
+    expect(screen.queryByRole('heading', { name: 'PyCon Latam' })).not.toBeInTheDocument()
+    expect(eventsApi.getEvent).toHaveBeenCalledTimes(2)
   })
 })

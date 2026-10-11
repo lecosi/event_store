@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useAuthStore } from '../store/authStore'
 import type { Role, User } from '../types'
@@ -16,12 +16,12 @@ function loggedInAs(role: Role) {
   useAuthStore.setState({ token: 'tok', user })
 }
 
-function renderNavbar() {
-  return render(
-    <MemoryRouter>
-      <Navbar />
-    </MemoryRouter>,
-  )
+function renderNavbar(url = '/') {
+  const router = createMemoryRouter([{ path: '*', element: <Navbar /> }], {
+    initialEntries: [url],
+  })
+  render(<RouterProvider router={router} />)
+  return router
 }
 
 beforeEach(() => {
@@ -103,5 +103,12 @@ describe('Navbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     expect(useAuthStore.getState().token).toBeNull()
     expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toBeInTheDocument()
+  })
+
+  it('leaves the current page for the home page when logging out', () => {
+    loggedInAs('organizer')
+    const router = renderNavbar('/events/1')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+    expect(router.state.location.pathname).toBe('/')
   })
 })

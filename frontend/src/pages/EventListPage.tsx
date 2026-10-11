@@ -6,6 +6,7 @@ import { Pagination } from '../components/Pagination'
 import { SearchBar } from '../components/SearchBar'
 import { Spinner } from '../components/Spinner'
 import { es } from '../i18n'
+import { useAuthStore } from '../store/authStore'
 import { useEventStore } from '../store/eventStore'
 import styles from './Pages.module.css'
 
@@ -18,11 +19,13 @@ export default function EventListPage() {
   const requestedPage = Number(searchParams.get('page'))
   const page = Number.isInteger(requestedPage) && requestedPage >= 1 ? requestedPage : 1
 
+  const token = useAuthStore((s) => s.token)
   const { items, pages, loading, error, fetchEvents } = useEventStore()
 
+  // `token` is a dependency so the list is loaded again when the session starts or ends.
   useEffect(() => {
     void fetchEvents({ q: q || undefined, page, size: PAGE_SIZE })
-  }, [q, page, fetchEvents])
+  }, [q, page, token, fetchEvents])
 
   // A new search always goes back to the first page.
   const handleSearch = useCallback(

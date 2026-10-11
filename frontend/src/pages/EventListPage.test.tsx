@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as eventsApi from '../api/events'
@@ -112,5 +112,18 @@ describe('EventListPage', () => {
     await screen.findByRole('link', { name: 'Taller' })
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
     await waitFor(() => expect(router.state.location.search).toBe('?page=2&q=react'))
+  })
+
+  it('requests the list again when the session ends', async () => {
+    useAuthStore.setState({ token: 'tok', user: null })
+    vi.mocked(eventsApi.listEvents).mockResolvedValue(pageOf([event(1, 'Borrador')]))
+    renderAt('/')
+    await screen.findByRole('link', { name: 'Borrador' })
+    vi.mocked(eventsApi.listEvents).mockResolvedValue(pageOf([]))
+
+    act(() => useAuthStore.getState().logout())
+
+    expect(await screen.findByText('Aún no hay eventos.')).toBeInTheDocument()
+    expect(eventsApi.listEvents).toHaveBeenCalledTimes(2)
   })
 })

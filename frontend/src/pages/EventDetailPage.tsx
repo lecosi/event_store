@@ -45,11 +45,12 @@ export default function EventDetailPage() {
   /** The session form: closed (null), adding a session ('new') or editing one. */
   const [editing, setEditing] = useState<Session | 'new' | null>(null)
 
+  // `token` is a dependency so the event is cleared and loaded again when the session ends.
   useEffect(() => {
     if (!validId) return
     void fetchEvent(id)
     return clearCurrent
-  }, [id, validId, fetchEvent, clearCurrent])
+  }, [id, validId, token, fetchEvent, clearCurrent])
 
   // Ignore a stale event left in the store by another page.
   const event = currentEvent?.id === id ? currentEvent : null

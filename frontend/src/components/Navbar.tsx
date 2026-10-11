@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { es } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import { canCreateEvents, canViewReports, isAdmin } from '../utils/permissions'
@@ -9,6 +9,12 @@ export function Navbar() {
   const token = useAuthStore((s) => s.token)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/')
+  }
 
   return (
     <header className={styles.navbar}>
@@ -28,7 +34,7 @@ export function Navbar() {
             {isAdmin(user) && <NavLink to="/admin/users">{es.nav.admin}</NavLink>}
             <NavLink to="/profile">{es.nav.myEvents}</NavLink>
             {user && <span className={styles.userName}>{user.full_name}</span>}
-            <Button variant="secondary" onClick={logout}>
+            <Button variant="secondary" onClick={handleLogout}>
               {es.nav.logout}
             </Button>
           </>
