@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Response, status
+from pydantic import TypeAdapter
 
+from app.api.cached_reads import read_through
 from app.api.dependencies import (
+    get_cache,
     get_event_service,
     get_optional_user,
     get_session_service,
@@ -16,7 +19,9 @@ from app.api.openapi_responses import (
 )
 from app.api.speaker_schemas import SessionRequest, SessionResponse
 from app.application.event_service import EventService
+from app.application.ports import SESSIONS_NAMESPACE, Cache
 from app.application.session_service import SessionService
+from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.session import SessionDetails
 from app.domain.user import UserAccount
@@ -24,6 +29,8 @@ from app.domain.user import UserAccount
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
 
 organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
+
+SESSION_LIST = TypeAdapter(list[SessionResponse])
 
 SESSION_CONFLICT = conflict(
     "The speaker has an overlapping session, or the event is cancelled or finished.",
@@ -46,6 +53,8 @@ def list_sessions(
     viewer: UserAccount | None = Depends(get_optional_user),
     events: EventService = Depends(get_event_service),
     service: SessionService = Depends(get_session_service),
+    cache: Cache = Depends(get_cache),
+    settings: Settings = Depends(get_settings),
 ) -> list[SessionResponse]:
     """Sessions of an event with their speaker. Public; a token is optional.
 
@@ -53,7 +62,12 @@ def list_sessions(
     organizer and admins, anyone else gets 404.
     """
     events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
-    return [SessionResponse.from_domain(s) for s in service.list_for_event(event_id)]
+
+    def build() -> list[SessionResponse]:
+        return [SessionResponse.from_domain(s) for s in service.list_for_event(event_id)]
+
+    ttl = settings.cache_ttl_sessions_seconds
+    return read_through(cache, SESSIONS_NAMESPACE, f"event:{event_id}", ttl, SESSION_LIST, build)
 
 
 @router.post(
