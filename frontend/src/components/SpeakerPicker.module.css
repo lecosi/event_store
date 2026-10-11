@@ -1,0 +1,57 @@
+.picker {
+  margin-bottom: var(--space-3);
+}
+
+.picker > div {
+  margin-bottom: var(--space-2);
+}
+
+.selected {
+  margin: 0 0 var(--space-2);
+  color: var(--color-muted);
+}
+
+.results {
+  max-height: 14rem;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-muted);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover,
+.option:focus-visible {
+  background: var(--color-bg);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
+}
