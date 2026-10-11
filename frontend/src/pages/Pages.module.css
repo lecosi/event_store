@@ -42,8 +42,7 @@
 }
 
 .list {
-  margin: 0;
-  padding: 0;
+  margin-top: 0;
   list-style: none;
 }
 
@@ -55,6 +54,10 @@
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
+}
+
+.row:last-child {
+  border-bottom: none;
 }
 
 @media (min-width: 640px) {
