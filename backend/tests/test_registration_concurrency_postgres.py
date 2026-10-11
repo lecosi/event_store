@@ -22,9 +22,12 @@ THREADS = 12
 def seeded(clean_postgres: Engine) -> Iterator[int]:
     now = datetime.now(UTC)
     with Session(clean_postgres) as session:
-        users = [models.User(email=f"u{n}@x.com", password_hash="h") for n in range(THREADS)]
+        users = [
+            models.User(email=f"u{n}@x.com", full_name="Test User", password_hash="h")
+            for n in range(THREADS)
+        ]
         session.add_all(users)
-        organizer = models.User(email="org@x.com", password_hash="h")
+        organizer = models.User(email="org@x.com", full_name="Test User", password_hash="h")
         session.add(organizer)
         session.commit()
         event = models.Event(
@@ -55,7 +58,11 @@ def test_only_one_registration_wins_a_capacity_one_event(
                 SqlUnitOfWork(session),
             )
             user = UserAccount(
-                id=user_id, email=f"u{user_id}@x.com", password_hash="h", role=Role.ATTENDEE
+                id=user_id,
+                email=f"u{user_id}@x.com",
+                full_name="Test User",
+                password_hash="h",
+                role=Role.ATTENDEE,
             )
             try:
                 service.register(user, seeded)

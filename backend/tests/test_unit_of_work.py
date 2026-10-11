@@ -20,7 +20,7 @@ def test_repository_write_is_visible_to_other_connections_only_after_commit(
     session: Session,
 ) -> None:
     SqlUserRepository(session).add(
-        UserAccount(email="a@x.com", password_hash="h", role=Role.ATTENDEE)
+        UserAccount(email="a@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE)
     )
     with Session(session.get_bind()) as other:
         assert stored_users(other) == 0
@@ -32,7 +32,9 @@ def test_repository_write_is_visible_to_other_connections_only_after_commit(
 def test_rollback_discards_every_flushed_write(session: Session) -> None:
     users = SqlUserRepository(session)
     speakers = SqlSpeakerRepository(session)
-    users.add(UserAccount(email="a@x.com", password_hash="h", role=Role.ATTENDEE))
+    users.add(
+        UserAccount(email="a@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE)
+    )
     speakers.add(Speaker(name="Ada", bio="", email=None))
 
     SqlUnitOfWork(session).rollback()
@@ -44,14 +46,24 @@ def test_rollback_discards_every_flushed_write(session: Session) -> None:
 def test_duplicate_email_is_translated_at_flush_time(session: Session) -> None:
     users = SqlUserRepository(session)
     uow = SqlUnitOfWork(session)
-    users.add(UserAccount(email="a@x.com", password_hash="h", role=Role.ATTENDEE))
+    users.add(
+        UserAccount(email="a@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE)
+    )
     uow.commit()
 
     with pytest.raises(EmailAlreadyRegisteredError):
-        users.add(UserAccount(email="a@x.com", password_hash="h", role=Role.ATTENDEE))
+        users.add(
+            UserAccount(
+                email="a@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
+            )
+        )
 
     assert (
-        users.add(UserAccount(email="b@x.com", password_hash="h", role=Role.ATTENDEE)).id
+        users.add(
+            UserAccount(
+                email="b@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
+            )
+        ).id
         is not None
     )
 

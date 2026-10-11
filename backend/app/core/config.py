@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     jwt_secret: str = INSECURE_DEFAULT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    admin_full_name: str = "Administrator"
     cors_origins: str = "http://localhost:5173"
     redis_url: str | None = None
     cache_ttl_events_seconds: int = Field(default=60, gt=0)

@@ -30,6 +30,7 @@ def test_loads_demo_data_and_is_idempotent(demo_env: Session) -> None:
         SqlUnitOfWork(demo_env),
         "admin@example.com",
         "supersecret",
+        "Site Admin",
     )
     assert main() == 0
     demo_env.expire_all()
@@ -39,6 +40,7 @@ def test_loads_demo_data_and_is_idempotent(demo_env: Session) -> None:
     roles = {u.email: u.role for u in demo_env.exec(select(User)).all()}
     assert roles["admin@example.com"] is Role.ADMIN
     assert all(roles[email] is Role.ATTENDEE for email in ATTENDEE_EMAILS)
+    assert all(u.full_name.strip() for u in demo_env.exec(select(User)).all())
 
     assert main() == 0
     demo_env.expire_all()

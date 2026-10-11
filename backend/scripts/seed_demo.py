@@ -32,10 +32,14 @@ from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
 
 ATTENDEE_PASSWORD = "attendee123"
-ATTENDEE_EMAILS = [
-    "attendee@example.com",
-    *(f"attendee{n}@example.com" for n in range(1, 5)),
-]
+ATTENDEE_NAMES = {
+    "attendee@example.com": "Demo Attendee",
+    "attendee1@example.com": "Ana Perez",
+    "attendee2@example.com": "Luis Gomez",
+    "attendee3@example.com": "Maria Lopez",
+    "attendee4@example.com": "Carlos Ruiz",
+}
+ATTENDEE_EMAILS = list(ATTENDEE_NAMES)
 
 SPEAKERS = [
     SpeakerDetails("Grace Hopper", "Computer scientist and compiler pioneer.", "grace@example.com"),
@@ -84,9 +88,9 @@ def main() -> int:
         hasher = Argon2PasswordHasher()
         auth = AuthService(users, hasher, JwtTokenService("unused", "HS256", 1), uow)
         attendees = []
-        for email in ATTENDEE_EMAILS:
+        for email, full_name in ATTENDEE_NAMES.items():
             try:
-                attendees.append(auth.register(email, ATTENDEE_PASSWORD, Role.ATTENDEE))
+                attendees.append(auth.register(email, ATTENDEE_PASSWORD, full_name, Role.ATTENDEE))
             except EmailAlreadyRegisteredError:
                 account = users.get_by_email(email)
                 assert account is not None

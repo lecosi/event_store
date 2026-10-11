@@ -14,8 +14,15 @@ ME = "/api/v1/users/me"
 ADMIN_USERS = "/api/v1/admin/users"
 
 
-def register(client: TestClient, email: str = "ana@example.com", password: str = "supersecret"):
-    return client.post(REGISTER, json={"email": email, "password": password})
+def register(
+    client: TestClient,
+    email: str = "ana@example.com",
+    password: str = "supersecret",
+    full_name: str = "Ana Perez",
+):
+    return client.post(
+        REGISTER, json={"email": email, "password": password, "full_name": full_name}
+    )
 
 
 def login_headers(client: TestClient, email: str, password: str = "supersecret") -> dict[str, str]:
@@ -45,7 +52,13 @@ def test_register_ok_hides_password_and_stores_argon2(client: TestClient, sessio
 
 def test_register_ignores_role_sent_by_client(client: TestClient, session: Session) -> None:
     response = client.post(
-        REGISTER, json={"email": "eve@example.com", "password": "supersecret", "role": "admin"}
+        REGISTER,
+        json={
+            "email": "eve@example.com",
+            "password": "supersecret",
+            "full_name": "Eve Adams",
+            "role": "admin",
+        },
     )
     assert response.status_code == 201
     assert response.json()["role"] == "organizer"
@@ -60,6 +73,67 @@ def test_register_duplicate_email_conflicts(client: TestClient) -> None:
 def test_register_validation(client: TestClient) -> None:
     assert register(client, password="short").status_code == 422
     assert register(client, email="not-an-email").status_code == 422
+
+
+def test_register_returns_the_full_name(client: TestClient) -> None:
+    response = register(client, full_name="Ana Perez")
+    assert response.status_code == 201
+    assert response.json()["full_name"] == "Ana Perez"
+
+
+def test_register_requires_full_name(client: TestClient) -> None:
+    response = client.post(REGISTER, json={"email": "ana@example.com", "password": "supersecret"})
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("full_name", ["", "   ", "\t\n"])
+def test_register_rejects_blank_full_name(client: TestClient, full_name: str) -> None:
+    assert register(client, full_name=full_name).status_code == 422
+
+
+def test_register_rejects_full_name_longer_than_200_characters(client: TestClient) -> None:
+    assert register(client, full_name="a" * 201).status_code == 422
+
+
+def test_register_accepts_full_name_of_exactly_200_characters(client: TestClient) -> None:
+    response = register(client, full_name="a" * 200)
+    assert response.status_code == 201
+    assert response.json()["full_name"] == "a" * 200
+
+
+def test_register_trims_surrounding_whitespace_of_full_name(
+    client: TestClient, session: Session
+) -> None:
+    response = register(client, full_name="  Ana Perez  ")
+    assert response.json()["full_name"] == "Ana Perez"
+    assert session.exec(select(User)).one().full_name == "Ana Perez"
+
+
+def test_me_returns_the_full_name_after_login(client: TestClient) -> None:
+    register(client, full_name="Ana Perez")
+    response = client.get(ME, headers=login_headers(client, "ana@example.com"))
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Ana Perez"
+
+
+def test_admin_users_list_includes_full_names(client: TestClient, session: Session) -> None:
+    headers = make_user(client, session, "root@example.com", Role.ADMIN)
+    register(client, "ana@example.com", full_name="Ana Perez")
+    items = client.get(ADMIN_USERS, headers=headers).json()["items"]
+    assert {item["email"]: item["full_name"] for item in items} == {
+        "root@example.com": "Ana Perez",
+        "ana@example.com": "Ana Perez",
+    }
+
+
+def test_admin_update_response_includes_full_name(client: TestClient, session: Session) -> None:
+    headers = make_user(client, session, "root@example.com", Role.ADMIN)
+    created = register(client, "ana@example.com", full_name="Ana Perez").json()
+    response = client.patch(
+        f"{ADMIN_USERS}/{created['id']}", json={"role": "attendee"}, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Ana Perez"
 
 
 def test_login_ok(client: TestClient) -> None:
@@ -111,7 +185,9 @@ def test_require_role_allows_listed_roles(role: Role) -> None:
     from app.api.dependencies import require_role
     from app.domain.user import UserAccount
 
-    user = UserAccount(email="x@example.com", password_hash="h", role=role, id=1)
+    user = UserAccount(
+        email="x@example.com", full_name="Test User", password_hash="h", role=role, id=1
+    )
     assert require_role(Role.ADMIN, Role.ORGANIZER)(user) is user
 
 
@@ -121,7 +197,9 @@ def test_require_role_rejects_other_roles() -> None:
     from app.api.dependencies import require_role
     from app.domain.user import UserAccount
 
-    user = UserAccount(email="x@example.com", password_hash="h", role=Role.ATTENDEE, id=1)
+    user = UserAccount(
+        email="x@example.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE, id=1
+    )
     with pytest.raises(HTTPException) as excinfo:
         require_role(Role.ADMIN)(user)
     assert excinfo.value.status_code == 403

@@ -33,7 +33,12 @@ class SqlUserRepository:
         return [user_to_domain(row) for row in rows], total
 
     def add(self, user: UserAccount) -> UserAccount:
-        row = User(email=user.email, password_hash=user.password_hash, role=user.role)
+        row = User(
+            email=user.email,
+            full_name=user.full_name,
+            password_hash=user.password_hash,
+            role=user.role,
+        )
         self._session.add(row)
         try:
             self._session.flush()

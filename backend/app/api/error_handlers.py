@@ -18,6 +18,7 @@ from app.application.errors import (
 from app.domain.event import EventStateError, EventValidationError
 from app.domain.registration import NotRegisteredError, RegistrationConflictError
 from app.domain.session import SessionConflictError, SessionValidationError
+from app.domain.user import InvalidFullNameError
 
 SELF_LOCKOUT_DETAIL = "Admins cannot demote or deactivate their own account"
 
@@ -40,6 +41,7 @@ ERROR_RESPONSES: dict[type[Exception], ErrorResponse] = {
     PermissionDeniedError: ErrorResponse(status.HTTP_403_FORBIDDEN, "Insufficient permissions"),
     EventValidationError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
     SessionValidationError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
+    InvalidFullNameError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
     EventStateError: ErrorResponse(status.HTTP_409_CONFLICT),
     SessionConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     RegistrationConflictError: ErrorResponse(status.HTTP_409_CONFLICT),

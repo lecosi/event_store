@@ -18,7 +18,7 @@ from app.application.ports import (
     transaction,
 )
 from app.domain.enums import Role
-from app.domain.user import UserAccount, UserPage, validate_password
+from app.domain.user import UserAccount, UserPage, normalize_full_name, validate_password
 
 
 def normalize_email(email: str) -> str:
@@ -34,13 +34,21 @@ class AuthService:
         self._tokens = tokens
         self._uow = uow
 
-    def register(self, email: str, password: str, role: Role = Role.ORGANIZER) -> UserAccount:
+    def register(
+        self, email: str, password: str, full_name: str, role: Role = Role.ORGANIZER
+    ) -> UserAccount:
         validate_password(password)
+        full_name = normalize_full_name(full_name)
         email = normalize_email(email)
         with transaction(self._uow):
             if self._users.get_by_email(email) is not None:
                 raise EmailAlreadyRegisteredError(email)
-            account = UserAccount(email=email, password_hash=self._hasher.hash(password), role=role)
+            account = UserAccount(
+                email=email,
+                full_name=full_name,
+                password_hash=self._hasher.hash(password),
+                role=role,
+            )
             return self._users.add(account)
 
     def login(self, email: str, password: str) -> str:

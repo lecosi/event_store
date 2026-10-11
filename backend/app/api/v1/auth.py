@@ -21,9 +21,10 @@ def register(body: RegisterRequest, auth: AuthService = Depends(get_auth_service
 
     The new user always gets the `organizer` role (the client cannot choose a role), so it can
     create and manage its own events; an admin can change it later.
-    The password must have at least 8 characters and the email must be unique.
+    The password must have at least 8 characters, the email must be unique and the full name
+    is required (1 to 200 characters, surrounding whitespace is trimmed).
     """
-    return auth.register(body.email, body.password)
+    return auth.register(body.email, body.password, body.full_name)
 
 
 @router.post(
@@ -49,5 +50,5 @@ def login(body: LoginRequest, auth: AuthService = Depends(get_auth_service)) -> 
     responses=UNAUTHORIZED,
 )
 def read_me(user: UserAccount = Depends(get_current_user)) -> UserAccount:
-    """Return the profile (id, email, role, active flag) of the authenticated user."""
+    """Return the profile (id, email, full name, role, active flag) of the authenticated user."""
     return user

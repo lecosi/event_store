@@ -16,6 +16,7 @@ class User(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(max_length=255, unique=True, index=True)
+    full_name: str = Field(max_length=200)
     password_hash: str = Field(max_length=255)
     role: Role = Field(default=Role.ATTENDEE)
     is_active: bool = Field(default=True)

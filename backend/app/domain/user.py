@@ -6,6 +6,7 @@ from math import ceil
 from app.domain.enums import Role
 
 MIN_PASSWORD_LENGTH = 8
+MAX_FULL_NAME_LENGTH = 200
 
 
 class WeakPasswordError(ValueError):
@@ -17,9 +18,26 @@ def validate_password(password: str) -> None:
         raise WeakPasswordError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters long")
 
 
+class InvalidFullNameError(ValueError):
+    """Raised when a full name is blank or longer than the allowed length."""
+
+
+def normalize_full_name(full_name: str) -> str:
+    """Return the trimmed full name, or raise InvalidFullNameError if it is not valid."""
+    trimmed = full_name.strip()
+    if not trimmed:
+        raise InvalidFullNameError("Full name must not be blank")
+    if len(trimmed) > MAX_FULL_NAME_LENGTH:
+        raise InvalidFullNameError(
+            f"Full name must be at most {MAX_FULL_NAME_LENGTH} characters long"
+        )
+    return trimmed
+
+
 @dataclass
 class UserAccount:
     email: str
+    full_name: str
     password_hash: str
     role: Role = Role.ATTENDEE
     is_active: bool = True

@@ -28,13 +28,17 @@ def payload(**overrides: object) -> dict[str, object]:
 
 
 def make_user(client: TestClient, session: Session, email: str, role: Role) -> dict[str, str]:
-    client.post("/api/v1/auth/register", json={"email": email, "password": "supersecret"})
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "supersecret", "full_name": "Test User"},
+    )
     user = session.exec(select(User).where(User.email == email)).one()
     user.role = role
     session.add(user)
     session.commit()
     token = client.post(
-        "/api/v1/auth/login", json={"email": email, "password": "supersecret"}
+        "/api/v1/auth/login",
+        json={"email": email, "password": "supersecret", "full_name": "Test User"},
     ).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -123,7 +127,7 @@ def test_update_capacity_below_registrations_conflicts(
     headers = organizer(client, session)
     event = create(client, headers, capacity=10)
     for number in range(3):
-        attendee = User(email=f"u{number}@example.com", password_hash="x")
+        attendee = User(email=f"u{number}@example.com", full_name="Test User", password_hash="x")
         session.add(attendee)
         session.commit()
         session.refresh(attendee)

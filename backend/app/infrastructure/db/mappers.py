@@ -55,6 +55,7 @@ def user_to_domain(row: UserRow) -> UserAccount:
     return UserAccount(
         id=row.id,
         email=row.email,
+        full_name=row.full_name,
         password_hash=row.password_hash,
         role=row.role,
         is_active=row.is_active,

@@ -19,7 +19,9 @@ NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
 
 def user(user_id: int, role: Role = Role.ATTENDEE) -> UserAccount:
-    return UserAccount(id=user_id, email=f"u{user_id}@x.com", password_hash="h", role=role)
+    return UserAccount(
+        id=user_id, email=f"u{user_id}@x.com", full_name="Test User", password_hash="h", role=role
+    )
 
 
 @pytest.fixture

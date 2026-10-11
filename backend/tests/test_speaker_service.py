@@ -14,9 +14,15 @@ from app.domain.user import UserAccount
 from tests.fakes import FakeSessionRepository, FakeSpeakerRepository, FakeUnitOfWork
 from tests.test_session_service import BASE, at
 
-ORGANIZER = UserAccount(id=1, email="o@x.com", password_hash="h", role=Role.ORGANIZER)
-ADMIN = UserAccount(id=3, email="a@x.com", password_hash="h", role=Role.ADMIN)
-ATTENDEE = UserAccount(id=4, email="t@x.com", password_hash="h", role=Role.ATTENDEE)
+ORGANIZER = UserAccount(
+    id=1, email="o@x.com", full_name="Test User", password_hash="h", role=Role.ORGANIZER
+)
+ADMIN = UserAccount(
+    id=3, email="a@x.com", full_name="Test User", password_hash="h", role=Role.ADMIN
+)
+ATTENDEE = UserAccount(
+    id=4, email="t@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
+)
 
 
 def details(**overrides: object) -> SpeakerDetails:

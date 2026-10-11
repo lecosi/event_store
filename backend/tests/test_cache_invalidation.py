@@ -26,8 +26,12 @@ from tests.fakes import (
 )
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
-OWNER = UserAccount(id=1, email="o@x.com", password_hash="h", role=Role.ORGANIZER)
-ATTENDEE = UserAccount(id=4, email="t@x.com", password_hash="h", role=Role.ATTENDEE)
+OWNER = UserAccount(
+    id=1, email="o@x.com", full_name="Test User", password_hash="h", role=Role.ORGANIZER
+)
+ATTENDEE = UserAccount(
+    id=4, email="t@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
+)
 
 
 class CommitAwareCache(FakeCache):

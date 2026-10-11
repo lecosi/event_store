@@ -11,10 +11,18 @@ from tests.fakes import FakeEventRepository, FakeUnitOfWork
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
-OWNER = UserAccount(id=1, email="o@x.com", password_hash="h", role=Role.ORGANIZER)
-OTHER = UserAccount(id=2, email="p@x.com", password_hash="h", role=Role.ORGANIZER)
-ADMIN = UserAccount(id=3, email="a@x.com", password_hash="h", role=Role.ADMIN)
-ATTENDEE = UserAccount(id=4, email="t@x.com", password_hash="h", role=Role.ATTENDEE)
+OWNER = UserAccount(
+    id=1, email="o@x.com", full_name="Test User", password_hash="h", role=Role.ORGANIZER
+)
+OTHER = UserAccount(
+    id=2, email="p@x.com", full_name="Test User", password_hash="h", role=Role.ORGANIZER
+)
+ADMIN = UserAccount(
+    id=3, email="a@x.com", full_name="Test User", password_hash="h", role=Role.ADMIN
+)
+ATTENDEE = UserAccount(
+    id=4, email="t@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
+)
 
 
 def details(**overrides: object) -> EventDetails:
