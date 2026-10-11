@@ -8,6 +8,7 @@ export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished'
 export interface User {
   id: number
   email: string
+  full_name: string
   role: Role
   is_active: boolean
 }

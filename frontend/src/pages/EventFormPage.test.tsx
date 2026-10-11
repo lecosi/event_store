@@ -33,7 +33,7 @@ const detail = (overrides: Partial<EventDetail> = {}): EventDetail => ({
 function loginAs(role: Role, id = 1) {
   useAuthStore.setState({
     token: 'tok',
-    user: { id, email: 'ana@example.com', role, is_active: true },
+    user: { id, email: 'ana@example.com', full_name: 'Ana Pérez', role, is_active: true },
   })
 }
 

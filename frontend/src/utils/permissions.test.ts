@@ -8,7 +8,13 @@ import {
   nextStatuses,
 } from './permissions'
 
-const userWith = (role: Role): User => ({ id: 1, email: 'a@b.co', role, is_active: true })
+const userWith = (role: Role): User => ({
+  id: 1,
+  email: 'a@b.co',
+  full_name: 'Ana Pérez',
+  role,
+  is_active: true,
+})
 
 describe('canCreateEvents', () => {
   it.each<Role>(['admin', 'organizer'])('allows an %s', (role) => {
@@ -29,6 +35,7 @@ describe('canManageEvent', () => {
   const userWithId = (role: Role, id: number): User => ({
     id,
     email: 'a@b.co',
+    full_name: 'Ana Pérez',
     role,
     is_active: true,
   })

@@ -4,7 +4,13 @@ import type { User } from '../types'
 
 vi.mock('../api/auth')
 
-const user: User = { id: 1, email: 'ana@example.com', role: 'attendee', is_active: true }
+const user: User = {
+  id: 1,
+  email: 'ana@example.com',
+  full_name: 'Ana Pérez',
+  role: 'attendee',
+  is_active: true,
+}
 
 async function freshStore() {
   vi.resetModules()
@@ -67,8 +73,8 @@ describe('authStore', () => {
     vi.mocked(authApi.login).mockResolvedValue({ access_token: 'tok', token_type: 'bearer' })
     vi.mocked(authApi.fetchMe).mockResolvedValue(user)
     const store = await freshStore()
-    await store.getState().register(user.email, 'secret123')
-    expect(authApi.register).toHaveBeenCalledWith(user.email, 'secret123')
+    await store.getState().register(user.email, 'secret123', user.full_name)
+    expect(authApi.register).toHaveBeenCalledWith(user.email, 'secret123', user.full_name)
     expect(store.getState().user).toEqual(user)
   })
 

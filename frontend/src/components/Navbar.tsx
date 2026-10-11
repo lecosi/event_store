@@ -25,7 +25,7 @@ export function Navbar() {
             )}
             {canCreateEvents(user) && <NavLink to="/speakers/new">{es.nav.newSpeaker}</NavLink>}
             <NavLink to="/profile">{es.nav.myEvents}</NavLink>
-            {user && <span className={styles.email}>{user.email}</span>}
+            {user && <span className={styles.userName}>{user.full_name}</span>}
             <Button variant="secondary" onClick={logout}>
               {es.nav.logout}
             </Button>

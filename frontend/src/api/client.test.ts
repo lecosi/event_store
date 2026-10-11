@@ -219,6 +219,23 @@ describe('422 validation errors', () => {
       },
       'El campo Nombre debe tener al menos 1 carácter.',
     ],
+    [{ loc: ['body', 'full_name'], type: 'missing' }, 'El campo Nombre completo es obligatorio.'],
+    [
+      {
+        loc: ['body', 'full_name'],
+        type: 'string_too_long',
+        ctx: { max_length: 200 },
+      },
+      'El campo Nombre completo no puede tener más de 200 caracteres.',
+    ],
+    [
+      {
+        loc: ['body', 'full_name'],
+        type: 'string_too_short',
+        ctx: { min_length: 1 },
+      },
+      'El campo Nombre completo debe tener al menos 1 carácter.',
+    ],
     [
       {
         loc: ['body', 'password'],

@@ -6,7 +6,13 @@ import type { Role, User } from '../types'
 import { Navbar } from './Navbar'
 
 function loggedInAs(role: Role) {
-  const user: User = { id: 1, email: 'ana@example.com', role, is_active: true }
+  const user: User = {
+    id: 1,
+    email: 'ana@example.com',
+    full_name: 'Ana Pérez',
+    role,
+    is_active: true,
+  }
   useAuthStore.setState({ token: 'tok', user })
 }
 
@@ -35,14 +41,20 @@ describe('Navbar', () => {
     expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).not.toBeInTheDocument()
   })
 
-  it('shows profile, email and logout to an attendee without creation links', () => {
+  it('shows profile, full name and logout to an attendee without creation links', () => {
     loggedInAs('attendee')
     renderNavbar()
     expect(screen.getByRole('link', { name: 'Mis eventos' })).toHaveAttribute('href', '/profile')
-    expect(screen.getByText('ana@example.com')).toBeInTheDocument()
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Nuevo evento' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Nuevo ponente' })).not.toBeInTheDocument()
+  })
+
+  it('does not show the email of the user', () => {
+    loggedInAs('attendee')
+    renderNavbar()
+    expect(screen.queryByText('ana@example.com')).not.toBeInTheDocument()
   })
 
   it.each<Role>(['organizer', 'admin'])('shows the creation links to an %s', (role) => {

@@ -15,7 +15,7 @@ vi.mock('../api/speakers')
 function loginAs(role: Role) {
   useAuthStore.setState({
     token: 'tok',
-    user: { id: 1, email: 'ana@example.com', role, is_active: true },
+    user: { id: 1, email: 'ana@example.com', full_name: 'Ana Pérez', role, is_active: true },
   })
 }
 

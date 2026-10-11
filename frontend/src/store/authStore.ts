@@ -26,7 +26,7 @@ interface AuthState {
   token: string | null
   user: User | null
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, fullName: string) => Promise<void>
   logout: () => void
   /** Fetches the profile of the current token. */
   loadMe: () => Promise<void>
@@ -52,8 +52,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   // The API returns the created user but no token, so log in right after.
-  register: async (email, password) => {
-    await authApi.register(email, password)
+  register: async (email, password, fullName) => {
+    await authApi.register(email, password, fullName)
     await get().login(email, password)
   },
 

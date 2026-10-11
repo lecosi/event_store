@@ -71,7 +71,10 @@ export default function ProfilePage() {
         <h1>{es.profile.title}</h1>
       </div>
       {user && (
-        <p className={styles.muted}>{es.profile.summary(user.email, roleLabel(user.role))}</p>
+        <>
+          <h2 className={styles.fullName}>{user.full_name}</h2>
+          <p className={styles.muted}>{es.profile.summary(user.email, roleLabel(user.role))}</p>
+        </>
       )}
       {current === null && <Spinner />}
       <ErrorMessage message={current?.error} />

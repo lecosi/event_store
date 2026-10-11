@@ -26,11 +26,12 @@ describe('App', () => {
     vi.mocked(authApi.fetchMe).mockResolvedValue({
       id: 1,
       email: 'ana@example.com',
+      full_name: 'Ana Pérez',
       role: 'attendee',
       is_active: true,
     })
     render(<App />)
-    expect(await screen.findByText('ana@example.com')).toBeInTheDocument()
+    expect(await screen.findByText('Ana Pérez')).toBeInTheDocument()
     expect(authApi.fetchMe).toHaveBeenCalledTimes(1)
   })
 

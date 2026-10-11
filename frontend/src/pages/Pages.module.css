@@ -13,6 +13,11 @@
   overflow-wrap: anywhere;
 }
 
+.fullName {
+  margin: 0 0 var(--space-1);
+  overflow-wrap: anywhere;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;

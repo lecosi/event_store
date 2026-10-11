@@ -42,7 +42,7 @@ const pageOf = (items: RegisteredEvent[], page = 1, pages = 1): Page<RegisteredE
 function loginAs(role: Role = 'attendee') {
   useAuthStore.setState({
     token: 'tok',
-    user: { id: 7, email: 'ana@example.com', role, is_active: true },
+    user: { id: 7, email: 'ana@example.com', full_name: 'Ana Pérez', role, is_active: true },
   })
 }
 
@@ -75,6 +75,12 @@ describe('ProfilePage', () => {
     useAuthStore.setState({ token: null, user: null })
     const router = renderPage()
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+  })
+
+  it('shows the full name prominently', async () => {
+    loginAs('organizer')
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Ana Pérez' })).toBeInTheDocument()
   })
 
   it('shows the email and the role label of the user', async () => {

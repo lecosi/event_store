@@ -28,6 +28,7 @@ function backendAcceptsLogin(role: Role = 'organizer') {
   vi.mocked(authApi.fetchMe).mockResolvedValue({
     id: 1,
     email: 'ana@example.com',
+    full_name: 'Ana Pérez',
     role,
     is_active: true,
   })

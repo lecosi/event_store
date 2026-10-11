@@ -5,10 +5,16 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { Input } from '../components/Input'
 import { es } from '../i18n'
 import { useAuthStore } from '../store/authStore'
-import { validateConfirmation, validateEmail, validatePassword } from '../utils/validation'
+import {
+  validateConfirmation,
+  validateEmail,
+  validateFullName,
+  validatePassword,
+} from '../utils/validation'
 import styles from './AuthForm.module.css'
 
 interface FieldErrors {
+  fullName?: string | null
   email?: string | null
   password?: string | null
   confirm?: string | null
@@ -18,6 +24,7 @@ export default function RegisterPage() {
   const register = useAuthStore((s) => s.register)
   const navigate = useNavigate()
 
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -30,6 +37,7 @@ export default function RegisterPage() {
     setSubmitError(null)
 
     const nextErrors: FieldErrors = {
+      fullName: validateFullName(fullName),
       email: validateEmail(email),
       password: validatePassword(password),
       confirm: validateConfirmation(password, confirm),
@@ -40,7 +48,7 @@ export default function RegisterPage() {
     setSubmitting(true)
     try {
       // The store creates the account and then logs in with the same credentials.
-      await register(email.trim(), password)
+      await register(email.trim(), password, fullName.trim())
       navigate('/', { replace: true })
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : es.auth.register.failed)
@@ -53,6 +61,14 @@ export default function RegisterPage() {
       <h1>{es.auth.register.title}</h1>
       <ErrorMessage message={submitError} />
       <form onSubmit={handleSubmit} noValidate>
+        <Input
+          label={es.fields.full_name}
+          type="text"
+          autoComplete="name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          error={errors.fullName}
+        />
         <Input
           label={es.fields.email}
           type="email"

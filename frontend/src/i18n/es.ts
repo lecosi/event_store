@@ -162,6 +162,8 @@ export const es = {
     invalidEmail: 'Ingresa un correo electrónico válido',
     passwordMin: (n: number) => `La contraseña debe tener al menos ${n} caracteres`,
     passwordMismatch: 'Las contraseñas no coinciden',
+    fullNameRequired: 'El nombre completo es obligatorio',
+    fullNameMax: (n: number) => `El nombre completo debe tener como máximo ${n} caracteres`,
     nameRequired: 'El nombre es obligatorio',
     nameMax: (n: number) => `El nombre debe tener como máximo ${n} caracteres`,
     locationRequired: 'El lugar es obligatorio',
@@ -187,6 +189,7 @@ export const es = {
   fields: {
     email: 'Correo electrónico',
     password: 'Contraseña',
+    full_name: 'Nombre completo',
     name: 'Nombre',
     bio: 'Biografía',
     capacity: 'Capacidad',
