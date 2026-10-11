@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from app.application.errors import (
@@ -6,7 +7,7 @@ from app.application.errors import (
     InvalidTokenError,
 )
 from app.application.ports import RegistrationRule
-from app.domain.enums import EventStatus, Role
+from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters
 from app.domain.registration import AlreadyRegisteredError, RegisteredEvent, Registration
 from app.domain.session import Session
@@ -44,14 +45,13 @@ class FakeUserRepository:
         start = (page - 1) * size
         return users[start : start + size], len(users)
 
-    def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
-        if self.get_by_email(email):
-            raise EmailAlreadyRegisteredError(email)
-        user = UserAccount(
-            email=email, password_hash=password_hash, role=role, id=len(self._by_id) + 1
-        )
-        self._by_id[user.id] = user
-        return user
+    def add(self, user: UserAccount) -> UserAccount:
+        if self.get_by_email(user.email):
+            raise EmailAlreadyRegisteredError(user.email)
+        stored = replace(user, id=len(self._by_id) + 1)
+        assert stored.id is not None
+        self._by_id[stored.id] = stored
+        return stored
 
     def save(self, user: UserAccount) -> UserAccount:
         assert user.id is not None

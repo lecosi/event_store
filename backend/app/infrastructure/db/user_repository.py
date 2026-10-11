@@ -2,7 +2,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, func, select
 
 from app.application.errors import EmailAlreadyRegisteredError
-from app.domain.enums import Role
 from app.domain.user import UserAccount
 from app.infrastructure.db.mappers import user_to_domain
 from app.infrastructure.db.models import User
@@ -33,14 +32,14 @@ class SqlUserRepository:
         ).all()
         return [user_to_domain(row) for row in rows], total
 
-    def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
-        row = User(email=email, password_hash=password_hash, role=role)
+    def add(self, user: UserAccount) -> UserAccount:
+        row = User(email=user.email, password_hash=user.password_hash, role=user.role)
         self._session.add(row)
         try:
             self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
-            raise EmailAlreadyRegisteredError(email) from exc
+            raise EmailAlreadyRegisteredError(user.email) from exc
         self._session.refresh(row)
         return user_to_domain(row)
 

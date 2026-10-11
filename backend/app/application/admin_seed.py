@@ -15,7 +15,8 @@ def ensure_admin(
     existing = users.get_by_email(email)
     if existing is None:
         with transaction(uow):
-            return users.add(email, hasher.hash(password), Role.ADMIN)
+            account = UserAccount(email=email, password_hash=hasher.hash(password), role=Role.ADMIN)
+            return users.add(account)
     if existing.role is not Role.ADMIN:
         existing.role = Role.ADMIN
         with transaction(uow):

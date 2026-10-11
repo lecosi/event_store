@@ -2,6 +2,7 @@ import pytest
 
 from app.application.admin_seed import ensure_admin
 from app.domain.enums import Role
+from app.domain.user import UserAccount
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
 from tests.fakes import FakeUnitOfWork, FakeUserRepository
 
@@ -17,7 +18,13 @@ def test_creates_admin_with_hashed_password() -> None:
 
 def test_is_idempotent_and_promotes_existing_user() -> None:
     users, hasher = FakeUserRepository(), Argon2PasswordHasher()
-    users.add("admin@example.com", hasher.hash("supersecret"), Role.ATTENDEE)
+    users.add(
+        UserAccount(
+            email="admin@example.com",
+            password_hash=hasher.hash("supersecret"),
+            role=Role.ATTENDEE,
+        )
+    )
     uow = FakeUnitOfWork()
     admin = ensure_admin(users, hasher, uow, "admin@example.com", "supersecret")
     assert admin.role is Role.ADMIN
@@ -49,7 +56,11 @@ def test_creating_admin_commits_once() -> None:
 
 def test_existing_admin_is_left_untouched_without_commit() -> None:
     users, hasher, uow = FakeUserRepository(), Argon2PasswordHasher(), FakeUnitOfWork()
-    users.add("a@example.com", hasher.hash("supersecret"), Role.ADMIN)
+    users.add(
+        UserAccount(
+            email="a@example.com", password_hash=hasher.hash("supersecret"), role=Role.ADMIN
+        )
+    )
     ensure_admin(users, hasher, uow, "a@example.com", "supersecret")
     assert uow.commits == 0
 

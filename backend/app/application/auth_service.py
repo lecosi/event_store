@@ -40,7 +40,8 @@ class AuthService:
         with transaction(self._uow):
             if self._users.get_by_email(email) is not None:
                 raise EmailAlreadyRegisteredError(email)
-            return self._users.add(email, self._hasher.hash(password), role)
+            account = UserAccount(email=email, password_hash=self._hasher.hash(password), role=role)
+            return self._users.add(account)
 
     def login(self, email: str, password: str) -> str:
         user = self._users.get_by_email(normalize_email(email))

@@ -9,7 +9,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Protocol
 
-from app.domain.enums import Role
 from app.domain.event import Event, EventFilters
 from app.domain.registration import RegisteredEvent, Registration
 from app.domain.session import Session
@@ -50,7 +49,7 @@ class UserRepository(Protocol):
         """Return the requested page (ordered by id) and the total number of users."""
         ...
 
-    def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
+    def add(self, user: UserAccount) -> UserAccount:
         """Stage a new user; raise EmailAlreadyRegisteredError on duplicate email."""
         ...
 
