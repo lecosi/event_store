@@ -1,9 +1,8 @@
 """Registration use cases. Depend only on ports and pure domain rules."""
 
-from collections.abc import Callable
-from datetime import UTC, datetime
 from functools import partial
 
+from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError
 from app.application.ports import EventRepository, RegistrationRepository, UnitOfWork, transaction
 from app.domain.enums import Role
@@ -20,17 +19,13 @@ from app.domain.registration import (
 from app.domain.user import UserAccount
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
 class RegistrationService:
     def __init__(
         self,
         events: EventRepository,
         registrations: RegistrationRepository,
         uow: UnitOfWork,
-        clock: Callable[[], datetime] = _utcnow,
+        clock: Clock = utc_now,
     ) -> None:
         self._events = events
         self._registrations = registrations

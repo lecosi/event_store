@@ -1,8 +1,6 @@
 """Event use cases. Depend only on ports and pure domain rules."""
 
-from collections.abc import Callable
-from datetime import UTC, datetime
-
+from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.ports import EventRepository, UnitOfWork, transaction
 from app.domain.enums import EventStatus, Role
@@ -25,16 +23,12 @@ from app.domain.user import UserAccount
 ORGANIZING_ROLES = (Role.ORGANIZER, Role.ADMIN)
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
 class EventService:
     def __init__(
         self,
         events: EventRepository,
         uow: UnitOfWork,
-        clock: Callable[[], datetime] = _utcnow,
+        clock: Clock = utc_now,
     ) -> None:
         self._events = events
         self._uow = uow

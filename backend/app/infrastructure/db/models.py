@@ -1,17 +1,14 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from app.application.clock import utc_now
 from app.domain.enums import EventStatus, Role
 
 # Field(sa_type=...) is typed as a type, but SQLAlchemy accepts type instances.
 _TZ_DATETIME: Any = DateTime(timezone=True)
-
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 class User(SQLModel, table=True):
@@ -75,4 +72,4 @@ class Registration(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
-    created_at: datetime = Field(default_factory=utcnow, sa_type=_TZ_DATETIME)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=_TZ_DATETIME)

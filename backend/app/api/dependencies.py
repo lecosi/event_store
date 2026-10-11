@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session
 
 from app.application.auth_service import AuthService, UserAdminService
+from app.application.clock import utc_now
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
 from app.application.ports import (
@@ -52,7 +53,10 @@ def get_password_hasher() -> PasswordHasher:
 
 def get_token_service(settings: Settings = Depends(get_settings)) -> TokenService:
     return JwtTokenService(
-        settings.jwt_secret, settings.jwt_algorithm, settings.access_token_expire_minutes
+        settings.jwt_secret,
+        settings.jwt_algorithm,
+        settings.access_token_expire_minutes,
+        clock=utc_now,
     )
 
 

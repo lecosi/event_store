@@ -1,20 +1,24 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import jwt
 
+from app.application.clock import Clock, utc_now
 from app.application.errors import InvalidTokenError
 
 
 class JwtTokenService:
     """Signed, expiring JWT access tokens (implements the TokenService port)."""
 
-    def __init__(self, secret: str, algorithm: str, expire_minutes: int) -> None:
+    def __init__(
+        self, secret: str, algorithm: str, expire_minutes: int, clock: Clock = utc_now
+    ) -> None:
         self._secret = secret
         self._algorithm = algorithm
         self._expire = timedelta(minutes=expire_minutes)
+        self._clock = clock
 
     def create_access_token(self, user_id: int) -> str:
-        now = datetime.now(UTC)
+        now = self._clock()
         claims = {"sub": str(user_id), "iat": now, "exp": now + self._expire}
         return jwt.encode(claims, self._secret, algorithm=self._algorithm)
 
