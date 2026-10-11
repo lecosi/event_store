@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.dependencies import (
     get_event_service,
@@ -25,12 +25,11 @@ from app.api.openapi_responses import (
     conflict,
 )
 from app.api.speaker_schemas import SessionResponse
-from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
 from app.application.registration_service import RegistrationService
 from app.application.session_service import SessionService
 from app.domain.enums import EventStatus, Role
-from app.domain.event import Event, EventDetails, EventStateError, EventValidationError
+from app.domain.event import Event, EventDetails
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -54,21 +53,6 @@ def _detail(
     return EventDetailResponse(**base.model_dump(), sessions=items, **asdict(availability))
 
 
-def _translate(exc: Exception) -> HTTPException:
-    if isinstance(exc, EventNotFoundError):
-        return HTTPException(status.HTTP_404_NOT_FOUND, detail="Event not found")
-    if isinstance(exc, PermissionDeniedError):
-        return HTTPException(status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-    if isinstance(exc, EventValidationError):
-        return HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
-    if isinstance(exc, EventStateError):
-        return HTTPException(status.HTTP_409_CONFLICT, detail=str(exc))
-    raise exc
-
-
-HANDLED = (EventNotFoundError, PermissionDeniedError, EventValidationError, EventStateError)
-
-
 @router.post(
     "",
     response_model=EventDetailResponse,
@@ -88,10 +72,7 @@ def create_event(
     The event starts in `draft` status (not public until published). Business rules (422):
     `start_at` must be in the future, `end_at` after `start_at`, and `capacity` at least 1.
     """
-    try:
-        return _detail(service.create(user, _details(body)), sessions, registrations, user)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return _detail(service.create(user, _details(body)), sessions, registrations, user)
 
 
 @router.get("", response_model=EventPageResponse, summary="Search and list events")
@@ -158,10 +139,7 @@ def get_event(
     answer 404, exactly as if they did not exist. With a token, `is_registered` tells whether
     the caller is registered.
     """
-    try:
-        return _detail(service.get(event_id, viewer), sessions, registrations, viewer)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return _detail(service.get(event_id, viewer), sessions, registrations, viewer)
 
 
 @router.put(
@@ -191,12 +169,7 @@ def update_event(
     lower than the current registrations or than the largest session; the new dates must still
     contain every existing session. Invalid dates or capacity answer 422.
     """
-    try:
-        return _detail(
-            service.update(user, event_id, _details(body)), sessions, registrations, user
-        )
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return _detail(service.update(user, event_id, _details(body)), sessions, registrations, user)
 
 
 @router.patch(
@@ -233,12 +206,9 @@ def change_event_status(
 
     Any other transition answers 409.
     """
-    try:
-        return _detail(
-            service.change_status(user, event_id, body.status), sessions, registrations, user
-        )
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return _detail(
+        service.change_status(user, event_id, body.status), sessions, registrations, user
+    )
 
 
 @router.delete(
@@ -253,8 +223,5 @@ def delete_event(
     service: EventService = Depends(get_event_service),
 ) -> Response:
     """Permanently delete an event and its sessions. Only its organizer or an admin."""
-    try:
-        service.delete(user, event_id)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    service.delete(user, event_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,17 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.dependencies import get_user_admin_service, require_role
+from app.api.error_handlers import SELF_LOCKOUT_DETAIL
 from app.api.openapi_params import PageNumber, PageSize, UserId
 from app.api.openapi_responses import ORGANIZER_OR_ADMIN, USER_NOT_FOUND, combine, conflict
 from app.api.schemas import UserResponse
 from app.application.auth_service import UserAdminService
-from app.application.errors import SelfLockoutError, UserNotFoundError
 from app.domain.enums import Role
 from app.domain.user import UserAccount
 
 require_admin = require_role(Role.ADMIN)
-SELF_LOCKOUT_DETAIL = "Admins cannot demote or deactivate their own account"
 
 
 class UserPageResponse(BaseModel):
@@ -88,9 +87,4 @@ def update_user(
     An admin cannot change their own role away from `admin` nor deactivate themselves (409);
     another admin has to do it.
     """
-    try:
-        return service.update_user(actor, user_id, role=body.role, is_active=body.is_active)
-    except UserNotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found") from exc
-    except SelfLockoutError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=SELF_LOCKOUT_DETAIL) from exc
+    return service.update_user(actor, user_id, role=body.role, is_active=body.is_active)

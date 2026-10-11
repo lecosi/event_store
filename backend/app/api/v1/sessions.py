@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.dependencies import (
     get_event_service,
@@ -15,12 +15,10 @@ from app.api.openapi_responses import (
     conflict,
 )
 from app.api.speaker_schemas import SessionRequest, SessionResponse
-from app.application.errors import EventNotFoundError, PermissionDeniedError, SessionNotFoundError
 from app.application.event_service import EventService
 from app.application.session_service import SessionService
 from app.domain.enums import Role
-from app.domain.event import EventStateError
-from app.domain.session import SessionConflictError, SessionDetails, SessionValidationError
+from app.domain.session import SessionDetails
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
@@ -32,32 +30,9 @@ SESSION_CONFLICT = conflict(
     "the speaker already has a session in that time slot",
 )
 
-HANDLED = (
-    EventNotFoundError,
-    SessionNotFoundError,
-    PermissionDeniedError,
-    SessionValidationError,
-    SessionConflictError,
-    EventStateError,
-)
-
 
 def _details(body: SessionRequest) -> SessionDetails:
     return SessionDetails(**body.model_dump())
-
-
-def _translate(exc: Exception) -> HTTPException:
-    if isinstance(exc, EventNotFoundError):
-        return HTTPException(status.HTTP_404_NOT_FOUND, detail="Event not found")
-    if isinstance(exc, SessionNotFoundError):
-        return HTTPException(status.HTTP_404_NOT_FOUND, detail="Session not found")
-    if isinstance(exc, PermissionDeniedError):
-        return HTTPException(status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-    if isinstance(exc, SessionValidationError):
-        return HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
-    if isinstance(exc, SessionConflictError | EventStateError):
-        return HTTPException(status.HTTP_409_CONFLICT, detail=str(exc))
-    raise exc
 
 
 @router.get(
@@ -77,11 +52,8 @@ def list_sessions(
     Follows the event visibility: sessions of a non-published event are only listed to its
     organizer and admins, anyone else gets 404.
     """
-    try:
-        events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
-        return [SessionResponse.from_domain(s) for s in service.list_for_event(event_id)]
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
+    return [SessionResponse.from_domain(s) for s in service.list_for_event(event_id)]
 
 
 @router.post(
@@ -104,11 +76,8 @@ def create_session(
     or `finished`, or the speaker already has an overlapping session (sessions that merely
     touch, one ending when the next starts, do not overlap).
     """
-    try:
-        created = service.create(user, event_id, _details(body))
-        return SessionResponse.from_domain(service.get_with_speaker(created))
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    created = service.create(user, event_id, _details(body))
+    return SessionResponse.from_domain(service.get_with_speaker(created))
 
 
 @router.put(
@@ -129,11 +98,8 @@ def update_session(
     Same rules as creating a session; the session keeps its own slot when checking for
     speaker overlaps. 404 when the session does not belong to the event.
     """
-    try:
-        updated = service.update(user, event_id, session_id, _details(body))
-        return SessionResponse.from_domain(service.get_with_speaker(updated))
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    updated = service.update(user, event_id, session_id, _details(body))
+    return SessionResponse.from_domain(service.get_with_speaker(updated))
 
 
 @router.delete(
@@ -154,8 +120,5 @@ def delete_session(
     service: SessionService = Depends(get_session_service),
 ) -> Response:
     """Remove a session from an event. Only the event's organizer or an admin."""
-    try:
-        service.delete(user, event_id, session_id)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    service.delete(user, event_id, session_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

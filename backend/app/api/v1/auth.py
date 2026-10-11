@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.dependencies import get_auth_service, get_current_user
 from app.api.openapi_responses import UNAUTHORIZED, conflict, error_response
 from app.api.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from app.application.auth_service import AuthService
-from app.application.errors import EmailAlreadyRegisteredError, InvalidCredentialsError
 from app.domain.user import UserAccount
 
 router = APIRouter(tags=["auth"])
@@ -24,10 +23,7 @@ def register(body: RegisterRequest, auth: AuthService = Depends(get_auth_service
     create and manage its own events; an admin can change it later.
     The password must have at least 8 characters and the email must be unique.
     """
-    try:
-        return auth.register(body.email, body.password)
-    except EmailAlreadyRegisteredError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="Email already registered") from exc
+    return auth.register(body.email, body.password)
 
 
 @router.post(
@@ -43,14 +39,7 @@ def login(body: LoginRequest, auth: AuthService = Depends(get_auth_service)) -> 
 
     Send the returned token as `Authorization: Bearer <token>` (or use **Authorize** above).
     """
-    try:
-        return TokenResponse(access_token=auth.login(body.email, body.password))
-    except InvalidCredentialsError as exc:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
+    return TokenResponse(access_token=auth.login(body.email, body.password))
 
 
 @router.get(

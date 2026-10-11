@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.dependencies import get_speaker_service, require_role
 from app.api.openapi_params import PageNumber, PageSize, SpeakerId
@@ -11,12 +11,6 @@ from app.api.openapi_responses import (
     conflict,
 )
 from app.api.speaker_schemas import SpeakerPageResponse, SpeakerRequest, SpeakerResponse
-from app.application.errors import (
-    PermissionDeniedError,
-    SpeakerEmailTakenError,
-    SpeakerInUseError,
-    SpeakerNotFoundError,
-)
 from app.application.speaker_service import SpeakerService
 from app.domain.enums import Role
 from app.domain.speaker import Speaker, SpeakerDetails
@@ -26,25 +20,9 @@ router = APIRouter(prefix="/speakers", tags=["speakers"])
 
 organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
-HANDLED = (SpeakerNotFoundError, PermissionDeniedError, SpeakerEmailTakenError, SpeakerInUseError)
-
 
 def _details(body: SpeakerRequest) -> SpeakerDetails:
     return SpeakerDetails(name=body.name, bio=body.bio, email=body.email)
-
-
-def _translate(exc: Exception) -> HTTPException:
-    if isinstance(exc, SpeakerNotFoundError):
-        return HTTPException(status.HTTP_404_NOT_FOUND, detail="Speaker not found")
-    if isinstance(exc, PermissionDeniedError):
-        return HTTPException(status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-    if isinstance(exc, SpeakerEmailTakenError):
-        return HTTPException(status.HTTP_409_CONFLICT, detail="Speaker email already in use")
-    if isinstance(exc, SpeakerInUseError):
-        return HTTPException(
-            status.HTTP_409_CONFLICT, detail="Speaker has sessions and cannot be deleted"
-        )
-    raise exc
 
 
 EMAIL_TAKEN = conflict("Another speaker already uses that email.", "Speaker email already in use")
@@ -66,10 +44,7 @@ def create_speaker(
 
     The optional email must be unique among speakers (409 otherwise).
     """
-    try:
-        return service.create(user, _details(body))
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return service.create(user, _details(body))
 
 
 @router.get("", response_model=SpeakerPageResponse, summary="List speakers")
@@ -107,10 +82,7 @@ def get_speaker(
     speaker_id: SpeakerId, service: SpeakerService = Depends(get_speaker_service)
 ) -> Speaker:
     """Return one speaker. Public, no token required."""
-    try:
-        return service.get(speaker_id)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return service.get(speaker_id)
 
 
 @router.put(
@@ -129,10 +101,7 @@ def update_speaker(
 
     The email must stay unique among speakers (409 otherwise).
     """
-    try:
-        return service.update(user, speaker_id, _details(body))
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    return service.update(user, speaker_id, _details(body))
 
 
 @router.delete(
@@ -154,8 +123,5 @@ def delete_speaker(
 
     A speaker that still has sessions cannot be deleted (409); remove those sessions first.
     """
-    try:
-        service.delete(user, speaker_id)
-    except HANDLED as exc:
-        raise _translate(exc) from exc
+    service.delete(user, speaker_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
