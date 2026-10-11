@@ -64,7 +64,7 @@ export const es = {
     noMatch: (q: string) => `Ningún evento coincide con "${q}".`,
     searchLabel: "Buscar eventos",
     searchPlaceholder: "Buscar eventos por nombre",
-    spots: (n: number) => `${n} cupos`,
+    spots: (n: number) => `${n} ${n === 1 ? "cupo" : "cupos"}`,
     loadListFailed: "No se pudieron cargar los eventos",
     loadFailed: "No se pudo cargar el evento",
     notFound: "Evento no encontrado.",
@@ -111,7 +111,7 @@ export const es = {
   sessions: {
     heading: "Sesiones",
     empty: "Aún no hay sesiones programadas.",
-    seats: (n: number) => `${n} cupos`,
+    seats: (n: number) => `${n} ${n === 1 ? "cupo" : "cupos"}`,
     add: "Agregar sesión",
     save: "Guardar sesión",
     formLabel: "Formulario de sesión",

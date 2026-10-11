@@ -36,4 +36,13 @@ describe('EventCard', () => {
     expect(screen.getByText('Medellín')).toBeInTheDocument()
     expect(screen.getByText('300 cupos')).toBeInTheDocument()
   })
+
+  it('uses the singular when the capacity is one', () => {
+    render(
+      <MemoryRouter>
+        <EventCard event={{ ...event, capacity: 1 }} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('1 cupo')).toBeInTheDocument()
+  })
 })

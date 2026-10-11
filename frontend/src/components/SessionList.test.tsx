@@ -33,6 +33,12 @@ describe('SessionList', () => {
     expect(items[1]).toHaveTextContent('Cierre')
   })
 
+  it('uses the singular when a session has a single seat', () => {
+    render(<SessionList sessions={[{ ...opening, capacity: 1 }]} />)
+    expect(screen.getByRole('listitem')).toHaveTextContent('1 cupo')
+    expect(screen.getByRole('listitem')).not.toHaveTextContent('1 cupos')
+  })
+
   it('does not show actions without handlers', () => {
     render(<SessionList sessions={[opening]} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
