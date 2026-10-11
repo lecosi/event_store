@@ -74,6 +74,23 @@ class EventFilters:
 
 
 @dataclass(frozen=True)
+class ParticipantFilters:
+    """Criteria for the participants report.
+
+    ``date_from`` / ``date_to`` are inclusive bounds on the event start, already expressed as
+    UTC instants. ``organizer_id`` restricts the report to that organizer's events; ``None``
+    means unrestricted (admin).
+    """
+
+    organizer_id: int | None = None
+    event_id: int | None = None
+    q: str | None = None
+    status: EventStatus | None = None
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+
+
+@dataclass(frozen=True)
 class EventPage:
     items: list[Event]
     total: int

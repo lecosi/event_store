@@ -21,6 +21,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Browsers hide this header from cross-origin scripts unless it is exposed; the
+        # frontend needs it to name the downloaded report file.
+        expose_headers=["Content-Disposition"],
     )
     app.include_router(api_router)
     register_exception_handlers(app)

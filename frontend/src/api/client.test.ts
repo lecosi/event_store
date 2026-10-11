@@ -155,6 +155,10 @@ describe('known backend details', () => {
       'Un evento finalizado no permite cancelar la inscripción.',
     ],
     ['You are already registered to this event', 'Ya estás inscrito en este evento.'],
+    [
+      'date_to must not be before date_from',
+      'La fecha final no puede ser anterior a la fecha inicial.',
+    ],
   ])('translates "%s"', async (detail, expected) => {
     respondWith(409, { detail })
     const error = await errorOf(apiClient.post('/events'))
@@ -200,6 +204,17 @@ describe('parametrized backend details', () => {
     respondWith(409, { detail: 'Cannot change status from draft to archived' })
     const error = await errorOf(apiClient.post('/events'))
     expect(error.message).toBe(es.common.genericError)
+  })
+})
+
+describe('blob error bodies', () => {
+  it('translates the detail of a failed blob request', async () => {
+    respondWith(404, new Blob([JSON.stringify({ detail: 'Event not found' })]))
+    const error = await errorOf(
+      apiClient.get('/reports/participants.csv', { responseType: 'blob' }),
+    )
+    expect(error.message).toBe('Evento no encontrado.')
+    expect(error.status).toBe(404)
   })
 })
 
@@ -289,6 +304,14 @@ describe('422 validation errors', () => {
     [
       { loc: ['body', 'end_at'], type: 'datetime_type' },
       'El campo Fin debe ser una fecha y hora válidas.',
+    ],
+    [
+      { loc: ['query', 'date_from'], type: 'date_parsing' },
+      'El campo Fecha desde debe ser una fecha válida.',
+    ],
+    [
+      { loc: ['query', 'date_to'], type: 'date_type' },
+      'El campo Fecha hasta debe ser una fecha válida.',
     ],
     [{ loc: ['query', 'status'], type: 'enum' }, 'Este campo tiene un valor no permitido.'],
     [

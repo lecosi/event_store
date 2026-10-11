@@ -3,6 +3,7 @@ import type { EventStatus, Role, User } from '../types'
 import {
   canCancelRegistration,
   canCreateEvents,
+  canViewReports,
   canManageEvent,
   isAdmin,
   isEditableStatus,
@@ -110,5 +111,19 @@ describe('canCancelRegistration', () => {
 
   it('denies cancelling a registration of a finished event', () => {
     expect(canCancelRegistration('finished')).toBe(false)
+  })
+})
+
+describe('canViewReports', () => {
+  it.each<Role>(['admin', 'organizer'])('allows an %s', (role) => {
+    expect(canViewReports(userWith(role))).toBe(true)
+  })
+
+  it('denies an attendee', () => {
+    expect(canViewReports(userWith('attendee'))).toBe(false)
+  })
+
+  it('denies a visitor without a user', () => {
+    expect(canViewReports(null)).toBe(false)
   })
 })

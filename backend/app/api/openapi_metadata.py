@@ -23,6 +23,11 @@ token additionally reveals the caller's own non-published events and registratio
 | `organizer` | Everything an attendee can, plus manage **own** events, sessions and speakers. |
 | `admin` | Manage any event, and list users / change their role or active flag. |
 
+The participants report (`GET /api/v1/reports/participants` and `.../participants.csv`) is
+available to `organizer` (only the participants of their own events) and `admin` (all
+events). Attendees receive `403`. Its `date_from` / `date_to` filter the event start date
+in UTC, both days included.
+
 ## Errors
 
 Errors use the shape `{"detail": "<message>"}` with these status codes: `401` (not
@@ -70,6 +75,14 @@ TAGS_METADATA = [
         "description": (
             "Attendee registration to events and the caller's registered events. "
             "Capacity is enforced atomically: the last spot is never oversold."
+        ),
+    },
+    {
+        "name": "reports",
+        "description": (
+            "Participants report: who is registered to which event, as a paginated preview "
+            "and as a CSV download with the same filters. Restricted to `organizer` (own "
+            "events) and `admin` (all events)."
         ),
     },
     {

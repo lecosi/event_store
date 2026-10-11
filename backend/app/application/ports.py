@@ -9,8 +9,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Protocol
 
-from app.domain.event import Event, EventFilters
-from app.domain.registration import RegisteredEvent, Registration
+from app.domain.event import Event, EventFilters, ParticipantFilters
+from app.domain.registration import ParticipantRow, RegisteredEvent, Registration
 from app.domain.session import Session
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
@@ -179,6 +179,19 @@ class RegistrationRepository(Protocol):
         self, user_id: int, page: int, size: int
     ) -> tuple[list[RegisteredEvent], int]:
         """Return the page of the user's events (ordered by start_at) and the total."""
+        ...
+
+    def list_participants(
+        self, filters: ParticipantFilters, page: int, size: int
+    ) -> tuple[list[ParticipantRow], int]:
+        """Return the requested page of participants and the total matching count.
+
+        Ordered by event start, event id, registration date and registration id.
+        """
+        ...
+
+    def iter_participants(self, filters: ParticipantFilters) -> Iterator[ParticipantRow]:
+        """Yield every matching participant in the same order, reading in bounded chunks."""
         ...
 
 
