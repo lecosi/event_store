@@ -33,6 +33,27 @@ markers = [
     "integration: needs a PostgreSQL database",
 ]
 
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.$",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
