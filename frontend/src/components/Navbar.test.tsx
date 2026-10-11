@@ -70,6 +70,21 @@ describe('Navbar', () => {
     )
   })
 
+  it('links an admin to the user administration', () => {
+    loggedInAs('admin')
+    renderNavbar()
+    expect(screen.getByRole('link', { name: 'Administración' })).toHaveAttribute(
+      'href',
+      '/admin/users',
+    )
+  })
+
+  it.each<Role>(['organizer', 'attendee'])('hides the administration link from an %s', (role) => {
+    loggedInAs(role)
+    renderNavbar()
+    expect(screen.queryByRole('link', { name: 'Administración' })).not.toBeInTheDocument()
+  })
+
   it('logs the user out and shows the login links again', () => {
     loggedInAs('attendee')
     renderNavbar()

@@ -1,7 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import { es } from '../i18n'
 import { useAuthStore } from '../store/authStore'
-import { canCreateEvents } from '../utils/permissions'
+import { canCreateEvents, isAdmin } from '../utils/permissions'
 import { Button } from './Button'
 import styles from './Navbar.module.css'
 
@@ -24,6 +24,7 @@ export function Navbar() {
               </NavLink>
             )}
             {canCreateEvents(user) && <NavLink to="/speakers/new">{es.nav.newSpeaker}</NavLink>}
+            {isAdmin(user) && <NavLink to="/admin/users">{es.nav.admin}</NavLink>}
             <NavLink to="/profile">{es.nav.myEvents}</NavLink>
             {user && <span className={styles.userName}>{user.full_name}</span>}
             <Button variant="secondary" onClick={logout}>

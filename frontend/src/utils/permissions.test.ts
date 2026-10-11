@@ -4,6 +4,7 @@ import {
   canCancelRegistration,
   canCreateEvents,
   canManageEvent,
+  isAdmin,
   isEditableStatus,
   nextStatuses,
 } from './permissions'
@@ -14,6 +15,20 @@ const userWith = (role: Role): User => ({
   full_name: 'Ana Pérez',
   role,
   is_active: true,
+})
+
+describe('isAdmin', () => {
+  it('allows an admin', () => {
+    expect(isAdmin(userWith('admin'))).toBe(true)
+  })
+
+  it.each<Role>(['organizer', 'attendee'])('denies an %s', (role) => {
+    expect(isAdmin(userWith(role))).toBe(false)
+  })
+
+  it('denies a visitor without a user', () => {
+    expect(isAdmin(null)).toBe(false)
+  })
 })
 
 describe('canCreateEvents', () => {

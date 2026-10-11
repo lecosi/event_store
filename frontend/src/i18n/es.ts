@@ -34,6 +34,7 @@ export const es = {
     newEvent: 'Nuevo evento',
     newSpeaker: 'Nuevo ponente',
     myEvents: 'Mis eventos',
+    admin: 'Administración',
     logout: 'Cerrar sesión',
     login: 'Iniciar sesión',
     register: 'Registrarse',

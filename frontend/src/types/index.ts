@@ -118,3 +118,12 @@ export interface SessionPayload {
   end_at: string
   capacity: number
 }
+
+/** Query of GET /admin/users. */
+export interface UserListParams {
+  page?: number
+  size?: number
+}
+
+/** Body of PATCH /admin/users/{id}: only the fields to change, at least one. */
+export type UserUpdatePayload = Partial<Pick<User, 'full_name' | 'email' | 'role' | 'is_active'>>
