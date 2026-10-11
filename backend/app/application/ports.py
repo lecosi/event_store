@@ -4,7 +4,8 @@ Infrastructure provides the implementations; use cases receive them by injection
 Each port is small and focused (interface segregation).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Protocol
 
@@ -14,6 +15,28 @@ from app.domain.registration import RegisteredEvent, Registration
 from app.domain.session import Session
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
+
+
+class UnitOfWork(Protocol):
+    """Transaction boundary shared by the repositories of one use case.
+
+    Repositories only stage writes; the use case decides when they become durable.
+    """
+
+    def commit(self) -> None: ...
+
+    def rollback(self) -> None: ...
+
+
+@contextmanager
+def transaction(uow: UnitOfWork) -> Iterator[None]:
+    """Commit once when the block succeeds; roll back and re-raise when it fails."""
+    try:
+        yield
+    except Exception:
+        uow.rollback()
+        raise
+    uow.commit()
 
 
 class UserRepository(Protocol):
@@ -28,11 +51,11 @@ class UserRepository(Protocol):
         ...
 
     def add(self, email: str, password_hash: str, role: Role) -> UserAccount:
-        """Persist a new user; raise EmailAlreadyRegisteredError on duplicate email."""
+        """Stage a new user; raise EmailAlreadyRegisteredError on duplicate email."""
         ...
 
     def save(self, user: UserAccount) -> UserAccount:
-        """Persist changes to an existing user."""
+        """Stage changes to an existing user."""
         ...
 
 
@@ -107,12 +130,13 @@ RegistrationRule = Callable[[Event, int], None]
 
 class RegistrationRepository(Protocol):
     def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
-        """Atomically check ``rule`` and insert the registration.
+        """Check ``rule`` against the locked event and stage the registration.
 
-        Implementations must serialize concurrent calls for the same event so the
-        count seen by ``rule`` cannot change before the insert. Raise
-        EventNotFoundError for a missing event and AlreadyRegisteredError on a
-        duplicate (checked before ``rule``); propagate whatever ``rule`` raises.
+        Implementations must serialize concurrent calls for the same event, holding
+        the lock until the unit of work ends, so the count seen by ``rule`` cannot
+        change before the registration is durable. Raise EventNotFoundError for a
+        missing event and AlreadyRegisteredError on a duplicate (checked before
+        ``rule``); propagate whatever ``rule`` raises.
         """
         ...
 
