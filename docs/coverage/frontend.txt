@@ -1,0 +1,63 @@
+Frontend test coverage summary (Vitest + v8)
+Date:      2026-10-11
+Command:   cd frontend && npm run test:coverage
+Tests:     395 passed, 0 failed (43 test files)
+Total:     99.84% statements, 96.79% branches, 100% functions, 99.84% lines
+
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   99.84 |    96.79 |     100 |   99.84 |                   
+ src               |     100 |      100 |     100 |     100 |                   
+  App.tsx          |     100 |      100 |     100 |     100 |                   
+ src/api           |     100 |      100 |     100 |     100 |                   
+  auth.ts          |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  events.ts        |     100 |      100 |     100 |     100 |                   
+  registrations.ts |     100 |      100 |     100 |     100 |                   
+  sessions.ts      |     100 |      100 |     100 |     100 |                   
+  speakers.ts      |     100 |      100 |     100 |     100 |                   
+ src/components    |   99.82 |    98.77 |     100 |   99.82 |                   
+  Button.tsx       |     100 |      100 |     100 |     100 |                   
+  ErrorMessage.tsx |     100 |      100 |     100 |     100 |                   
+  EventCard.tsx    |     100 |      100 |     100 |     100 |                   
+  EventForm.tsx    |     100 |    92.85 |     100 |     100 | 72                
+  Fields.tsx       |     100 |      100 |     100 |     100 |                   
+  Input.tsx        |     100 |      100 |     100 |     100 |                   
+  Layout.tsx       |     100 |      100 |     100 |     100 |                   
+  Navbar.tsx       |     100 |      100 |     100 |     100 |                   
+  Pagination.tsx   |     100 |      100 |     100 |     100 |                   
+  SearchBar.tsx    |     100 |      100 |     100 |     100 |                   
+  SessionForm.tsx  |   98.78 |    96.55 |     100 |   98.78 | 1                 
+  SessionList.tsx  |     100 |      100 |     100 |     100 |                   
+  SpeakerForm.tsx  |     100 |      100 |     100 |     100 |                   
+  ...kerPicker.tsx |     100 |      100 |     100 |     100 |                   
+  Spinner.tsx      |     100 |      100 |     100 |     100 |                   
+  StatusBadge.tsx  |     100 |      100 |     100 |     100 |                   
+  Toast.tsx        |     100 |      100 |     100 |     100 |                   
+ src/i18n          |   99.64 |    91.66 |     100 |   99.64 |                   
+  es.ts            |   99.62 |    91.07 |     100 |   99.62 | 269               
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ src/pages         |   99.82 |    94.28 |     100 |   99.82 |                   
+  ...etailPage.tsx |   99.47 |     95.5 |     100 |   99.47 | 1                 
+  ...tFormPage.tsx |     100 |    97.05 |     100 |     100 | 39                
+  ...tListPage.tsx |     100 |    94.73 |     100 |     100 | 29                
+  LoginPage.tsx    |     100 |    86.66 |     100 |     100 | 20,41             
+  NotFoundPage.tsx |     100 |      100 |     100 |     100 |                   
+  ProfilePage.tsx  |     100 |    94.11 |     100 |     100 | 44,62             
+  RegisterPage.tsx |     100 |       90 |     100 |     100 | 46                
+  ...rFormPage.tsx |     100 |     87.5 |     100 |     100 | 27                
+ src/routes        |     100 |      100 |     100 |     100 |                   
+  ...ctedRoute.tsx |     100 |      100 |     100 |     100 |                   
+  index.tsx        |     100 |      100 |     100 |     100 |                   
+ src/store         |     100 |    97.91 |     100 |     100 |                   
+  authStore.ts     |     100 |      100 |     100 |     100 |                   
+  eventStore.ts    |     100 |    94.73 |     100 |     100 | 74                
+  toastStore.ts    |     100 |      100 |     100 |     100 |                   
+ src/utils         |     100 |      100 |     100 |     100 |                   
+  ...Validation.ts |     100 |      100 |     100 |     100 |                   
+  format.ts        |     100 |      100 |     100 |     100 |                   
+  permissions.ts   |     100 |      100 |     100 |     100 |                   
+  ...Validation.ts |     100 |      100 |     100 |     100 |                   
+  validation.ts    |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

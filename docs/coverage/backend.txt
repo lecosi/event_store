@@ -1,0 +1,24 @@
+Backend test coverage summary (pytest-cov, line + branch)
+Date:      2026-10-11
+Command:   cd backend && poetry run pytest --cov=app --cov-report=term-missing
+Tests:     374 passed, 0 failed
+Total:     98.49% (threshold: fail_under = 90)
+Database:  PostgreSQL 16 (postgres:16-alpine) via docker compose
+Note:      files at 100% are omitted (skip_covered = true)
+
+Name                                               Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------------------------
+app/application/registration_service.py               44      1      6      1    96%   47
+app/application/session_service.py                    68      1     14      1    98%   80
+app/infrastructure/cache/redis_cache.py               40      1      4      1    95%   15
+app/infrastructure/db/event_repository.py             68      1     12      1    98%   71
+app/infrastructure/db/registration_repository.py      40      4      4      1    89%   28, 41-43
+app/infrastructure/db/session.py                      11      3      0      0    73%   12, 16-17
+app/infrastructure/db/session_repository.py           43      1      4      2    94%   58, 67->exit
+app/infrastructure/db/speaker_repository.py           58      1      6      2    95%   53, 71->exit
+app/infrastructure/db/user_repository.py              42      3      2      1    91%   25-26, 49
+----------------------------------------------------------------------------------------------
+TOTAL                                               1564     16    154     10    98%
+
+39 files skipped due to complete coverage.
+Required test coverage of 90.0% reached. Total coverage: 98.49%
