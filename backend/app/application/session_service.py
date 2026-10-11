@@ -2,7 +2,10 @@
 
 from app.application.errors import EventNotFoundError, PermissionDeniedError, SessionNotFoundError
 from app.application.ports import (
+    SESSIONS_NAMESPACE,
+    Cache,
     EventRepository,
+    NullCache,
     SessionRepository,
     SpeakerRepository,
     UnitOfWork,
@@ -30,11 +33,13 @@ class SessionService:
         sessions: SessionRepository,
         speakers: SpeakerRepository,
         uow: UnitOfWork,
+        cache: Cache | None = None,
     ) -> None:
         self._events = events
         self._sessions = sessions
         self._speakers = speakers
         self._uow = uow
+        self._cache: Cache = cache if cache is not None else NullCache()
 
     def create(self, actor: UserAccount, event_id: int, details: SessionDetails) -> Session:
         with transaction(self._uow):
@@ -48,7 +53,9 @@ class SessionService:
                 capacity=details.capacity,
             )
             self._validate(event, session)
-            return self._sessions.add(session)
+            created = self._sessions.add(session)
+        self._cache.invalidate(SESSIONS_NAMESPACE)
+        return created
 
     def update(
         self, actor: UserAccount, event_id: int, session_id: int, details: SessionDetails
@@ -57,13 +64,16 @@ class SessionService:
             event = self._get_managed_open(actor, event_id)
             updated = self._get_in_event(event_id, session_id).with_details(details)
             self._validate(event, updated)
-            return self._sessions.update(updated)
+            saved = self._sessions.update(updated)
+        self._cache.invalidate(SESSIONS_NAMESPACE)
+        return saved
 
     def delete(self, actor: UserAccount, event_id: int, session_id: int) -> None:
         with transaction(self._uow):
             self._get_managed_open(actor, event_id)
             self._get_in_event(event_id, session_id)
             self._sessions.delete(session_id)
+        self._cache.invalidate(SESSIONS_NAMESPACE)
 
     def list_for_event(self, event_id: int) -> list[SessionWithSpeaker]:
         if self._events.get(event_id) is None:

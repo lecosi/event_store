@@ -12,7 +12,9 @@ from app.application.clock import utc_now
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
 from app.application.ports import (
+    Cache,
     EventRepository,
+    NullCache,
     PasswordHasher,
     RegistrationRepository,
     SessionRepository,
@@ -27,6 +29,7 @@ from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.user import UserAccount
+from app.infrastructure.cache.redis_cache import RedisCache
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session import get_session
@@ -51,6 +54,15 @@ def get_user_repository(session: Session = Depends(get_session)) -> UserReposito
 @lru_cache(maxsize=1)
 def get_password_hasher() -> PasswordHasher:
     return Argon2PasswordHasher()
+
+
+@lru_cache(maxsize=4)
+def _build_cache(redis_url: str | None) -> Cache:
+    return RedisCache.from_url(redis_url) if redis_url else NullCache()
+
+
+def get_cache(settings: Settings = Depends(get_settings)) -> Cache:
+    return _build_cache(settings.redis_url)
 
 
 def get_token_service(settings: Settings = Depends(get_settings)) -> TokenService:
@@ -115,8 +127,9 @@ def get_event_repository(session: Session = Depends(get_session)) -> EventReposi
 def get_event_service(
     events: EventRepository = Depends(get_event_repository),
     uow: UnitOfWork = Depends(get_unit_of_work),
+    cache: Cache = Depends(get_cache),
 ) -> EventService:
-    return EventService(events, uow)
+    return EventService(events, uow, cache=cache)
 
 
 def get_speaker_repository(session: Session = Depends(get_session)) -> SpeakerRepository:
@@ -130,8 +143,9 @@ def get_session_repository(session: Session = Depends(get_session)) -> SessionRe
 def get_speaker_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
     uow: UnitOfWork = Depends(get_unit_of_work),
+    cache: Cache = Depends(get_cache),
 ) -> SpeakerService:
-    return SpeakerService(speakers, uow)
+    return SpeakerService(speakers, uow, cache)
 
 
 def get_session_service(
@@ -139,8 +153,9 @@ def get_session_service(
     sessions: SessionRepository = Depends(get_session_repository),
     speakers: SpeakerRepository = Depends(get_speaker_repository),
     uow: UnitOfWork = Depends(get_unit_of_work),
+    cache: Cache = Depends(get_cache),
 ) -> SessionService:
-    return SessionService(events, sessions, speakers, uow)
+    return SessionService(events, sessions, speakers, uow, cache)
 
 
 def get_registration_repository(

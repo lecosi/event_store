@@ -2,7 +2,15 @@
 
 from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError, PermissionDeniedError
-from app.application.ports import EventRepository, UnitOfWork, transaction
+from app.application.ports import (
+    EVENTS_NAMESPACE,
+    SESSIONS_NAMESPACE,
+    Cache,
+    EventRepository,
+    NullCache,
+    UnitOfWork,
+    transaction,
+)
 from app.domain.enums import EventStatus, Role
 from app.domain.event import (
     Event,
@@ -29,10 +37,12 @@ class EventService:
         events: EventRepository,
         uow: UnitOfWork,
         clock: Clock = utc_now,
+        cache: Cache | None = None,
     ) -> None:
         self._events = events
         self._uow = uow
         self._clock = clock
+        self._cache: Cache = cache if cache is not None else NullCache()
 
     def create(self, actor: UserAccount, details: EventDetails) -> Event:
         with transaction(self._uow):
@@ -50,7 +60,9 @@ class EventService:
                 capacity=details.capacity,
                 organizer_id=actor.id,
             )
-            return self._events.add(event)
+            created = self._events.add(event)
+        self._cache.invalidate(EVENTS_NAMESPACE)
+        return created
 
     def get(self, event_id: int, viewer: UserAccount | None) -> Event:
         event = self._events.get(event_id)
@@ -90,19 +102,25 @@ class EventService:
             ensure_dates_cover_sessions(
                 details.start_at, details.end_at, self._events.session_bounds(event_id)
             )
-            return self._events.update(event.with_details(details))
+            updated = self._events.update(event.with_details(details))
+        self._cache.invalidate(EVENTS_NAMESPACE)
+        return updated
 
     def change_status(self, actor: UserAccount, event_id: int, target: EventStatus) -> Event:
         with transaction(self._uow):
             event = self._get_managed(actor, event_id)
             validate_transition(event.status, target)
             event.status = target
-            return self._events.update(event)
+            updated = self._events.update(event)
+        self._cache.invalidate(EVENTS_NAMESPACE)
+        return updated
 
     def delete(self, actor: UserAccount, event_id: int) -> None:
         with transaction(self._uow):
             self._get_managed(actor, event_id)
             self._events.delete(event_id)
+        self._cache.invalidate(EVENTS_NAMESPACE)
+        self._cache.invalidate(SESSIONS_NAMESPACE)
 
     def _get_managed(self, actor: UserAccount, event_id: int) -> Event:
         event = self._events.get(event_id)
