@@ -56,6 +56,27 @@ class RegisteredEventPage:
 
 
 @dataclass(frozen=True)
+class ParticipantRow:
+    """One registered person of one event, as listed in the participants report."""
+
+    full_name: str
+    email: str
+    event_name: str
+
+
+@dataclass(frozen=True)
+class ParticipantPage:
+    items: list[ParticipantRow]
+    total: int
+    page: int
+    size: int
+
+    @property
+    def pages(self) -> int:
+        return -(-self.total // self.size) if self.total else 0
+
+
+@dataclass(frozen=True)
 class Availability:
     registered_count: int
     available_spots: int

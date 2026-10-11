@@ -1,14 +1,60 @@
+from collections.abc import Iterator
+from typing import Any
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
 
 from app.application.errors import EventNotFoundError
 from app.application.ports import RegistrationRule
-from app.domain.event import ensure_utc
-from app.domain.registration import AlreadyRegisteredError, RegisteredEvent, Registration
+from app.domain.event import ParticipantFilters, ensure_utc
+from app.domain.registration import (
+    AlreadyRegisteredError,
+    ParticipantRow,
+    RegisteredEvent,
+    Registration,
+)
+from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import event_to_domain, registration_to_domain
 from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration as RegistrationRow
+from app.infrastructure.db.models import User as UserRow
+
+PARTICIPANT_CHUNK_SIZE = 500
+
+
+def _participant_conditions(filters: ParticipantFilters) -> list[Any]:
+    conditions: list[Any] = []
+    if filters.organizer_id is not None:
+        conditions.append(col(EventRow.organizer_id) == filters.organizer_id)
+    if filters.event_id is not None:
+        conditions.append(col(EventRow.id) == filters.event_id)
+    if filters.status is not None:
+        conditions.append(col(EventRow.status) == filters.status)
+    if filters.q:
+        pattern = f"%{escape_like(filters.q)}%"
+        conditions.append(col(EventRow.name).ilike(pattern, escape=LIKE_ESCAPE))
+    if filters.date_from is not None:
+        conditions.append(col(EventRow.start_at) >= filters.date_from)
+    if filters.date_to is not None:
+        conditions.append(col(EventRow.start_at) <= filters.date_to)
+    return conditions
+
+
+def _participant_rows(filters: ParticipantFilters) -> Any:
+    return (
+        select(col(UserRow.full_name), col(UserRow.email), col(EventRow.name))
+        .select_from(RegistrationRow)
+        .join(EventRow, col(EventRow.id) == col(RegistrationRow.event_id))
+        .join(UserRow, col(UserRow.id) == col(RegistrationRow.user_id))
+        .where(*_participant_conditions(filters))
+        .order_by(
+            col(EventRow.start_at),
+            col(EventRow.id),
+            col(RegistrationRow.created_at),
+            col(RegistrationRow.id),
+        )
+    )
 
 
 class SqlRegistrationRepository:
@@ -83,3 +129,27 @@ class SqlRegistrationRepository:
         return [
             RegisteredEvent(event_to_domain(e), ensure_utc(r.created_at)) for e, r in rows
         ], total
+
+    def list_participants(
+        self, filters: ParticipantFilters, page: int, size: int
+    ) -> tuple[list[ParticipantRow], int]:
+        total = self._session.exec(
+            select(func.count())
+            .select_from(RegistrationRow)
+            .join(EventRow, col(EventRow.id) == col(RegistrationRow.event_id))
+            .where(*_participant_conditions(filters))
+        ).one()
+        rows = self._session.exec(
+            _participant_rows(filters).offset((page - 1) * size).limit(size)
+        ).all()
+        return [ParticipantRow(*row) for row in rows], total
+
+    def iter_participants(self, filters: ParticipantFilters) -> Iterator[ParticipantRow]:
+        # A streamed response outlives the request-scoped session, so the stream reads through
+        # its own short-lived one; rows arrive in chunks and memory stays constant.
+        with Session(self._session.get_bind()) as session:
+            result = session.exec(
+                _participant_rows(filters).execution_options(yield_per=PARTICIPANT_CHUNK_SIZE)
+            )
+            for row in result:
+                yield ParticipantRow(*row)

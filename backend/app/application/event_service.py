@@ -99,7 +99,7 @@ class EventService:
 
     def update(self, actor: UserAccount, event_id: int, details: EventDetails) -> Event:
         with transaction(self._uow):
-            event = self._get_managed(actor, event_id)
+            event = self.ensure_can_manage(actor, event_id)
             ensure_editable(event.status)
             validate_details(details)
             ensure_capacity_covers_sessions(
@@ -117,7 +117,7 @@ class EventService:
 
     def change_status(self, actor: UserAccount, event_id: int, target: EventStatus) -> Event:
         with transaction(self._uow):
-            event = self._get_managed(actor, event_id)
+            event = self.ensure_can_manage(actor, event_id)
             validate_transition(event.status, target)
             event.status = target
             updated = self._events.update(event)
@@ -126,12 +126,13 @@ class EventService:
 
     def delete(self, actor: UserAccount, event_id: int) -> None:
         with transaction(self._uow):
-            self._get_managed(actor, event_id)
+            self.ensure_can_manage(actor, event_id)
             self._events.delete(event_id)
         self._cache.invalidate(EVENTS_NAMESPACE)
         self._cache.invalidate(SESSIONS_NAMESPACE)
 
-    def _get_managed(self, actor: UserAccount, event_id: int) -> Event:
+    def ensure_can_manage(self, actor: UserAccount, event_id: int) -> Event:
+        """Return the event when ``actor`` owns it or is an admin; raise otherwise."""
         event = self._events.get(event_id)
         if event is None:
             raise EventNotFoundError(event_id)
