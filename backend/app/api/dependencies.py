@@ -1,6 +1,7 @@
 """Shared FastAPI dependencies: wiring of concrete adapters and authorization guards."""
 
 from collections.abc import Callable
+from functools import lru_cache
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -47,6 +48,7 @@ def get_user_repository(session: Session = Depends(get_session)) -> UserReposito
     return SqlUserRepository(session)
 
 
+@lru_cache(maxsize=1)
 def get_password_hasher() -> PasswordHasher:
     return Argon2PasswordHasher()
 

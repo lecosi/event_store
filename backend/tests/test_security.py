@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import jwt
 import pytest
 
+from app.api.dependencies import get_password_hasher
 from app.application.errors import InvalidTokenError
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
@@ -70,3 +71,7 @@ def test_token_without_subject_or_exp_is_rejected() -> None:
     for token in (no_sub, no_exp, bad_sub):
         with pytest.raises(InvalidTokenError):
             service.read_subject(token)
+
+
+def test_password_hasher_dependency_is_built_once() -> None:
+    assert get_password_hasher() is get_password_hasher()
