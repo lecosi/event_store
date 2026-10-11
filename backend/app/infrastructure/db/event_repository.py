@@ -1,39 +1,15 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import func, or_
 from sqlmodel import Session, col, delete, select
 
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ensure_utc
+from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
+from app.infrastructure.db.mappers import event_to_domain
 from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration
 from app.infrastructure.db.models import Session as SessionRow
-
-LIKE_ESCAPE = "\\"
-
-
-def escape_like(term: str) -> str:
-    """Neutralize LIKE wildcards so user input is matched literally."""
-    return (
-        term.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
-        .replace("%", LIKE_ESCAPE + "%")
-        .replace("_", LIKE_ESCAPE + "_")
-    )
-
-
-def _to_domain(row: EventRow) -> Event:
-    return Event(
-        id=row.id,
-        name=row.name,
-        description=row.description,
-        location=row.location,
-        # SQLite drops tzinfo; the application always works with UTC-aware values.
-        start_at=row.start_at.replace(tzinfo=UTC) if row.start_at.tzinfo is None else row.start_at,
-        end_at=row.end_at.replace(tzinfo=UTC) if row.end_at.tzinfo is None else row.end_at,
-        capacity=row.capacity,
-        status=row.status,
-        organizer_id=row.organizer_id,
-    )
 
 
 def _apply(row: EventRow, event: Event) -> None:
@@ -57,11 +33,11 @@ class SqlEventRepository:
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)
-        return _to_domain(row)
+        return event_to_domain(row)
 
     def get(self, event_id: int) -> Event | None:
         row = self._session.get(EventRow, event_id)
-        return _to_domain(row) if row else None
+        return event_to_domain(row) if row else None
 
     def list_page(self, filters: EventFilters, page: int, size: int) -> tuple[list[Event], int]:
         conditions = []
@@ -87,7 +63,7 @@ class SqlEventRepository:
             .offset((page - 1) * size)
             .limit(size)
         ).all()
-        return [_to_domain(row) for row in rows], total
+        return [event_to_domain(row) for row in rows], total
 
     def update(self, event: Event) -> Event:
         row = self._session.get(EventRow, event.id)
@@ -97,7 +73,7 @@ class SqlEventRepository:
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)
-        return _to_domain(row)
+        return event_to_domain(row)
 
     def delete(self, event_id: int) -> None:
         # Sessions and registrations go with the event through ON DELETE CASCADE.

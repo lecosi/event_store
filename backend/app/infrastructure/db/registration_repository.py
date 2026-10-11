@@ -1,28 +1,14 @@
-from datetime import UTC, datetime
-
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
 
 from app.application.errors import EventNotFoundError
 from app.application.ports import RegistrationRule
+from app.domain.event import ensure_utc
 from app.domain.registration import AlreadyRegisteredError, RegisteredEvent, Registration
-from app.infrastructure.db.event_repository import _to_domain as event_to_domain
+from app.infrastructure.db.mappers import event_to_domain, registration_to_domain
 from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration as RegistrationRow
-
-
-def _as_utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
-
-
-def _to_domain(row: RegistrationRow) -> Registration:
-    return Registration(
-        id=row.id,
-        user_id=row.user_id,
-        event_id=row.event_id,
-        created_at=_as_utc(row.created_at),
-    )
 
 
 class SqlRegistrationRepository:
@@ -56,7 +42,7 @@ class SqlRegistrationRepository:
             self._session.rollback()
             raise AlreadyRegisteredError("You are already registered to this event") from exc
         self._session.refresh(row)
-        return _to_domain(row)
+        return registration_to_domain(row)
 
     def is_registered(self, user_id: int, event_id: int) -> bool:
         return (
@@ -94,4 +80,6 @@ class SqlRegistrationRepository:
             .offset((page - 1) * size)
             .limit(size)
         ).all()
-        return [RegisteredEvent(event_to_domain(e), _as_utc(r.created_at)) for e, r in rows], total
+        return [
+            RegisteredEvent(event_to_domain(e), ensure_utc(r.created_at)) for e, r in rows
+        ], total
