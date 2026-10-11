@@ -158,6 +158,25 @@ export const es = {
     loadFailed: 'No se pudieron cargar tus eventos',
   },
 
+  admin: {
+    title: 'Administración de usuarios',
+    notAllowed: 'No tienes permiso para administrar usuarios. Solo los administradores pueden.',
+    loadFailed: 'No se pudieron cargar los usuarios',
+    empty: 'Aún no hay usuarios.',
+    active: 'Activo',
+    inactive: 'Inactivo',
+    editAria: (name: string) => `Editar usuario ${name}`,
+    fullName: 'Nombre completo',
+    email: 'Correo electrónico',
+    role: 'Rol',
+    isActive: 'Cuenta activa',
+    save: 'Guardar cambios',
+    noChanges: 'No hay cambios para guardar.',
+    ownAccountHint: 'No puedes cambiar tu propio rol ni desactivar tu cuenta.',
+    updated: 'Usuario actualizado',
+    saveFailed: 'No se pudo actualizar el usuario',
+  },
+
   /** Messages of the client-side form validators (utils/*Validation.ts). */
   validators: {
     invalidEmail: 'Ingresa un correo electrónico válido',
