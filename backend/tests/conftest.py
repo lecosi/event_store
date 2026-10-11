@@ -2,10 +2,12 @@ import os
 
 os.environ.setdefault("JWT_SECRET", "test-only-secret-0123456789-0123456789")
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from typing import cast
 
 import pytest
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import URL, make_url
@@ -14,10 +16,13 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from alembic import command
 
-from app.core.config import get_settings
+from app.api.dependencies import get_cache
+from app.core.config import Settings, get_settings
 from app.infrastructure.db import models  # noqa: F401  (register tables)
 from app.infrastructure.db.session import get_session
+from app.infrastructure.cache.redis_cache import RedisCache
 from app.main import create_app
+from tests.fakes import FakeCache, UnreachableRedis
 
 TEST_DATABASE_SUFFIX = "_test"
 MAINTENANCE_DATABASE = "postgres"
@@ -104,6 +109,33 @@ def client(session: Session) -> Iterator[TestClient]:
     app.dependency_overrides[get_session] = lambda: session
     with TestClient(app) as test_client:
         yield test_client
+
+
+def _overrides(client: TestClient) -> dict[Callable[..., object], Callable[..., object]]:
+    return cast(FastAPI, client.app).dependency_overrides
+
+
+@pytest.fixture
+def fake_cache(client: TestClient) -> FakeCache:
+    cache = FakeCache()
+    _overrides(client)[get_cache] = lambda: cache
+    return cache
+
+
+@pytest.fixture
+def unreachable_cache(client: TestClient) -> RedisCache:
+    cache = RedisCache(UnreachableRedis())  # type: ignore[arg-type]
+    _overrides(client)[get_cache] = lambda: cache
+    return cache
+
+
+@pytest.fixture
+def override_settings(client: TestClient) -> Callable[..., None]:
+    def apply(**fields: object) -> None:
+        updated = get_settings().model_copy(update=fields)
+        _overrides(client)[get_settings] = lambda: cast(Settings, updated)
+
+    return apply
 
 
 POSTGRES_FIXTURES = frozenset({"postgres_engine", "clean_postgres", "session", "client"})

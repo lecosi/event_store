@@ -1,6 +1,8 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 
+import redis
+
 from app.application.errors import (
     EmailAlreadyRegisteredError,
     EventNotFoundError,
@@ -252,3 +254,14 @@ class FakeCache:
         self._entries = {
             entry: value for entry, value in self._entries.items() if entry[0] != namespace
         }
+
+
+class UnreachableRedis:
+    def get(self, name: str) -> str | None:
+        raise redis.ConnectionError("redis is down")
+
+    def setex(self, name: str, time: int, value: str) -> None:
+        raise redis.ConnectionError("redis is down")
+
+    def incr(self, name: str) -> int:
+        raise redis.ConnectionError("redis is down")

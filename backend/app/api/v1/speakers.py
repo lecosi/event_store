@@ -1,8 +1,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import TypeAdapter
 
-from app.api.dependencies import get_speaker_service, require_role
+from app.api.cached_reads import read_through, text_digest
+from app.api.dependencies import get_cache, get_speaker_service, require_role
 from app.api.openapi_params import PageNumber, PageSize, SpeakerId
 from app.api.openapi_responses import (
     ORGANIZER_OR_ADMIN,
@@ -11,7 +13,9 @@ from app.api.openapi_responses import (
     conflict,
 )
 from app.api.speaker_schemas import SpeakerPageResponse, SpeakerRequest, SpeakerResponse
+from app.application.ports import SPEAKERS_NAMESPACE, Cache
 from app.application.speaker_service import SpeakerService
+from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.speaker import Speaker, SpeakerDetails
 from app.domain.user import UserAccount
@@ -19,6 +23,9 @@ from app.domain.user import UserAccount
 router = APIRouter(prefix="/speakers", tags=["speakers"])
 
 organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
+
+SPEAKER_PAGE = TypeAdapter(SpeakerPageResponse)
+SPEAKER = TypeAdapter(SpeakerResponse)
 
 
 def _details(body: SpeakerRequest) -> SpeakerDetails:
@@ -60,16 +67,24 @@ def list_speakers(
     page: PageNumber = 1,
     size: PageSize = 10,
     service: SpeakerService = Depends(get_speaker_service),
+    cache: Cache = Depends(get_cache),
+    settings: Settings = Depends(get_settings),
 ) -> SpeakerPageResponse:
     """Paginated speakers ordered by name, optionally filtered by `q`. Public, no token required."""
-    result = service.list_page(q=q, page=page, size=size)
-    return SpeakerPageResponse(
-        items=[SpeakerResponse.model_validate(s, from_attributes=True) for s in result.items],
-        total=result.total,
-        page=result.page,
-        size=result.size,
-        pages=result.pages,
-    )
+
+    def build() -> SpeakerPageResponse:
+        result = service.list_page(q=q, page=page, size=size)
+        return SpeakerPageResponse(
+            items=[SpeakerResponse.model_validate(s, from_attributes=True) for s in result.items],
+            total=result.total,
+            page=result.page,
+            size=result.size,
+            pages=result.pages,
+        )
+
+    key = f"list:{text_digest(q)}:{page}:{size}"
+    ttl = settings.cache_ttl_speakers_seconds
+    return read_through(cache, SPEAKERS_NAMESPACE, key, ttl, SPEAKER_PAGE, build)
 
 
 @router.get(
@@ -79,10 +94,18 @@ def list_speakers(
     responses=SPEAKER_NOT_FOUND,
 )
 def get_speaker(
-    speaker_id: SpeakerId, service: SpeakerService = Depends(get_speaker_service)
-) -> Speaker:
+    speaker_id: SpeakerId,
+    service: SpeakerService = Depends(get_speaker_service),
+    cache: Cache = Depends(get_cache),
+    settings: Settings = Depends(get_settings),
+) -> SpeakerResponse:
     """Return one speaker. Public, no token required."""
-    return service.get(speaker_id)
+
+    def build() -> SpeakerResponse:
+        return SpeakerResponse.model_validate(service.get(speaker_id), from_attributes=True)
+
+    ttl = settings.cache_ttl_speakers_seconds
+    return read_through(cache, SPEAKERS_NAMESPACE, f"detail:{speaker_id}", ttl, SPEAKER, build)
 
 
 @router.put(
