@@ -47,6 +47,7 @@ def _detail(
     registrations: RegistrationService,
     viewer: UserAccount | None,
 ) -> EventDetailResponse:
+    assert event.id is not None
     base = EventResponse.model_validate(event, from_attributes=True)
     items = [SessionResponse.from_domain(s) for s in sessions.list_for_event(event.id)]
     availability = registrations.availability(event, viewer)

@@ -101,7 +101,8 @@ class SqlEventRepository:
 
     def delete(self, event_id: int) -> None:
         # Sessions and registrations go with the event through ON DELETE CASCADE.
-        self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))
+        # sqlmodel types exec() for selects only; a Delete runs through the same path.
+        self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))  # type: ignore[call-overload]
 
     def count_registrations(self, event_id: int) -> int:
         return self._session.exec(

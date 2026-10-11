@@ -70,13 +70,14 @@ class SqlRegistrationRepository:
         )
 
     def cancel(self, user_id: int, event_id: int) -> bool:
-        result = self._session.exec(
+        # sqlmodel types exec() for selects only; a Delete runs through the same path.
+        result = self._session.exec(  # type: ignore[call-overload]
             delete(RegistrationRow).where(
                 col(RegistrationRow.user_id) == user_id,
                 col(RegistrationRow.event_id) == event_id,
             )
         )
-        return result.rowcount > 0
+        return bool(result.rowcount > 0)
 
     def list_for_user(
         self, user_id: int, page: int, size: int

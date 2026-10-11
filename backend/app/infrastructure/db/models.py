@@ -1,9 +1,13 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.domain.enums import EventStatus, Role
+
+# Field(sa_type=...) is typed as a type, but SQLAlchemy accepts type instances.
+_TZ_DATETIME: Any = DateTime(timezone=True)
 
 
 def utcnow() -> datetime:
@@ -31,8 +35,8 @@ class Event(SQLModel, table=True):
     name: str = Field(max_length=200, index=True)
     description: str = Field(default="")
     location: str = Field(max_length=255)
-    start_at: datetime = Field(sa_type=DateTime(timezone=True))
-    end_at: datetime = Field(sa_type=DateTime(timezone=True))
+    start_at: datetime = Field(sa_type=_TZ_DATETIME)
+    end_at: datetime = Field(sa_type=_TZ_DATETIME)
     capacity: int
     status: EventStatus = Field(default=EventStatus.DRAFT, index=True)
     organizer_id: int = Field(foreign_key="users.id", index=True)
@@ -59,8 +63,8 @@ class Session(SQLModel, table=True):
     event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
     speaker_id: int = Field(foreign_key="speaker.id", index=True)
     title: str = Field(max_length=200)
-    start_at: datetime = Field(sa_type=DateTime(timezone=True))
-    end_at: datetime = Field(sa_type=DateTime(timezone=True))
+    start_at: datetime = Field(sa_type=_TZ_DATETIME)
+    end_at: datetime = Field(sa_type=_TZ_DATETIME)
     capacity: int
 
 
@@ -71,4 +75,4 @@ class Registration(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
-    created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))
+    created_at: datetime = Field(default_factory=utcnow, sa_type=_TZ_DATETIME)

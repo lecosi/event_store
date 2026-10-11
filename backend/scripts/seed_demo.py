@@ -18,7 +18,7 @@ from app.application.registration_service import RegistrationService
 from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
 from app.domain.enums import EventStatus, Role
-from app.domain.event import EventDetails
+from app.domain.event import Event, EventDetails
 from app.domain.session import SessionDetails
 from app.domain.speaker import SpeakerDetails
 from app.infrastructure.db.event_repository import SqlEventRepository
@@ -92,7 +92,7 @@ def main() -> int:
                 assert account is not None
                 attendees.append(account)
 
-        def create(details: EventDetails, status: EventStatus | None = None):
+        def create(details: EventDetails, status: EventStatus | None = None) -> Event:
             event = events.create(admin, details)
             assert event.id is not None
             if status is not None:

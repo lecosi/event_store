@@ -32,7 +32,7 @@ class SqlUserRepository:
         return _to_account(row) if row else None
 
     def list_all(self) -> list[UserAccount]:
-        rows = self._session.exec(select(User).order_by(User.id)).all()
+        rows = self._session.exec(select(User).order_by(col(User.id))).all()
         return [_to_account(row) for row in rows]
 
     def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
