@@ -68,24 +68,21 @@ function translateDetail(detail: string): string {
   return messages.common.genericError;
 }
 
-/** One 422 item: text chosen by its stable `type`, with `{ctx_key}` placeholders filled from `ctx`. */
+/** One 422 item as a full sentence, chosen by its stable `type`. */
 function translateValidationItem({
   loc = [],
   type = "",
   ctx = {},
 }: ValidationItem): string {
-  const template = messages.errors.validation[type] ?? "";
-  const keys = [...template.matchAll(/\{(\w+)\}/g)].map((match) => match[1]);
-  const usable = template !== "" && keys.every((key) => key in ctx);
-  const body = usable
-    ? keys.reduce(
-        (text, key) => text.replace(`{${key}}`, String(ctx[key])),
-        template,
-      )
-    : messages.common.invalidValue;
   // loc looks like ['body', 'email']; the first element is the source, not useful to users.
   const field = messages.fields[loc.slice(1).join(".")];
-  return field ? `${field}: ${body}` : body;
+  const subject = field
+    ? messages.errors.knownField(field)
+    : messages.errors.unknownField;
+  const { validation } = messages.errors;
+  return (
+    validation[type]?.(subject, ctx) ?? validation.value_error(subject, ctx)!
+  );
 }
 
 /** Converts anything thrown by axios into an ApiError with a Spanish message. */
@@ -99,7 +96,7 @@ export function normalizeError(error: unknown): ApiError {
       return new ApiError(translateDetail(detail), status);
     if (Array.isArray(detail) && detail.length > 0) {
       return new ApiError(
-        (detail as ValidationItem[]).map(translateValidationItem).join(". "),
+        (detail as ValidationItem[]).map(translateValidationItem).join(" "),
         status,
       );
     }

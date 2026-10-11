@@ -235,14 +235,17 @@ describe("422 validation errors", () => {
   }
 
   it.each([
-    [{ loc: ["body", "name"], type: "missing" }, "Nombre: Campo obligatorio"],
+    [
+      { loc: ["body", "name"], type: "missing" },
+      "El campo Nombre es obligatorio.",
+    ],
     [
       {
         loc: ["body", "name"],
         type: "string_too_short",
         ctx: { min_length: 1 },
       },
-      "Nombre: Longitud mínima: 1",
+      "El campo Nombre debe tener al menos 1 carácter.",
     ],
     [
       {
@@ -250,7 +253,15 @@ describe("422 validation errors", () => {
         type: "string_too_short",
         ctx: { min_length: 8 },
       },
-      "Contraseña: Longitud mínima: 8",
+      "El campo Contraseña debe tener al menos 8 caracteres.",
+    ],
+    [
+      {
+        loc: ["body", "name"],
+        type: "string_too_long",
+        ctx: { max_length: 1 },
+      },
+      "El campo Nombre no puede tener más de 1 carácter.",
     ],
     [
       {
@@ -258,57 +269,60 @@ describe("422 validation errors", () => {
         type: "string_too_long",
         ctx: { max_length: 200 },
       },
-      "Nombre: Longitud máxima: 200",
+      "El campo Nombre no puede tener más de 200 caracteres.",
     ],
     [
       { loc: ["body", "capacity"], type: "greater_than", ctx: { gt: 0 } },
-      "Capacidad: Debe ser mayor que 0",
+      "El campo Capacidad debe ser mayor que 0.",
     ],
     [
       { loc: ["body", "capacity"], type: "greater_than_equal", ctx: { ge: 1 } },
-      "Capacidad: Debe ser mayor o igual que 1",
+      "El campo Capacidad debe ser mayor o igual que 1.",
     ],
     [
       { loc: ["query", "size"], type: "less_than", ctx: { lt: 101 } },
-      "Tamaño: Debe ser menor que 101",
+      "El campo Tamaño debe ser menor que 101.",
     ],
     [
       { loc: ["query", "size"], type: "less_than_equal", ctx: { le: 100 } },
-      "Tamaño: Debe ser menor o igual que 100",
+      "El campo Tamaño debe ser menor o igual que 100.",
     ],
     [
       { loc: ["query", "page"], type: "int_parsing" },
-      "Página: Debe ser un número entero",
+      "El campo Página debe ser un número entero.",
     ],
     [
       { loc: ["body", "capacity"], type: "int_type" },
-      "Capacidad: Debe ser un número entero",
+      "El campo Capacidad debe ser un número entero.",
     ],
     [
       { loc: ["body", "name"], type: "string_type" },
-      "Nombre: Debe ser un texto",
+      "El campo Nombre debe ser un texto.",
     ],
     [
       { loc: ["body", "start_at"], type: "datetime_parsing" },
-      "Inicio: Debe ser una fecha y hora válidas",
+      "El campo Inicio debe ser una fecha y hora válidas.",
     ],
     [
       { loc: ["body", "end_at"], type: "datetime_type" },
-      "Fin: Debe ser una fecha y hora válidas",
+      "El campo Fin debe ser una fecha y hora válidas.",
     ],
-    [{ loc: ["query", "status"], type: "enum" }, "Valor no permitido"],
+    [
+      { loc: ["query", "status"], type: "enum" },
+      "Este campo tiene un valor no permitido.",
+    ],
     [
       { loc: ["body", "email"], type: "value_error" },
-      "Correo electrónico: Valor no válido",
+      "El campo Correo electrónico tiene un valor no válido.",
     ],
   ])("translates %j", async (item, expected) => {
     expect(await messageFor(item)).toBe(expected);
   });
 
-  it("shows the bare translation for an item whose field has no label", async () => {
+  it("refers to an unlabeled field as 'Este campo'", async () => {
     expect(
       await messageFor({ loc: ["body", "unlisted"], type: "missing" }),
-    ).toBe("Campo obligatorio");
+    ).toBe("Este campo es obligatorio.");
   });
 
   it("never shows the raw English message of an unknown type", async () => {
@@ -317,20 +331,22 @@ describe("422 validation errors", () => {
       msg: "Something odd",
       type: "brand_new_type",
     });
-    expect(message).toBe("Nombre: Valor no válido");
+    expect(message).toBe("El campo Nombre tiene un valor no válido.");
   });
 
-  it("uses the generic invalid value text when the context lacks the expected number", async () => {
+  it("uses the invalid value sentence when the context lacks the expected number", async () => {
     expect(
       await messageFor({ loc: ["body", "name"], type: "string_too_short" }),
-    ).toBe("Nombre: Valor no válido");
+    ).toBe("El campo Nombre tiene un valor no válido.");
   });
 
-  it("uses the generic invalid value text when the item has no type", async () => {
-    expect(await messageFor({ msg: "whatever" })).toBe("Valor no válido");
+  it("uses the invalid value sentence when the item has no type", async () => {
+    expect(await messageFor({ msg: "whatever" })).toBe(
+      "Este campo tiene un valor no válido.",
+    );
   });
 
-  it("joins several items with a period", async () => {
+  it("joins several items with a single space", async () => {
     respondWith(422, {
       detail: [
         { loc: ["body", "email"], type: "value_error" },
@@ -343,7 +359,7 @@ describe("422 validation errors", () => {
     });
     const error = await errorOf(apiClient.post("/events"));
     expect(error.message).toBe(
-      "Correo electrónico: Valor no válido. Capacidad: Debe ser mayor o igual que 1",
+      "El campo Correo electrónico tiene un valor no válido. El campo Capacidad debe ser mayor o igual que 1.",
     );
   });
 });

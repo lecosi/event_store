@@ -1,5 +1,7 @@
 import type { EventStatus, Role } from "../types";
 
+const characters = (n: number) => `${n} ${n === 1 ? "carácter" : "caracteres"}`;
+
 /**
  * Central catalog of user-visible Spanish (es-CO) texts.
  * Static texts are strings; messages with parameters are functions.
@@ -13,7 +15,6 @@ export const es = {
     genericError: "Algo salió mal. Inténtalo de nuevo.",
     networkError:
       "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.",
-    invalidValue: "Valor no válido",
     cancel: "Cancelar",
     edit: "Editar",
     delete: "Eliminar",
@@ -203,7 +204,7 @@ export const es = {
   /**
    * Spanish text for backend errors (see api/client.ts). The backend answers in English, so
    * `known` is keyed by its exact `detail` string. Messages that embed values are builders,
-   * and Pydantic 422 items are translated by their `type`, with `{ctx_key}` placeholders.
+   * and Pydantic 422 items are translated by their `type` into full sentences.
    */
   errors: {
     known: {
@@ -260,22 +261,51 @@ export const es = {
     passwordTooShort: (n: string) =>
       `La contraseña debe tener al menos ${n} caracteres.`,
 
+    /**
+     * 422 sentences keyed by Pydantic `type`. Each takes the subject ("El campo Nombre" or
+     * "Este campo") and the item's `ctx`, and returns null when a number it needs is missing.
+     */
     validation: {
-      missing: "Campo obligatorio",
-      string_too_short: "Longitud mínima: {min_length}",
-      string_too_long: "Longitud máxima: {max_length}",
-      greater_than: "Debe ser mayor que {gt}",
-      greater_than_equal: "Debe ser mayor o igual que {ge}",
-      less_than: "Debe ser menor que {lt}",
-      less_than_equal: "Debe ser menor o igual que {le}",
-      int_parsing: "Debe ser un número entero",
-      int_type: "Debe ser un número entero",
-      string_type: "Debe ser un texto",
-      datetime_parsing: "Debe ser una fecha y hora válidas",
-      datetime_type: "Debe ser una fecha y hora válidas",
-      enum: "Valor no permitido",
-      value_error: "Valor no válido",
-    } as Record<string, string>,
+      missing: (subject) => `${subject} es obligatorio.`,
+      string_too_short: (subject, ctx) =>
+        typeof ctx.min_length === "number"
+          ? `${subject} debe tener al menos ${characters(ctx.min_length)}.`
+          : null,
+      string_too_long: (subject, ctx) =>
+        typeof ctx.max_length === "number"
+          ? `${subject} no puede tener más de ${characters(ctx.max_length)}.`
+          : null,
+      greater_than: (subject, ctx) =>
+        typeof ctx.gt === "number"
+          ? `${subject} debe ser mayor que ${ctx.gt}.`
+          : null,
+      greater_than_equal: (subject, ctx) =>
+        typeof ctx.ge === "number"
+          ? `${subject} debe ser mayor o igual que ${ctx.ge}.`
+          : null,
+      less_than: (subject, ctx) =>
+        typeof ctx.lt === "number"
+          ? `${subject} debe ser menor que ${ctx.lt}.`
+          : null,
+      less_than_equal: (subject, ctx) =>
+        typeof ctx.le === "number"
+          ? `${subject} debe ser menor o igual que ${ctx.le}.`
+          : null,
+      int_parsing: (subject) => `${subject} debe ser un número entero.`,
+      int_type: (subject) => `${subject} debe ser un número entero.`,
+      string_type: (subject) => `${subject} debe ser un texto.`,
+      datetime_parsing: (subject) =>
+        `${subject} debe ser una fecha y hora válidas.`,
+      datetime_type: (subject) =>
+        `${subject} debe ser una fecha y hora válidas.`,
+      enum: (subject) => `${subject} tiene un valor no permitido.`,
+      value_error: (subject) => `${subject} tiene un valor no válido.`,
+    } as Record<
+      string,
+      (subject: string, ctx: Record<string, unknown>) => string | null
+    >,
+    knownField: (label: string) => `El campo ${label}`,
+    unknownField: "Este campo",
   },
 
   labels: {
