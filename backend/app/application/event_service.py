@@ -31,6 +31,15 @@ from app.domain.user import UserAccount
 ORGANIZING_ROLES = (Role.ORGANIZER, Role.ADMIN)
 
 
+def is_public_view(viewer: UserAccount | None) -> bool:
+    """Whether the viewer sees the same event list as an anonymous caller (published only).
+
+    Only organizing roles can see non-published events in a list, so every other viewer
+    shares the anonymous view and its results are safe to share between callers.
+    """
+    return viewer is None or viewer.role not in ORGANIZING_ROLES
+
+
 class EventService:
     def __init__(
         self,
@@ -82,7 +91,7 @@ class EventService:
         filters = EventFilters(
             q=q.strip() if q and q.strip() else None,
             status=status,
-            viewer_id=viewer.id if viewer else None,
+            viewer_id=None if viewer is None or is_public_view(viewer) else viewer.id,
             unrestricted=viewer is not None and viewer.role is Role.ADMIN,
         )
         items, total = self._events.list_page(filters, page, size)
