@@ -126,6 +126,9 @@ export const es = {
     updated: "Sesión actualizada",
     deleted: "Sesión eliminada",
     saveFailed: "No se pudo guardar la sesión",
+    newSpeaker: "Crear un ponente nuevo",
+    notEditable:
+      "Este evento está cancelado o finalizado: ya no se pueden cambiar sus sesiones.",
   },
 
   speakers: {
@@ -174,6 +177,7 @@ export const es = {
     endAfterStart: "El fin debe ser posterior al inicio",
     capacityInvalid: "La capacidad debe ser un número entero de al menos 1",
     titleRequired: "El título es obligatorio",
+    titleMax: (n: number) => `El título debe tener como máximo ${n} caracteres`,
     chooseSpeaker: "Elige un ponente",
     sessionStartRequired: "El inicio es obligatorio",
     sessionEndRequired: "El fin es obligatorio",

@@ -1,5 +1,13 @@
+process.env.TZ = 'UTC'
+
 import { describe, expect, it } from 'vitest'
-import { parseCapacity, validateEventForm, type EventFormValues } from './eventValidation'
+import {
+  parseCapacity,
+  validateEventForm,
+  validateSessionForm,
+  type EventFormValues,
+  type SessionFormValues,
+} from './eventValidation'
 
 const now = new Date('2030-01-01T12:00:00')
 
@@ -99,5 +107,83 @@ describe('validateEventForm', () => {
   it('uses the current time when none is given', () => {
     const errors = validateEventForm({ ...valid, start_at: '2000-01-01T09:00' }, { requireFuture: true })
     expect(errors.start_at).toBe('El inicio debe estar en el futuro')
+  })
+})
+
+describe('validateSessionForm', () => {
+  const event = {
+    start_at: '2030-05-20T09:00:00Z',
+    end_at: '2030-05-21T18:00:00Z',
+    capacity: 100,
+  }
+  const validSession: SessionFormValues = {
+    title: 'Apertura',
+    speaker_id: '3',
+    start_at: '2030-05-20T10:00',
+    end_at: '2030-05-20T11:00',
+    capacity: '50',
+  }
+  const validateSession = (overrides: Partial<SessionFormValues> = {}) =>
+    validateSessionForm({ ...validSession, ...overrides }, event)
+
+  it('accepts a session inside the event dates and capacity', () => {
+    expect(validateSession()).toEqual({})
+  })
+
+  it('accepts a session that starts and ends exactly with the event', () => {
+    expect(
+      validateSession({ start_at: '2030-05-20T09:00', end_at: '2030-05-21T18:00', capacity: '100' }),
+    ).toEqual({})
+  })
+
+  it('requires a title that is not only spaces', () => {
+    expect(validateSession({ title: '  ' }).title).toBe('El título es obligatorio')
+  })
+
+  it('rejects a title longer than 200 characters', () => {
+    expect(validateSession({ title: 'a'.repeat(201) }).title).toBe(
+      'El título debe tener como máximo 200 caracteres',
+    )
+    expect(validateSession({ title: 'a'.repeat(200) }).title).toBeUndefined()
+  })
+
+  it('requires a speaker', () => {
+    expect(validateSession({ speaker_id: '' }).speaker_id).toBe('Elige un ponente')
+  })
+
+  it('requires the start and the end', () => {
+    const errors = validateSession({ start_at: '', end_at: '' })
+    expect(errors.start_at).toBe('El inicio es obligatorio')
+    expect(errors.end_at).toBe('El fin es obligatorio')
+  })
+
+  it('requires the end to be after the start', () => {
+    expect(validateSession({ end_at: '2030-05-20T10:00' }).end_at).toBe(
+      'El fin debe ser posterior al inicio',
+    )
+  })
+
+  it('rejects a session that starts before the event', () => {
+    expect(
+      validateSession({ start_at: '2030-05-20T08:00', end_at: '2030-05-20T10:00' }).start_at,
+    ).toBe('La sesión debe realizarse dentro de las fechas del evento')
+  })
+
+  it('rejects a session that ends after the event', () => {
+    expect(
+      validateSession({ start_at: '2030-05-21T17:00', end_at: '2030-05-21T19:00' }).start_at,
+    ).toBe('La sesión debe realizarse dentro de las fechas del evento')
+  })
+
+  it.each(['', '0', '-2', '1.5', 'abc'])('rejects the capacity "%s"', (capacity) => {
+    expect(validateSession({ capacity }).capacity).toBe(
+      'La capacidad debe ser un número entero de al menos 1',
+    )
+  })
+
+  it('rejects a capacity above the event capacity', () => {
+    expect(validateSession({ capacity: '101' }).capacity).toBe(
+      'La capacidad no puede superar la del evento (100)',
+    )
   })
 })

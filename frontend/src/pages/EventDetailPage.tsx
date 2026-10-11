@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { deleteEvent, updateStatus } from '../api/events'
 import { register, unregister } from '../api/registrations'
+import { createSession, deleteSession, updateSession } from '../api/sessions'
 import { Button } from '../components/Button'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Select } from '../components/Fields'
+import { SessionForm } from '../components/SessionForm'
+import { SessionList } from '../components/SessionList'
 import { Spinner } from '../components/Spinner'
 import { StatusBadge } from '../components/StatusBadge'
 import { es, statusLabel } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import { useEventStore } from '../store/eventStore'
 import { toast } from '../store/toastStore'
-import type { EventStatus } from '../types'
+import type { EventStatus, Session, SessionPayload } from '../types'
 import { formatDateTime } from '../utils/format'
 import { canCancelRegistration, canManageEvent, isEditableStatus, nextStatuses } from '../utils/permissions'
 import styles from './Pages.module.css'
@@ -32,6 +35,8 @@ export default function EventDetailPage() {
 
   const [busy, setBusy] = useState(false)
   const [newStatus, setNewStatus] = useState('')
+  /** The session form: closed (null), adding a session ('new') or editing one. */
+  const [editing, setEditing] = useState<Session | 'new' | null>(null)
 
   useEffect(() => {
     if (!validId) return
@@ -87,6 +92,20 @@ export default function EventDetailPage() {
     }
   }
 
+  // A rejection propagates to SessionForm, which shows the backend message and stays open.
+  async function handleSaveSession(payload: SessionPayload) {
+    if (editing === 'new') await createSession(id, payload)
+    else if (editing) await updateSession(id, editing.id, payload)
+    toast.success(editing === 'new' ? es.sessions.added : es.sessions.updated)
+    setEditing(null)
+    await fetchEvent(id)
+  }
+
+  function handleDeleteSession(session: Session) {
+    if (!window.confirm(es.sessions.confirmDelete(session.title))) return
+    void run(() => deleteSession(id, session.id), es.sessions.deleted)
+  }
+
   if (!validId) return <ErrorMessage message={es.events.invalidId} />
   if (detailLoading && !event) return <Spinner />
   if (!event) return <ErrorMessage message={detailError ?? es.events.notFound} />
@@ -102,7 +121,7 @@ export default function EventDetailPage() {
     : event.status !== 'published'
       ? es.events.registrationClosed
       : es.events.full
-  const sessions = [...event.sessions].sort((a, b) => a.start_at.localeCompare(b.start_at))
+  const canEditSessions = canManage && isEditableStatus(event.status)
 
   return (
     <article>
@@ -180,23 +199,29 @@ export default function EventDetailPage() {
 
       <section className={styles.panel} aria-label={es.sessions.heading}>
         <h2>{es.sessions.heading}</h2>
-        {sessions.length === 0 ? (
-          <p className={styles.muted}>{es.sessions.empty}</p>
-        ) : (
-          <ul className={styles.list}>
-            {sessions.map((session) => (
-              <li key={session.id} className={styles.row}>
-                <span>
-                  <strong>{session.title}</strong> · {session.speaker.name}
-                </span>
-                <span className={styles.muted}>
-                  {formatDateTime(session.start_at)} - {formatDateTime(session.end_at)} ·{' '}
-                  {es.sessions.seats(session.capacity)}
-                </span>
-              </li>
-            ))}
-          </ul>
+        {canManage && !canEditSessions && (
+          <p className={styles.muted}>{es.sessions.notEditable}</p>
         )}
+        {canEditSessions && editing === null && (
+          <div className={styles.actions}>
+            <Button onClick={() => setEditing('new')}>{es.sessions.add}</Button>
+          </div>
+        )}
+        {canEditSessions && editing !== null && (
+          <SessionForm
+            key={editing === 'new' ? 'new' : editing.id}
+            event={event}
+            session={editing === 'new' ? undefined : editing}
+            onSubmit={handleSaveSession}
+            onCancel={() => setEditing(null)}
+          />
+        )}
+        <SessionList
+          sessions={event.sessions}
+          busy={busy}
+          onEdit={canEditSessions ? setEditing : undefined}
+          onDelete={canEditSessions ? handleDeleteSession : undefined}
+        />
       </section>
     </article>
   )
