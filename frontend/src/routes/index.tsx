@@ -10,6 +10,7 @@ const EventFormPage = lazy(() => import('../pages/EventFormPage'))
 const SpeakerFormPage = lazy(() => import('../pages/SpeakerFormPage'))
 const ProfilePage = lazy(() => import('../pages/ProfilePage'))
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage'))
+const ReportsPage = lazy(() => import('../pages/ReportsPage'))
 const LoginPage = lazy(() => import('../pages/LoginPage'))
 const RegisterPage = lazy(() => import('../pages/RegisterPage'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
@@ -29,6 +30,7 @@ export const routes: RouteObject[] = [
           { path: '/speakers/new', element: <SpeakerFormPage /> },
           { path: '/profile', element: <ProfilePage /> },
           { path: '/admin/users', element: <AdminUsersPage /> },
+          { path: '/reports', element: <ReportsPage /> },
         ],
       },
       { path: '/login', element: <LoginPage /> },
