@@ -104,3 +104,13 @@ def client(session: Session) -> Iterator[TestClient]:
     app.dependency_overrides[get_session] = lambda: session
     with TestClient(app) as test_client:
         yield test_client
+
+
+POSTGRES_FIXTURES = frozenset({"postgres_engine", "clean_postgres", "session", "client"})
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        fixtures = getattr(item, "fixturenames", ())
+        needs_database = POSTGRES_FIXTURES.intersection(fixtures)
+        item.add_marker(pytest.mark.integration if needs_database else pytest.mark.unit)

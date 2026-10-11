@@ -27,6 +27,11 @@ mypy = "^2.4.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "unit: runs without external services",
+    "integration: needs a PostgreSQL database",
+]
 
 [tool.ruff]
 line-length = 100
