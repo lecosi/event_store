@@ -206,3 +206,139 @@ def test_register_stores_trimmed_full_name(service: AuthService) -> None:
 def test_register_rejects_invalid_full_name(service: AuthService, full_name: str) -> None:
     with pytest.raises(InvalidFullNameError):
         service.register("ana@example.com", "supersecret", full_name)
+
+
+def _registered(service: AuthService, email: str, full_name: str = "Ana Perez") -> UserAccount:
+    return service.register(email, "supersecret", full_name)
+
+
+def test_admin_changes_only_the_full_name(service: AuthService, repo: FakeUserRepository) -> None:
+    user = _registered(service, "ana@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR, user.id, full_name="  Ana Maria Perez  "
+    )
+    assert updated.full_name == "Ana Maria Perez"
+    assert (updated.email, updated.role, updated.is_active) == (
+        "ana@example.com",
+        Role.ORGANIZER,
+        True,
+    )
+
+
+def test_admin_changes_only_the_email(service: AuthService, repo: FakeUserRepository) -> None:
+    user = _registered(service, "ana@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR, user.id, email="ana.perez@example.com"
+    )
+    assert updated.email == "ana.perez@example.com"
+    assert updated.full_name == "Ana Perez"
+
+
+def test_admin_changes_name_email_role_and_active_flag_together(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR,
+        user.id,
+        full_name="Ana M. Perez",
+        email="ana.m@example.com",
+        role=Role.ATTENDEE,
+        is_active=False,
+    )
+    assert (updated.full_name, updated.email, updated.role, updated.is_active) == (
+        "Ana M. Perez",
+        "ana.m@example.com",
+        Role.ATTENDEE,
+        False,
+    )
+
+
+def test_admin_email_is_normalized_like_registration(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR, user.id, email="  Ana.Perez@Example.COM "
+    )
+    assert updated.email == "ana.perez@example.com"
+    assert service.login("ana.perez@example.com", "supersecret")
+
+
+def test_admin_cannot_take_an_email_used_by_another_user(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    _registered(service, "bob@example.com")
+    with pytest.raises(EmailAlreadyRegisteredError):
+        UserAdminService(repo, FakeUnitOfWork()).update_user(
+            ADMIN_ACTOR, user.id, email="  BOB@example.com"
+        )
+    assert repo.get_by_id(user.id).email == "ana@example.com"
+
+
+def test_admin_resending_the_current_email_is_not_a_conflict(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR, user.id, email="ANA@example.com", full_name="Ana Maria"
+    )
+    assert (updated.email, updated.full_name) == ("ana@example.com", "Ana Maria")
+
+
+@pytest.mark.parametrize("full_name", ["", "   ", "x" * 201])
+def test_admin_rejects_invalid_full_name_without_committing(
+    service: AuthService, repo: FakeUserRepository, full_name: str
+) -> None:
+    user = _registered(service, "ana@example.com")
+    uow = FakeUnitOfWork()
+    with pytest.raises(InvalidFullNameError):
+        UserAdminService(repo, uow).update_user(ADMIN_ACTOR, user.id, full_name=full_name)
+    assert uow.commits == 0
+    assert repo.get_by_id(user.id).full_name == "Ana Perez"
+
+
+def test_admin_email_conflict_rolls_back_without_committing(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    _registered(service, "bob@example.com")
+    uow = FakeUnitOfWork()
+    with pytest.raises(EmailAlreadyRegisteredError):
+        UserAdminService(repo, uow).update_user(ADMIN_ACTOR, user.id, email="bob@example.com")
+    assert (uow.commits, uow.rollbacks) == (0, 1)
+
+
+def test_admin_edits_own_name_and_email(service: AuthService, repo: FakeUserRepository) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    updated = UserAdminService(repo, FakeUnitOfWork()).update_user(
+        me, me.id, full_name="Root Admin", email="boss@example.com"
+    )
+    assert (updated.full_name, updated.email, updated.role) == (
+        "Root Admin",
+        "boss@example.com",
+        Role.ADMIN,
+    )
+
+
+def test_admin_self_lockout_still_applies_when_editing_name(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    me = _admin_in_repo(service, repo, "root@example.com")
+    with pytest.raises(SelfLockoutError):
+        UserAdminService(repo, FakeUnitOfWork()).update_user(
+            me, me.id, full_name="Root Admin", is_active=False
+        )
+    assert repo.get_by_id(me.id).full_name == "Ana Perez"
+
+
+def test_token_issued_before_an_email_change_still_authenticates(
+    service: AuthService, repo: FakeUserRepository
+) -> None:
+    user = _registered(service, "ana@example.com")
+    token = service.login("ana@example.com", "supersecret")
+    UserAdminService(repo, FakeUnitOfWork()).update_user(
+        ADMIN_ACTOR, user.id, email="ana.new@example.com"
+    )
+    assert service.authenticate(token).email == "ana.new@example.com"

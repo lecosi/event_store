@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.api.dependencies import get_user_admin_service, require_role
-from app.api.error_handlers import SELF_LOCKOUT_DETAIL
+from app.api.error_handlers import EMAIL_TAKEN_DETAIL, SELF_LOCKOUT_DETAIL
 from app.api.openapi_params import PageNumber, PageSize, UserId
-from app.api.openapi_responses import ORGANIZER_OR_ADMIN, USER_NOT_FOUND, combine, conflict
-from app.api.schemas import UserResponse
+from app.api.openapi_responses import (
+    ORGANIZER_OR_ADMIN,
+    USER_NOT_FOUND,
+    combine,
+    conflicts,
+    validation_error,
+)
+from app.api.schemas import FullName, UserResponse
 from app.application.auth_service import UserAdminService
 from app.domain.enums import Role
-from app.domain.user import UserAccount
+from app.domain.user import MAX_FULL_NAME_LENGTH, UserAccount
 
 require_admin = require_role(Role.ADMIN)
 
@@ -24,16 +30,51 @@ class UserPageResponse(BaseModel):
 
 
 class UserAdminUpdate(BaseModel):
-    """Fields an admin may change; omitted fields stay untouched."""
+    """Fields an admin may change; omitted fields stay untouched. At least one is required."""
 
-    model_config = ConfigDict(json_schema_extra={"examples": [{"role": "organizer"}]})
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"full_name": "Ana Maria Perez"},
+                {"email": "ana.perez@example.com"},
+                {
+                    "full_name": "Ana Maria Perez",
+                    "email": "ana.perez@example.com",
+                    "role": "organizer",
+                },
+                {"is_active": False},
+            ]
+        }
+    )
 
+    full_name: FullName | None = Field(
+        default=None,
+        description=(
+            "New full name. Surrounding whitespace is trimmed; "
+            f"1 to {MAX_FULL_NAME_LENGTH} characters."
+        ),
+        examples=["Ana Maria Perez"],
+    )
+    email: EmailStr | None = Field(
+        default=None,
+        description=(
+            "New email address, also the login name. Stored trimmed and in lowercase; "
+            "it must not belong to another user. Tokens already issued stay valid."
+        ),
+        examples=["ana.perez@example.com"],
+    )
     role: Role | None = Field(
         default=None, description="New role for the user.", examples=["organizer"]
     )
     is_active: bool | None = Field(
         default=None, description="Activate (`true`) or deactivate (`false`) the account."
     )
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> "UserAdminUpdate":
+        if all(value is None for value in (self.full_name, self.email, self.role, self.is_active)):
+            raise ValueError("Send at least one of full_name, email, role or is_active")
+        return self
 
 
 router = APIRouter(
@@ -64,12 +105,24 @@ def list_users(
 @router.patch(
     "/users/{user_id}",
     response_model=UserResponse,
-    summary="Change a user's role or active flag",
+    summary="Update a user's profile, role or active flag",
     responses=combine(
         USER_NOT_FOUND,
-        conflict(
-            "An admin cannot demote or deactivate their own account.",
-            SELF_LOCKOUT_DETAIL,
+        conflicts(
+            "The change clashes with another account or with the admin's own account.",
+            {
+                "email_taken": ("Email already used by another user", EMAIL_TAKEN_DETAIL),
+                "self_lockout": (
+                    "An admin cannot demote or deactivate their own account",
+                    SELF_LOCKOUT_DETAIL,
+                ),
+            },
+        ),
+        validation_error(
+            "Invalid name or email, an unknown role, or none of the fields was sent.",
+            ["body", "email"],
+            "value is not a valid email address",
+            "value_error",
         ),
     ),
 )
@@ -81,10 +134,20 @@ def update_user(
 ) -> UserAccount:
     """Partially update a user. Admin only.
 
-    Send only the fields to change: `role` (`admin`, `organizer`, `attendee`) and/or
-    `is_active`. Deactivating an account blocks its login and any token already issued.
+    Send only the fields to change, at least one: `full_name`, `email`, `role` (`admin`,
+    `organizer`, `attendee`) and/or `is_active`. Name and email follow the registration rules
+    (trimmed name of 1 to 200 characters; email trimmed and lowercased, unique). Changing the
+    email changes the login name; tokens already issued stay valid because they identify the
+    user by id. Deactivating an account blocks its login and any token already issued.
 
-    An admin cannot change their own role away from `admin` nor deactivate themselves (409);
-    another admin has to do it.
+    An admin may edit their own name and email, but cannot change their own role away from
+    `admin` nor deactivate themselves (409); another admin has to do it.
     """
-    return service.update_user(actor, user_id, role=body.role, is_active=body.is_active)
+    return service.update_user(
+        actor,
+        user_id,
+        role=body.role,
+        is_active=body.is_active,
+        full_name=body.full_name,
+        email=body.email,
+    )

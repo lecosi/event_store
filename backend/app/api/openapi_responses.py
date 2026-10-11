@@ -19,6 +19,24 @@ class ErrorResponse(BaseModel):
     )
 
 
+class ValidationErrorItem(BaseModel):
+    """One invalid field reported by request validation."""
+
+    loc: list[str | int] = Field(
+        description="Path to the invalid value.", examples=[["body", "email"]]
+    )
+    msg: str = Field(
+        description="What is wrong with the value.", examples=["value is not a valid email address"]
+    )
+    type: str = Field(description="Machine-readable error type.", examples=["value_error"])
+
+
+class ValidationErrorResponse(BaseModel):
+    """Body of a 422 returned when the request does not pass validation."""
+
+    detail: list[ValidationErrorItem] = Field(description="Every invalid field of the request.")
+
+
 Responses = dict[int | str, dict[str, Any]]
 
 
@@ -29,6 +47,29 @@ def error_response(status_code: int, description: str, detail: str) -> Responses
             "model": ErrorResponse,
             "description": description,
             "content": {"application/json": {"example": {"detail": detail}}},
+        }
+    }
+
+
+def error_examples(
+    status_code: int, description: str, examples: dict[str, tuple[str, str]]
+) -> Responses:
+    """Build one documented error entry with several named example bodies.
+
+    ``examples`` maps an example name to ``(summary, detail)``.
+    """
+    return {
+        status_code: {
+            "model": ErrorResponse,
+            "description": description,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        name: {"summary": summary, "value": {"detail": detail}}
+                        for name, (summary, detail) in examples.items()
+                    }
+                }
+            },
         }
     }
 
@@ -52,9 +93,29 @@ def not_found(what: str = "Resource") -> Responses:
     )
 
 
+def validation_error(description: str, loc: list[str | int], msg: str, kind: str) -> Responses:
+    """422 for a request body or parameter that fails validation (FastAPI's list-of-errors body)."""
+    return {
+        422: {
+            "model": ValidationErrorResponse,
+            "description": description,
+            "content": {
+                "application/json": {
+                    "example": {"detail": [{"loc": loc, "msg": msg, "type": kind}]}
+                }
+            },
+        }
+    }
+
+
 def conflict(description: str, detail: str) -> Responses:
     """409 for a request that clashes with the current state of the data."""
     return error_response(409, description, detail)
+
+
+def conflicts(description: str, examples: dict[str, tuple[str, str]]) -> Responses:
+    """409 documented with several named causes, each with its own ``detail`` text."""
+    return error_examples(409, description, examples)
 
 
 def combine(*parts: Responses) -> Responses:

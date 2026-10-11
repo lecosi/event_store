@@ -84,7 +84,7 @@ class UserRepository(Protocol):
         ...
 
     def save(self, user: UserAccount) -> UserAccount:
-        """Stage changes to an existing user."""
+        """Stage changes to an existing user; raise EmailAlreadyRegisteredError on duplicate."""
         ...
 
 

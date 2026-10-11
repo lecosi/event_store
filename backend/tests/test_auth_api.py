@@ -302,3 +302,221 @@ def test_admin_users_param_validation_and_permissions(client: TestClient, sessio
         assert response.status_code == 422, params
     organizer = make_user(client, session, "org@example.com", Role.ORGANIZER)
     assert client.get(ADMIN_USERS, headers=organizer).status_code == 403
+
+
+def _user_id(client: TestClient, email: str, headers: dict[str, str]) -> int:
+    users = client.get(ADMIN_USERS, headers=headers).json()["items"]
+    return next(u["id"] for u in users if u["email"] == email)
+
+
+def test_admin_changes_only_the_name_of_a_user(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{ana}", json={"full_name": "  Ana Maria  "}, headers=admin
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["full_name"], body["email"], body["role"], body["is_active"]) == (
+        "Ana Maria",
+        "ana@example.com",
+        "organizer",
+        True,
+    )
+
+
+def test_admin_changes_only_the_email_of_a_user(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{ana}", json={"email": "ana.new@example.com"}, headers=admin
+    )
+    assert response.status_code == 200
+    assert response.json()["email"] == "ana.new@example.com"
+    assert response.json()["full_name"] == "Ana Perez"
+
+
+def test_admin_changes_name_email_and_role_in_one_request(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{ana}",
+        json={"full_name": "Ana M. Perez", "email": "ana.m@example.com", "role": "attendee"},
+        headers=admin,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["full_name"], body["email"], body["role"]) == (
+        "Ana M. Perez",
+        "ana.m@example.com",
+        "attendee",
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"full_name": None, "email": None, "role": None, "is_active": None},
+        {"full_name": ""},
+        {"full_name": "   "},
+        {"full_name": "x" * 201},
+        {"email": "not-an-email"},
+        {"email": ""},
+    ],
+)
+def test_admin_update_rejects_invalid_or_empty_bodies(
+    client: TestClient, session: Session, body: dict[str, object]
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    assert client.patch(f"{ADMIN_USERS}/{ana}", json=body, headers=admin).status_code == 422
+    current = client.get(ADMIN_USERS, headers=admin).json()["items"]
+    assert {u["email"]: u["full_name"] for u in current}["ana@example.com"] == "Ana Perez"
+
+
+def test_admin_cannot_use_an_email_taken_by_another_user(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    register(client, "bob@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{ana}", json={"email": "bob@example.com"}, headers=admin
+    )
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Email already registered"}
+    assert login_headers(client, "ana@example.com")
+
+
+def test_admin_resending_the_current_email_is_not_a_conflict(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{ana}",
+        json={"email": "ana@example.com", "full_name": "Ana Maria"},
+        headers=admin,
+    )
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Ana Maria"
+
+
+def test_admin_email_is_normalized_and_conflicts_like_registration(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    register(client, "bob@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    taken = client.patch(f"{ADMIN_USERS}/{ana}", json={"email": " BOB@Example.com "}, headers=admin)
+    assert taken.status_code == 409
+    renamed = client.patch(
+        f"{ADMIN_USERS}/{ana}", json={"email": "  Ana.New@Example.COM "}, headers=admin
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["email"] == "ana.new@example.com"
+
+
+def test_login_works_with_the_new_email_and_fails_with_the_old_one(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana = _user_id(client, "ana@example.com", admin)
+    client.patch(f"{ADMIN_USERS}/{ana}", json={"email": "ana.new@example.com"}, headers=admin)
+    assert (
+        client.post(LOGIN, json={"email": "ana.new@example.com", "password": "supersecret"})
+    ).status_code == 200
+    assert (
+        client.post(LOGIN, json={"email": "ana@example.com", "password": "supersecret"})
+    ).status_code == 401
+
+
+def test_token_issued_before_an_email_change_keeps_working(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana_headers = login_headers(client, "ana@example.com")
+    ana = _my_id(client, ana_headers)
+    client.patch(f"{ADMIN_USERS}/{ana}", json={"email": "ana.new@example.com"}, headers=admin)
+    me = client.get(ME, headers=ana_headers)
+    assert me.status_code == 200
+    assert me.json()["email"] == "ana.new@example.com"
+
+
+def test_users_me_reflects_the_name_changed_by_an_admin(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    register(client, "ana@example.com")
+    ana_headers = login_headers(client, "ana@example.com")
+    ana = _my_id(client, ana_headers)
+    client.patch(f"{ADMIN_USERS}/{ana}", json={"full_name": "Ana Maria"}, headers=admin)
+    assert client.get(ME, headers=ana_headers).json()["full_name"] == "Ana Maria"
+
+
+def test_admin_edits_own_name_and_email(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    me = _my_id(client, admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{me}",
+        json={"full_name": "Root Admin", "email": "root@example.com"},
+        headers=admin,
+    )
+    assert response.status_code == 200
+    assert (response.json()["full_name"], response.json()["role"]) == ("Root Admin", "admin")
+    assert client.get(ME, headers=admin).json()["email"] == "root@example.com"
+
+
+def test_admin_self_lockout_still_applies_when_name_is_sent(
+    client: TestClient, session: Session
+) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    me = _my_id(client, admin)
+    response = client.patch(
+        f"{ADMIN_USERS}/{me}", json={"full_name": "Root", "is_active": False}, headers=admin
+    )
+    assert response.status_code == 409
+    assert client.get(ME, headers=admin).json()["full_name"] == "Ana Perez"
+
+
+def test_profile_edit_is_forbidden_for_non_admins_and_anonymous(
+    client: TestClient, session: Session
+) -> None:
+    organizer = make_user(client, session, "org@example.com", Role.ORGANIZER)
+    body = {"full_name": "Hacker", "email": "h@example.com"}
+    assert client.patch(f"{ADMIN_USERS}/1", json=body, headers=organizer).status_code == 403
+    assert client.patch(f"{ADMIN_USERS}/1", json=body).status_code == 401
+
+
+def test_profile_edit_of_unknown_user_is_not_found(client: TestClient, session: Session) -> None:
+    admin = make_user(client, session, "admin@example.com", Role.ADMIN)
+    response = client.patch(f"{ADMIN_USERS}/999", json={"full_name": "Ghost"}, headers=admin)
+    assert response.status_code == 404
+    assert response.json() == {"detail": "User not found"}
+
+
+def test_openapi_documents_profile_fields_and_both_conflict_examples(client: TestClient) -> None:
+    spec = client.get("/openapi.json").json()
+    operation = spec["paths"]["/api/v1/admin/users/{user_id}"]["patch"]
+    assert operation["summary"] == "Update a user's profile, role or active flag"
+    conflict_examples = operation["responses"]["409"]["content"]["application/json"]["examples"]
+    assert {key: value["value"] for key, value in conflict_examples.items()} == {
+        "email_taken": {"detail": "Email already registered"},
+        "self_lockout": {"detail": "Admins cannot demote or deactivate their own account"},
+    }
+    schema_ref = operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+    properties = spec["components"]["schemas"][schema_ref.rsplit("/", 1)[-1]]["properties"]
+    assert set(properties) == {"full_name", "email", "role", "is_active"}
+    assert "422" in operation["responses"]

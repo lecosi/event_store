@@ -86,6 +86,8 @@ class UserAdminService:
         user_id: int,
         role: Role | None = None,
         is_active: bool | None = None,
+        full_name: str | None = None,
+        email: str | None = None,
     ) -> UserAccount:
         """Apply a partial update; an admin may not demote or deactivate themselves."""
         with transaction(self._uow):
@@ -96,8 +98,21 @@ class UserAdminService:
             user = self._users.get_by_id(user_id)
             if user is None:
                 raise UserNotFoundError(user_id)
+            new_name = normalize_full_name(full_name) if full_name is not None else None
+            new_email = self._claim_email(user_id, email) if email is not None else None
+            if new_name is not None:
+                user.full_name = new_name
+            if new_email is not None:
+                user.email = new_email
             if role is not None:
                 user.role = role
             if is_active is not None:
                 user.is_active = is_active
             return self._users.save(user)
+
+    def _claim_email(self, user_id: int, email: str) -> str:
+        normalized = normalize_email(email)
+        owner = self._users.get_by_email(normalized)
+        if owner is not None and owner.id != user_id:
+            raise EmailAlreadyRegisteredError(normalized)
+        return normalized

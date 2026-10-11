@@ -52,9 +52,15 @@ class SqlUserRepository:
         row = self._session.get(User, user.id)
         if row is None:
             raise LookupError(f"User {user.id} does not exist")
+        row.email = user.email
+        row.full_name = user.full_name
         row.role = user.role
         row.is_active = user.is_active
         self._session.add(row)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as exc:
+            self._session.rollback()
+            raise EmailAlreadyRegisteredError(user.email) from exc
         self._session.refresh(row)
         return user_to_domain(row)

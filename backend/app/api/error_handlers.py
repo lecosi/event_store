@@ -20,6 +20,7 @@ from app.domain.registration import NotRegisteredError, RegistrationConflictErro
 from app.domain.session import SessionConflictError, SessionValidationError
 from app.domain.user import InvalidFullNameError
 
+EMAIL_TAKEN_DETAIL = "Email already registered"
 SELF_LOCKOUT_DETAIL = "Admins cannot demote or deactivate their own account"
 
 
@@ -45,9 +46,7 @@ ERROR_RESPONSES: dict[type[Exception], ErrorResponse] = {
     EventStateError: ErrorResponse(status.HTTP_409_CONFLICT),
     SessionConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     RegistrationConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
-    EmailAlreadyRegisteredError: ErrorResponse(
-        status.HTTP_409_CONFLICT, "Email already registered"
-    ),
+    EmailAlreadyRegisteredError: ErrorResponse(status.HTTP_409_CONFLICT, EMAIL_TAKEN_DETAIL),
     SpeakerEmailTakenError: ErrorResponse(status.HTTP_409_CONFLICT, "Speaker email already in use"),
     SpeakerInUseError: ErrorResponse(
         status.HTTP_409_CONFLICT, "Speaker has sessions and cannot be deleted"
