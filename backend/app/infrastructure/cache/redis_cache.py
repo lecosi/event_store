@@ -40,21 +40,21 @@ class RedisCache:
     def get(self, namespace: str, key: str) -> str | None:
         try:
             return _as_text(self._client.get(self._entry_key(namespace, key)))
-        except (redis.RedisError, OSError):
-            logger.warning("cache get failed for %s; treating as a miss", namespace, exc_info=True)
+        except (redis.RedisError, OSError) as error:
+            logger.warning("cache get failed for %s (%s); treating as a miss", namespace, error)
             return None
 
     def set(self, namespace: str, key: str, value: str, ttl_seconds: int) -> None:
         try:
             self._client.setex(self._entry_key(namespace, key), ttl_seconds, value)
-        except (redis.RedisError, OSError):
-            logger.warning("cache set failed for %s; skipping", namespace, exc_info=True)
+        except (redis.RedisError, OSError) as error:
+            logger.warning("cache set failed for %s (%s); skipping", namespace, error)
 
     def invalidate(self, namespace: str) -> None:
         try:
             self._client.incr(self._version_key(namespace))
-        except (redis.RedisError, OSError):
-            logger.warning("cache invalidation failed for %s", namespace, exc_info=True)
+        except (redis.RedisError, OSError) as error:
+            logger.warning("cache invalidation failed for %s (%s)", namespace, error)
 
     def _entry_key(self, namespace: str, key: str) -> str:
         version = _as_text(self._client.get(self._version_key(namespace))) or "0"

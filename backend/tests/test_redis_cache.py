@@ -124,6 +124,34 @@ def test_outage_is_logged_as_a_warning(cache, client, caplog, cache_logger_enabl
     assert any(record.levelno == logging.WARNING for record in caplog.records)
 
 
+@pytest.mark.parametrize(
+    "operation",
+    [
+        lambda cache: cache.get("events", "page=1"),
+        lambda cache: cache.set("events", "page=1", "payload", ttl_seconds=60),
+        lambda cache: cache.invalidate("events"),
+    ],
+    ids=["get", "set", "invalidate"],
+)
+class TestOutageLogging:
+    def test_warning_carries_no_traceback(
+        self, cache, client, caplog, cache_logger_enabled, operation
+    ):
+        client.fail_with = redis.ConnectionError("connection refused")
+        with caplog.at_level(logging.WARNING):
+            operation(cache)
+        assert caplog.records
+        assert all(record.exc_info is None for record in caplog.records)
+
+    def test_warning_names_the_failure(
+        self, cache, client, caplog, cache_logger_enabled, operation
+    ):
+        client.fail_with = redis.ConnectionError("connection refused")
+        with caplog.at_level(logging.WARNING):
+            operation(cache)
+        assert "connection refused" in caplog.text
+
+
 def test_os_level_socket_errors_also_degrade(cache, client):
     client.fail_with = ConnectionResetError("reset")
     assert cache.get("events", "page=1") is None
