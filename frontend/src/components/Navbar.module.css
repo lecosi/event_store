@@ -20,13 +20,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-1) var(--space-2);
   width: 100%;
 }
 
 .links a {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
+  font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
   transition:
@@ -49,6 +50,8 @@
 }
 
 .email {
+  flex: 1 1 8rem;
+  min-width: 0;
   color: var(--color-muted);
   font-size: 0.85rem;
   overflow-wrap: anywhere;
@@ -64,6 +67,16 @@
   }
 
   .links {
+    gap: var(--space-2) var(--space-3);
     width: auto;
+  }
+
+  .links a {
+    padding: var(--space-1) var(--space-3);
+    font-size: 1rem;
+  }
+
+  .email {
+    flex: 0 1 auto;
   }
 }
