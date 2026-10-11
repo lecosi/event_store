@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Role, User } from '../types'
-import { canCreateEvents } from './permissions'
+import type { EventStatus, Role, User } from '../types'
+import { canCreateEvents, canManageEvent, nextStatuses } from './permissions'
 
 const userWith = (role: Role): User => ({ id: 1, email: 'a@b.co', role, is_active: true })
 
@@ -15,5 +15,44 @@ describe('canCreateEvents', () => {
 
   it('denies a visitor without a user', () => {
     expect(canCreateEvents(null)).toBe(false)
+  })
+})
+
+describe('canManageEvent', () => {
+  const event = { organizer_id: 1 }
+  const userWithId = (role: Role, id: number): User => ({ id, email: 'a@b.co', role, is_active: true })
+
+  it('allows an admin on any event', () => {
+    expect(canManageEvent(userWithId('admin', 99), event)).toBe(true)
+  })
+
+  it('allows the organizer who owns the event', () => {
+    expect(canManageEvent(userWithId('organizer', 1), event)).toBe(true)
+  })
+
+  it('denies an organizer who does not own the event', () => {
+    expect(canManageEvent(userWithId('organizer', 2), event)).toBe(false)
+  })
+
+  it('denies an attendee even when the ids match', () => {
+    expect(canManageEvent(userWithId('attendee', 1), event)).toBe(false)
+  })
+
+  it('denies a visitor without a user', () => {
+    expect(canManageEvent(null, event)).toBe(false)
+  })
+})
+
+describe('nextStatuses', () => {
+  it('lets a draft be published or cancelled', () => {
+    expect(nextStatuses('draft')).toEqual(['published', 'cancelled'])
+  })
+
+  it('lets a published event be finished or cancelled', () => {
+    expect(nextStatuses('published')).toEqual(['finished', 'cancelled'])
+  })
+
+  it.each<EventStatus>(['cancelled', 'finished'])('offers nothing from %s', (status) => {
+    expect(nextStatuses(status)).toEqual([])
   })
 })
