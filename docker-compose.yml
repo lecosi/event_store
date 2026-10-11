@@ -44,5 +44,19 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the bundle at build time. It is the address the browser uses
+        # to reach the backend, so it must be reachable from the host machine.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+    depends_on:
+      - backend
+    # Port 5173 matches the default CORS_ORIGINS of the backend.
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
 volumes:
   db_data:
