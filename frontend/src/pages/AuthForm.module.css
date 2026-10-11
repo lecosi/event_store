@@ -1,0 +1,15 @@
+.card {
+  max-width: 420px;
+  margin: var(--space-4) auto;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.footer {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}

@@ -7,6 +7,8 @@ import { ProtectedRoute } from './ProtectedRoute'
 const EventListPage = lazy(() => import('../pages/EventListPage'))
 const EventDetailPage = lazy(() => import('../pages/EventDetailPage'))
 const EventFormPage = lazy(() => import('../pages/EventFormPage'))
+const LoginPage = lazy(() => import('../pages/LoginPage'))
+const RegisterPage = lazy(() => import('../pages/RegisterPage'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
 /** Exported separately so tests can mount it with createMemoryRouter. */
@@ -23,6 +25,8 @@ export const routes: RouteObject[] = [
           { path: '/events/:id/edit', element: <EventFormPage /> },
         ],
       },
+      { path: '/login', element: <LoginPage /> },
+      { path: '/register', element: <RegisterPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
