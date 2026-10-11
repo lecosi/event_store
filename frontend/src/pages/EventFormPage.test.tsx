@@ -9,7 +9,7 @@ import { routes } from '../routes'
 import { useAuthStore } from '../store/authStore'
 import { useEventStore } from '../store/eventStore'
 import { useToastStore } from '../store/toastStore'
-import type { EventDetail, Role } from '../types'
+import type { EventDetail, EventStatus, Role } from '../types'
 
 vi.mock('../api/events')
 
@@ -135,6 +135,30 @@ describe('EventFormPage create', () => {
 })
 
 describe('EventFormPage edit', () => {
+  it.each<EventStatus>(['cancelled', 'finished'])(
+    'shows a message with a link back instead of the form for a %s event',
+    async (status) => {
+      loginAs('organizer', 1)
+      vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ status }))
+      renderAt('/events/5/edit')
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Este evento ya no se puede editar porque está cancelado o finalizado.',
+      )
+      expect(screen.queryByLabelText('Nombre')).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Volver al evento' })).toHaveAttribute(
+        'href',
+        '/events/5',
+      )
+    },
+  )
+
+  it.each<EventStatus>(['draft', 'published'])('shows the form for a %s event', async (status) => {
+    loginAs('organizer', 1)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ status }))
+    renderAt('/events/5/edit')
+    expect(await screen.findByLabelText('Nombre')).toBeInTheDocument()
+  })
+
   it('loads the event into the form for its organizer', async () => {
     loginAs('organizer', 1)
     vi.mocked(eventsApi.getEvent).mockResolvedValue(detail())

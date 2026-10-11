@@ -13,7 +13,7 @@ import { useEventStore } from '../store/eventStore'
 import { toast } from '../store/toastStore'
 import type { EventStatus } from '../types'
 import { formatDateTime } from '../utils/format'
-import { canManageEvent, nextStatuses } from '../utils/permissions'
+import { canCancelRegistration, canManageEvent, isEditableStatus, nextStatuses } from '../utils/permissions'
 import styles from './Pages.module.css'
 
 function messageOf(error: unknown): string {
@@ -93,8 +93,15 @@ export default function EventDetailPage() {
 
   const canManage = canManageEvent(user, event)
   const statusOptions = nextStatuses(event.status)
+  const cancelBlocked = event.is_registered && !canCancelRegistration(event.status)
   const registerDisabled =
-    !event.is_registered && (event.status !== 'published' || event.available_spots <= 0)
+    cancelBlocked ||
+    (!event.is_registered && (event.status !== 'published' || event.available_spots <= 0))
+  const disabledReason = cancelBlocked
+    ? es.events.cancelRegistrationClosed
+    : event.status !== 'published'
+      ? es.events.registrationClosed
+      : es.events.full
   const sessions = [...event.sessions].sort((a, b) => a.start_at.localeCompare(b.start_at))
 
   return (
@@ -129,7 +136,7 @@ export default function EventDetailPage() {
           </Button>
           {registerDisabled && (
             <span className={styles.muted}>
-              {event.status !== 'published' ? es.events.registrationClosed : es.events.full}
+              {disabledReason}
             </span>
           )}
         </div>
@@ -138,7 +145,9 @@ export default function EventDetailPage() {
       {canManage && (
         <section className={styles.panel} aria-label={es.events.manageLabel}>
           <div className={styles.actions}>
-            <Link to={`/events/${event.id}/edit`}>{es.events.edit}</Link>
+            {isEditableStatus(event.status) && (
+              <Link to={`/events/${event.id}/edit`}>{es.events.edit}</Link>
+            )}
             {statusOptions.length > 0 && (
               <>
                 <Select

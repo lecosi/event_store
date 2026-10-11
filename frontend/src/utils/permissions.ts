@@ -18,6 +18,16 @@ const TRANSITIONS: Record<EventStatus, EventStatus[]> = {
   finished: [],
 }
 
+/** The backend rejects edits to cancelled and finished events (409). */
+export function isEditableStatus(status: EventStatus): boolean {
+  return status !== 'cancelled' && status !== 'finished'
+}
+
+/** The backend rejects cancelling a registration of a finished event (409). */
+export function canCancelRegistration(status: EventStatus): boolean {
+  return status !== 'finished'
+}
+
 /** Status changes the backend accepts from the given status. */
 export function nextStatuses(status: EventStatus): EventStatus[] {
   return TRANSITIONS[status]

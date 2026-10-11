@@ -9,7 +9,7 @@ import { useAuthStore } from '../store/authStore'
 import { useEventStore } from '../store/eventStore'
 import { toast } from '../store/toastStore'
 import type { EventPayload } from '../types'
-import { canCreateEvents, canManageEvent } from '../utils/permissions'
+import { canCreateEvents, canManageEvent, isEditableStatus } from '../utils/permissions'
 
 /** Serves both /events/new (create) and /events/:id/edit (edit). */
 export default function EventFormPage() {
@@ -53,6 +53,16 @@ export default function EventFormPage() {
   if (detailLoading && !event) return <Spinner />
   if (!event) return <ErrorMessage message={detailError ?? es.events.notFound} />
   if (!canManageEvent(user, event)) return <ErrorMessage message={es.events.form.notAllowedEdit} />
+  if (!isEditableStatus(event.status)) {
+    return (
+      <section>
+        <ErrorMessage message={es.events.form.notEditable} />
+        <p>
+          <Link to={`/events/${event.id}`}>{es.events.form.back}</Link>
+        </p>
+      </section>
+    )
+  }
 
   return (
     <section>

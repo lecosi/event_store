@@ -194,6 +194,55 @@ describe('EventDetailPage registration', () => {
   })
 })
 
+describe('EventDetailPage registration by status', () => {
+  it('disables cancelling for a registered user of a finished event and says why', async () => {
+    loginAs('attendee', 7)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(
+      detail({ status: 'finished', is_registered: true }),
+    )
+    renderAt()
+    expect(await screen.findByRole('button', { name: 'Cancelar inscripción' })).toBeDisabled()
+    expect(
+      screen.getByText('No se puede cancelar la inscripción de un evento finalizado.'),
+    ).toBeInTheDocument()
+  })
+
+  it.each<EventStatus>(['draft', 'published', 'cancelled'])(
+    'keeps cancelling enabled for a registered user of a %s event',
+    async (status) => {
+      loginAs('attendee', 7)
+      vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ status, is_registered: true }))
+      renderAt()
+      expect(await screen.findByRole('button', { name: 'Cancelar inscripción' })).toBeEnabled()
+    },
+  )
+})
+
+describe('EventDetailPage edit link by status', () => {
+  it.each<EventStatus>(['draft', 'published'])(
+    'shows the edit link for a %s event',
+    async (status) => {
+      loginAs('organizer', 1)
+      vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ status }))
+      renderAt()
+      const panel = await screen.findByRole('region', { name: 'Administrar evento' })
+      expect(within(panel).getByRole('link', { name: 'Editar evento' })).toBeInTheDocument()
+    },
+  )
+
+  it.each<EventStatus>(['cancelled', 'finished'])(
+    'hides the edit link for a %s event',
+    async (status) => {
+      loginAs('organizer', 1)
+      vi.mocked(eventsApi.getEvent).mockResolvedValue(detail({ status }))
+      renderAt()
+      const panel = await screen.findByRole('region', { name: 'Administrar evento' })
+      expect(within(panel).queryByRole('link', { name: 'Editar evento' })).not.toBeInTheDocument()
+      expect(within(panel).getByRole('button', { name: 'Eliminar evento' })).toBeInTheDocument()
+    },
+  )
+})
+
 describe('EventDetailPage management', () => {
   it.each<[string, Role, number]>([
     ['the owner organizer', 'organizer', 1],

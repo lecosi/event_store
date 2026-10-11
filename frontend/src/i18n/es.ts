@@ -80,6 +80,7 @@ export const es = {
     register: "Inscribirme",
     cancelRegistration: "Cancelar inscripción",
     registrationClosed: "Las inscripciones están cerradas.",
+    cancelRegistrationClosed: "No se puede cancelar la inscripción de un evento finalizado.",
     full: "Este evento está lleno.",
     registrationCancelled: "Inscripción cancelada",
     registered: "Te has inscrito",
@@ -103,6 +104,7 @@ export const es = {
       notAllowed:
         "No tienes permiso para crear o editar eventos. Solo los organizadores y administradores pueden.",
       notAllowedEdit: "No tienes permiso para editar este evento.",
+      notEditable: "Este evento ya no se puede editar porque está cancelado o finalizado.",
     },
   },
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { EventStatus, Role, User } from '../types'
-import { canCreateEvents, canManageEvent, nextStatuses } from './permissions'
+import {
+  canCancelRegistration,
+  canCreateEvents,
+  canManageEvent,
+  isEditableStatus,
+  nextStatuses,
+} from './permissions'
 
 const userWith = (role: Role): User => ({ id: 1, email: 'a@b.co', role, is_active: true })
 
@@ -54,5 +60,28 @@ describe('nextStatuses', () => {
 
   it.each<EventStatus>(['cancelled', 'finished'])('offers nothing from %s', (status) => {
     expect(nextStatuses(status)).toEqual([])
+  })
+})
+
+describe('isEditableStatus', () => {
+  it.each<EventStatus>(['draft', 'published'])('allows editing a %s event', (status) => {
+    expect(isEditableStatus(status)).toBe(true)
+  })
+
+  it.each<EventStatus>(['cancelled', 'finished'])('denies editing a %s event', (status) => {
+    expect(isEditableStatus(status)).toBe(false)
+  })
+})
+
+describe('canCancelRegistration', () => {
+  it.each<EventStatus>(['draft', 'published', 'cancelled'])(
+    'allows cancelling a registration of a %s event',
+    (status) => {
+      expect(canCancelRegistration(status)).toBe(true)
+    },
+  )
+
+  it('denies cancelling a registration of a finished event', () => {
+    expect(canCancelRegistration('finished')).toBe(false)
   })
 })
