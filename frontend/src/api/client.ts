@@ -91,6 +91,26 @@ export function normalizeError(error: unknown): ApiError {
   return new ApiError(messages.common.genericError)
 }
 
+function readAsText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(blob)
+  })
+}
+
+/** A failed `responseType: 'blob'` request carries its JSON error body as a Blob: read it as JSON. */
+async function readBlobBody(error: unknown): Promise<unknown> {
+  if (!(error instanceof AxiosError) || !(error.response?.data instanceof Blob)) return error
+  try {
+    error.response.data = JSON.parse(await readAsText(error.response.data))
+  } catch {
+    error.response.data = undefined
+  }
+  return error
+}
+
 /** Single axios instance shared by all API modules. */
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1',
@@ -106,8 +126,8 @@ apiClient.interceptors.request.use((config) => {
 // Normalize errors; an expired/invalid token (401) logs the user out.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
-    const apiError = normalizeError(error)
+  async (error: unknown) => {
+    const apiError = normalizeError(await readBlobBody(error))
     if (apiError.status === 401) useAuthStore.getState().logout()
     return Promise.reject(apiError)
   },

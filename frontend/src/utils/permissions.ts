@@ -10,6 +10,11 @@ export function canCreateEvents(user: User | null): boolean {
   return user?.role === 'admin' || user?.role === 'organizer'
 }
 
+/** Organizers and admins see the participants report. The backend stays the real authority. */
+export function canViewReports(user: User | null): boolean {
+  return user?.role === 'admin' || user?.role === 'organizer'
+}
+
 /** Admins manage any event; organizers only the ones they own. */
 export function canManageEvent(user: User | null, event: Pick<Event, 'organizer_id'>): boolean {
   if (!user) return false

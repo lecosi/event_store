@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as eventsApi from '../api/events'
 import * as registrationsApi from '../api/registrations'
+import * as reportsApi from '../api/reports'
 import { ApiError } from '../api/client'
 import { routes } from '../routes'
 import { useAuthStore } from '../store/authStore'
@@ -12,6 +13,7 @@ import type { EventDetail, EventStatus, Role, Session } from '../types'
 
 vi.mock('../api/events')
 vi.mock('../api/registrations')
+vi.mock('../api/reports')
 
 const session = (id: number, title: string, start_at: string): Session => ({
   id,
@@ -270,6 +272,36 @@ describe('EventDetailPage management', () => {
     renderAt()
     await screen.findByRole('heading', { name: 'PyCon Latam' })
     expect(screen.queryByRole('region', { name: 'Administrar evento' })).not.toBeInTheDocument()
+  })
+
+  it('downloads the participants of this event and confirms with a toast', async () => {
+    loginAs('organizer', 1)
+    vi.mocked(reportsApi.downloadParticipantsCsv).mockResolvedValue()
+    renderAt()
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar participantes' }))
+    await waitFor(() => expect(toastMessages()).toContain('Reporte descargado'))
+    expect(reportsApi.downloadParticipantsCsv).toHaveBeenCalledWith({ event_id: 5 })
+  })
+
+  it('disables the participants download while it is running', async () => {
+    loginAs('organizer', 1)
+    vi.mocked(reportsApi.downloadParticipantsCsv).mockReturnValue(new Promise(() => {}))
+    renderAt()
+    const button = await screen.findByRole('button', { name: 'Descargar participantes' })
+    fireEvent.click(button)
+    await waitFor(() => expect(button).toBeDisabled())
+  })
+
+  it('shows the backend message in a toast when the participants download fails', async () => {
+    loginAs('organizer', 1)
+    vi.mocked(reportsApi.downloadParticipantsCsv).mockRejectedValue(
+      new ApiError('No tienes permisos para realizar esta acción.', 403),
+    )
+    renderAt()
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar participantes' }))
+    await waitFor(() =>
+      expect(toastMessages()).toContain('No tienes permisos para realizar esta acción.'),
+    )
   })
 
   it('offers only the allowed next statuses', async () => {

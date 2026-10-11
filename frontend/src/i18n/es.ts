@@ -35,6 +35,7 @@ export const es = {
     newSpeaker: 'Nuevo ponente',
     myEvents: 'Mis eventos',
     admin: 'Administración',
+    reports: 'Reportes',
     logout: 'Cerrar sesión',
     login: 'Iniciar sesión',
     register: 'Registrarse',
@@ -90,6 +91,7 @@ export const es = {
     applyStatus: 'Aplicar estado',
     statusChanged: (status: string) => `Estado cambiado a ${status}`,
     delete: 'Eliminar evento',
+    downloadParticipants: 'Descargar participantes',
     deleted: 'Evento eliminado',
     confirmDelete: '¿Eliminar este evento? Esta acción no se puede deshacer.',
     form: {
@@ -177,6 +179,28 @@ export const es = {
     saveFailed: 'No se pudo actualizar el usuario',
   },
 
+  reports: {
+    title: 'Reporte de participantes',
+    notAllowed:
+      'No tienes permiso para ver los reportes. Solo los organizadores y administradores pueden.',
+    loadFailed: 'No se pudo cargar el reporte',
+    empty: 'No hay participantes con estos filtros.',
+    allStatuses: 'Todos los estados',
+    status: 'Estado',
+    dateFrom: 'Evento desde',
+    dateTo: 'Evento hasta',
+    invalidRange: 'La fecha final no puede ser anterior a la fecha inicial.',
+    eventFilter: (id: number) => `Solo participantes del evento ${id}`,
+    clearEventFilter: 'Quitar filtro de evento',
+    tableLabel: 'Participantes',
+    fullName: 'Nombre completo',
+    email: 'Correo electrónico',
+    event: 'Evento',
+    download: 'Descargar CSV',
+    downloaded: 'Reporte descargado',
+    downloadFailed: 'No se pudo descargar el reporte',
+  },
+
   /** Messages of the client-side form validators (utils/*Validation.ts). */
   validators: {
     invalidEmail: 'Ingresa un correo electrónico válido',
@@ -219,6 +243,8 @@ export const es = {
     description: 'Descripción',
     title: 'Título',
     speaker_id: 'Ponente',
+    date_from: 'Fecha desde',
+    date_to: 'Fecha hasta',
     q: 'Búsqueda',
     page: 'Página',
     size: 'Tamaño',
@@ -263,6 +289,8 @@ export const es = {
       'A finished event does not allow cancelling':
         'Un evento finalizado no permite cancelar la inscripción.',
       'You are already registered to this event': 'Ya estás inscrito en este evento.',
+      'date_to must not be before date_from':
+        'La fecha final no puede ser anterior a la fecha inicial.',
     } as Record<string, string>,
 
     sessionCapacityExceedsEvent: (n: string) =>
@@ -303,6 +331,8 @@ export const es = {
       string_type: (subject) => `${subject} debe ser un texto.`,
       datetime_parsing: (subject) => `${subject} debe ser una fecha y hora válidas.`,
       datetime_type: (subject) => `${subject} debe ser una fecha y hora válidas.`,
+      date_parsing: (subject) => `${subject} debe ser una fecha válida.`,
+      date_type: (subject) => `${subject} debe ser una fecha válida.`,
       enum: (subject) => `${subject} tiene un valor no permitido.`,
       value_error: (subject) => `${subject} tiene un valor no válido.`,
     } as Record<string, (subject: string, ctx: Record<string, unknown>) => string | null>,

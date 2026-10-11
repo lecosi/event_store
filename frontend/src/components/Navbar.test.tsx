@@ -85,6 +85,18 @@ describe('Navbar', () => {
     expect(screen.queryByRole('link', { name: 'Administración' })).not.toBeInTheDocument()
   })
 
+  it.each<Role>(['organizer', 'admin'])('links an %s to the reports', (role) => {
+    loggedInAs(role)
+    renderNavbar()
+    expect(screen.getByRole('link', { name: 'Reportes' })).toHaveAttribute('href', '/reports')
+  })
+
+  it('hides the reports link from an attendee', () => {
+    loggedInAs('attendee')
+    renderNavbar()
+    expect(screen.queryByRole('link', { name: 'Reportes' })).not.toBeInTheDocument()
+  })
+
   it('logs the user out and shows the login links again', () => {
     loggedInAs('attendee')
     renderNavbar()

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { deleteEvent, updateStatus } from '../api/events'
 import { register, unregister } from '../api/registrations'
+import { downloadParticipantsCsv } from '../api/reports'
 import { createSession, deleteSession, updateSession } from '../api/sessions'
 import { Button } from '../components/Button'
 import { ErrorMessage } from '../components/ErrorMessage'
@@ -39,6 +40,7 @@ export default function EventDetailPage() {
   const { currentEvent, detailLoading, detailError, fetchEvent, clearCurrent } = useEventStore()
 
   const [busy, setBusy] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [newStatus, setNewStatus] = useState('')
   /** The session form: closed (null), adding a session ('new') or editing one. */
   const [editing, setEditing] = useState<Session | 'new' | null>(null)
@@ -97,6 +99,18 @@ export default function EventDetailPage() {
     } catch (error) {
       toast.error(messageOf(error))
       setBusy(false)
+    }
+  }
+
+  async function handleDownloadParticipants() {
+    setDownloading(true)
+    try {
+      await downloadParticipantsCsv({ event_id: id })
+      toast.success(es.reports.downloaded)
+    } catch (error) {
+      toast.error(messageOf(error))
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -194,6 +208,13 @@ export default function EventDetailPage() {
                 </Button>
               </>
             )}
+            <Button
+              variant="secondary"
+              loading={downloading}
+              onClick={() => void handleDownloadParticipants()}
+            >
+              {es.events.downloadParticipants}
+            </Button>
             <Button variant="danger" disabled={busy} onClick={() => void handleDelete()}>
               {es.events.delete}
             </Button>

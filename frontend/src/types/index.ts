@@ -127,3 +127,25 @@ export interface UserListParams {
 
 /** Body of PATCH /admin/users/{id}: only the fields to change, at least one. */
 export type UserUpdatePayload = Partial<Pick<User, 'full_name' | 'email' | 'role' | 'is_active'>>
+
+/** One row of the participants report: a registration with its user and event. */
+export interface Participant {
+  full_name: string
+  email: string
+  event_name: string
+}
+
+/** Filters shared by the report preview and its CSV download. Dates are `YYYY-MM-DD`. */
+export interface ParticipantFilters {
+  event_id?: number
+  q?: string
+  status?: EventStatus
+  date_from?: string
+  date_to?: string
+}
+
+/** Query of GET /reports/participants. */
+export interface ParticipantListParams extends ParticipantFilters {
+  page?: number
+  size?: number
+}
