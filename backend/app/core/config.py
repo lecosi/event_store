@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 INSECURE_DEFAULT_SECRET = "change-me"
@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     cors_origins: str = "http://localhost:5173"
+    redis_url: str | None = None
+    cache_ttl_events_seconds: int = Field(default=60, gt=0)
+    cache_ttl_sessions_seconds: int = Field(default=120, gt=0)
+    cache_ttl_speakers_seconds: int = Field(default=300, gt=0)
 
     @field_validator("jwt_secret")
     @classmethod
