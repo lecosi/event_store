@@ -232,3 +232,23 @@ class FakeTokenService:
         if not token.startswith("token-"):
             raise InvalidTokenError
         return int(token.removeprefix("token-"))
+
+
+class FakeCache:
+    def __init__(self) -> None:
+        self._entries: dict[tuple[str, str], str] = {}
+        self.sets: list[tuple[str, str, str, int]] = []
+        self.invalidations: list[str] = []
+
+    def get(self, namespace: str, key: str) -> str | None:
+        return self._entries.get((namespace, key))
+
+    def set(self, namespace: str, key: str, value: str, ttl_seconds: int) -> None:
+        self._entries[(namespace, key)] = value
+        self.sets.append((namespace, key, value, ttl_seconds))
+
+    def invalidate(self, namespace: str) -> None:
+        self.invalidations.append(namespace)
+        self._entries = {
+            entry: value for entry, value in self._entries.items() if entry[0] != namespace
+        }

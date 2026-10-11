@@ -38,6 +38,23 @@ def transaction(uow: UnitOfWork) -> Iterator[None]:
     uow.commit()
 
 
+EVENTS_NAMESPACE = "events"
+SESSIONS_NAMESPACE = "sessions"
+SPEAKERS_NAMESPACE = "speakers"
+
+
+class Cache(Protocol):
+    """Namespaced read cache. Implementations never raise: failures behave as misses."""
+
+    def get(self, namespace: str, key: str) -> str | None: ...
+
+    def set(self, namespace: str, key: str, value: str, ttl_seconds: int) -> None: ...
+
+    def invalidate(self, namespace: str) -> None:
+        """Make every entry stored so far under ``namespace`` unreachable."""
+        ...
+
+
 class UserRepository(Protocol):
     def get_by_id(self, user_id: int) -> UserAccount | None: ...
 
