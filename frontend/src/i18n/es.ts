@@ -163,7 +163,9 @@ export const es = {
     nameRequired: "El nombre es obligatorio",
     nameMax: (n: number) => `El nombre debe tener como máximo ${n} caracteres`,
     locationRequired: "El lugar es obligatorio",
-    descriptionTooLong: "La descripción es demasiado larga",
+    locationMax: (n: number) => `El lugar debe tener como máximo ${n} caracteres`,
+    descriptionMax: (n: number) =>
+      `La descripción debe tener como máximo ${n} caracteres`,
     startRequired: "La fecha de inicio es obligatoria",
     startFuture: "El inicio debe estar en el futuro",
     endRequired: "La fecha de fin es obligatoria",
