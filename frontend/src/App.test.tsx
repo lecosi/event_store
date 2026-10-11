@@ -1,14 +1,17 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from './api/auth'
+import * as eventsApi from './api/events'
 import App from './App'
 import { useAuthStore } from './store/authStore'
 
 vi.mock('./api/auth')
+vi.mock('./api/events')
 
 beforeEach(() => {
   vi.resetAllMocks()
   useAuthStore.setState({ token: null, user: null })
+  vi.mocked(eventsApi.listEvents).mockResolvedValue({ items: [], total: 0, page: 1, size: 9, pages: 0 })
 })
 
 describe('App', () => {
@@ -27,7 +30,7 @@ describe('App', () => {
 
   it('does not call the backend on startup when logged out', async () => {
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Eventos' })).toBeInTheDocument()
     expect(authApi.fetchMe).not.toHaveBeenCalled()
   })
 })
