@@ -7,9 +7,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mis_eventos}
     volumes:
       - db_data:/var/lib/postgresql/data
-    # Published on loopback only so host-side tests can reach it.
+    # Published on loopback only so host-side tests can reach it. Set DB_HOST_PORT
+    # when another PostgreSQL already listens on 5432.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
