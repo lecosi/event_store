@@ -41,7 +41,7 @@ class SqlSessionRepository:
             capacity=session.capacity,
         )
         self._session.add(row)
-        self._session.commit()
+        self._session.flush()
         self._session.refresh(row)
         return _to_domain(row)
 
@@ -69,7 +69,7 @@ class SqlSessionRepository:
             raise LookupError(f"Session {session.id} does not exist")
         _apply(row, session)
         self._session.add(row)
-        self._session.commit()
+        self._session.flush()
         self._session.refresh(row)
         return _to_domain(row)
 
@@ -77,4 +77,4 @@ class SqlSessionRepository:
         row = self._session.get(SessionRow, session_id)
         if row is not None:
             self._session.delete(row)
-            self._session.commit()
+            self._session.flush()

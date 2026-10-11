@@ -46,7 +46,7 @@ class SqlUserRepository:
         row = User(email=email, password_hash=password_hash, role=role)
         self._session.add(row)
         try:
-            self._session.commit()
+            self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             raise EmailAlreadyRegisteredError(email) from exc
@@ -60,6 +60,6 @@ class SqlUserRepository:
         row.role = user.role
         row.is_active = user.is_active
         self._session.add(row)
-        self._session.commit()
+        self._session.flush()
         self._session.refresh(row)
         return _to_account(row)

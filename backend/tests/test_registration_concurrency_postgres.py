@@ -1,16 +1,19 @@
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from functools import partial
 
 import pytest
 from sqlalchemy import Engine
 from sqlmodel import Session, select
 
-from app.domain.enums import EventStatus
-from app.domain.registration import RegistrationConflictError, ensure_can_register
+from app.application.registration_service import RegistrationService
+from app.domain.enums import EventStatus, Role
+from app.domain.registration import RegistrationConflictError
+from app.domain.user import UserAccount
 from app.infrastructure.db import models
+from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
+from app.infrastructure.db.unit_of_work import SqlUnitOfWork
 
 THREADS = 12
 
@@ -43,12 +46,19 @@ def test_only_one_registration_wins_a_capacity_one_event(
 ) -> None:
     with Session(clean_postgres) as session:
         user_ids = [u.id for u in session.exec(select(models.User)).all() if u.id]
-    rule = partial(ensure_can_register, now=datetime.now(UTC))
 
     def attempt(user_id: int) -> bool:
         with Session(clean_postgres) as session:
+            service = RegistrationService(
+                SqlEventRepository(session),
+                SqlRegistrationRepository(session),
+                SqlUnitOfWork(session),
+            )
+            user = UserAccount(
+                id=user_id, email=f"u{user_id}@x.com", password_hash="h", role=Role.ATTENDEE
+            )
             try:
-                SqlRegistrationRepository(session).register(user_id, seeded, rule)
+                service.register(user, seeded)
             except RegistrationConflictError:
                 return False
             return True

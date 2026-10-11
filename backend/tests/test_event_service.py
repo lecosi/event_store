@@ -5,9 +5,9 @@ import pytest
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
 from app.domain.enums import EventStatus, Role
-from app.domain.event import EventDetails, EventStateError, EventValidationError
+from app.domain.event import EventDetails, EventFilters, EventStateError, EventValidationError
 from app.domain.user import UserAccount
-from tests.fakes import FakeEventRepository
+from tests.fakes import FakeEventRepository, FakeUnitOfWork
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
@@ -36,8 +36,13 @@ def repo() -> FakeEventRepository:
 
 
 @pytest.fixture
-def service(repo: FakeEventRepository) -> EventService:
-    return EventService(repo, clock=lambda: NOW)
+def uow() -> FakeUnitOfWork:
+    return FakeUnitOfWork()
+
+
+@pytest.fixture
+def service(repo: FakeEventRepository, uow: FakeUnitOfWork) -> EventService:
+    return EventService(repo, uow, clock=lambda: NOW)
 
 
 def test_create_starts_as_draft_and_owned_by_actor(service: EventService) -> None:
@@ -195,3 +200,44 @@ def test_list_status_filter_and_pagination(service: EventService) -> None:
     assert [e.name for e in first.items][:2] == ["E0", "E1"]
     assert service.list(None, status=EventStatus.DRAFT).total == 0
     assert service.list(ADMIN, status=EventStatus.DRAFT).total == 0
+
+
+def test_create_commits_once(service: EventService, uow: FakeUnitOfWork) -> None:
+    service.create(OWNER, details())
+    assert (uow.commits, uow.rollbacks) == (1, 0)
+
+
+def test_rejected_create_commits_nothing_and_stores_no_event(
+    service: EventService, repo: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    with pytest.raises(PermissionDeniedError):
+        service.create(ATTENDEE, details())
+    assert (uow.commits, uow.rollbacks) == (0, 1)
+    assert repo.list_page(EventFilters(unrestricted=True), 1, 10) == ([], 0)
+
+
+def test_update_runs_every_validation_then_commits_once(
+    service: EventService, uow: FakeUnitOfWork
+) -> None:
+    event = service.create(OWNER, details())
+    commits_before = uow.commits
+    service.update(OWNER, event.id, details(name="Renamed"))
+    assert uow.commits == commits_before + 1
+
+
+def test_failed_update_leaves_stored_event_unchanged(
+    service: EventService, repo: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    event = service.create(OWNER, details())
+    repo.max_session_capacities[event.id] = 8
+    with pytest.raises(EventStateError):
+        service.update(OWNER, event.id, details(capacity=5))
+    assert uow.commits == 1
+    assert repo.get(event.id).capacity == 10
+
+
+def test_get_and_list_never_commit(service: EventService, uow: FakeUnitOfWork) -> None:
+    event = service.create(OWNER, details())
+    service.get(event.id, OWNER)
+    service.list(OWNER)
+    assert uow.commits == 1

@@ -1,7 +1,13 @@
 """Session use cases. Depend only on ports and pure domain rules."""
 
 from app.application.errors import EventNotFoundError, PermissionDeniedError, SessionNotFoundError
-from app.application.ports import EventRepository, SessionRepository, SpeakerRepository
+from app.application.ports import (
+    EventRepository,
+    SessionRepository,
+    SpeakerRepository,
+    UnitOfWork,
+    transaction,
+)
 from app.domain.enums import Role
 from app.domain.event import Event, ensure_editable
 from app.domain.session import (
@@ -19,37 +25,45 @@ from app.domain.user import UserAccount
 
 class SessionService:
     def __init__(
-        self, events: EventRepository, sessions: SessionRepository, speakers: SpeakerRepository
+        self,
+        events: EventRepository,
+        sessions: SessionRepository,
+        speakers: SpeakerRepository,
+        uow: UnitOfWork,
     ) -> None:
         self._events = events
         self._sessions = sessions
         self._speakers = speakers
+        self._uow = uow
 
     def create(self, actor: UserAccount, event_id: int, details: SessionDetails) -> Session:
-        event = self._get_managed_open(actor, event_id)
-        session = Session(
-            event_id=event_id,
-            speaker_id=details.speaker_id,
-            title=details.title,
-            start_at=details.start_at,
-            end_at=details.end_at,
-            capacity=details.capacity,
-        )
-        self._validate(event, session)
-        return self._sessions.add(session)
+        with transaction(self._uow):
+            event = self._get_managed_open(actor, event_id)
+            session = Session(
+                event_id=event_id,
+                speaker_id=details.speaker_id,
+                title=details.title,
+                start_at=details.start_at,
+                end_at=details.end_at,
+                capacity=details.capacity,
+            )
+            self._validate(event, session)
+            return self._sessions.add(session)
 
     def update(
         self, actor: UserAccount, event_id: int, session_id: int, details: SessionDetails
     ) -> Session:
-        event = self._get_managed_open(actor, event_id)
-        updated = self._get_in_event(event_id, session_id).with_details(details)
-        self._validate(event, updated)
-        return self._sessions.update(updated)
+        with transaction(self._uow):
+            event = self._get_managed_open(actor, event_id)
+            updated = self._get_in_event(event_id, session_id).with_details(details)
+            self._validate(event, updated)
+            return self._sessions.update(updated)
 
     def delete(self, actor: UserAccount, event_id: int, session_id: int) -> None:
-        self._get_managed_open(actor, event_id)
-        self._get_in_event(event_id, session_id)
-        self._sessions.delete(session_id)
+        with transaction(self._uow):
+            self._get_managed_open(actor, event_id)
+            self._get_in_event(event_id, session_id)
+            self._sessions.delete(session_id)
 
     def list_for_event(self, event_id: int) -> list[SessionWithSpeaker]:
         if self._events.get(event_id) is None:

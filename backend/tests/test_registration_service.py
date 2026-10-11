@@ -13,7 +13,7 @@ from app.domain.registration import (
     RegistrationClosedError,
 )
 from app.domain.user import UserAccount
-from tests.fakes import FakeEventRepository, FakeRegistrationRepository
+from tests.fakes import FakeEventRepository, FakeRegistrationRepository, FakeUnitOfWork
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
@@ -28,8 +28,13 @@ def events() -> FakeEventRepository:
 
 
 @pytest.fixture
-def service(events: FakeEventRepository) -> RegistrationService:
-    return RegistrationService(events, FakeRegistrationRepository(events), clock=lambda: NOW)
+def uow() -> FakeUnitOfWork:
+    return FakeUnitOfWork()
+
+
+@pytest.fixture
+def service(events: FakeEventRepository, uow: FakeUnitOfWork) -> RegistrationService:
+    return RegistrationService(events, FakeRegistrationRepository(events), uow, clock=lambda: NOW)
 
 
 def add_event(
@@ -170,3 +175,43 @@ def test_my_events_paginated_and_ordered_by_start(
     assert (first.total, first.pages) == (3, 2)
     second = service.my_events(user(1), page=2, size=2)
     assert [r.event.id for r in second.items] == [late.id]
+
+
+def test_register_commits_once(
+    service: RegistrationService, events: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    event = add_event(events)
+    service.register(user(1), event.id)
+    assert (uow.commits, uow.rollbacks) == (1, 0)
+
+
+def test_rejected_registration_commits_nothing_and_keeps_count(
+    service: RegistrationService, events: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    event = add_event(events, capacity=1)
+    service.register(user(1), event.id)
+    with pytest.raises(EventFullError):
+        service.register(user(2), event.id)
+    assert (uow.commits, uow.rollbacks) == (1, 1)
+    assert events.count_registrations(event.id) == 1
+
+
+def test_cancel_commits_once_and_failed_cancel_commits_nothing(
+    service: RegistrationService, events: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    event = add_event(events)
+    service.register(user(1), event.id)
+    service.cancel(user(1), event.id)
+    assert uow.commits == 2
+    with pytest.raises(NotRegisteredError):
+        service.cancel(user(1), event.id)
+    assert uow.commits == 2
+
+
+def test_reads_never_commit(
+    service: RegistrationService, events: FakeEventRepository, uow: FakeUnitOfWork
+) -> None:
+    event = add_event(events)
+    service.my_events(user(1))
+    service.availability(event, user(1))
+    assert uow.commits == 0

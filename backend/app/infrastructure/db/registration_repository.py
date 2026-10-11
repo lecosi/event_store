@@ -32,32 +32,29 @@ class SqlRegistrationRepository:
         self._session = session
 
     def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
-        # FOR UPDATE serializes concurrent registrations to the same event, so each one
-        # counts the rows committed by the previous one and the last spot is never oversold.
+        # FOR UPDATE serializes concurrent registrations to the same event. The lock lasts
+        # until the unit of work commits, so each one counts the rows committed by the
+        # previous one and the last spot is never oversold.
         event_row = self._session.exec(
             select(EventRow).where(col(EventRow.id) == event_id).with_for_update()
         ).first()
         if event_row is None:
-            self._session.rollback()
             raise EventNotFoundError(event_id)
+        if self.is_registered(user_id, event_id):
+            raise AlreadyRegisteredError("You are already registered to this event")
+        registered = self._session.exec(
+            select(func.count())
+            .select_from(RegistrationRow)
+            .where(col(RegistrationRow.event_id) == event_id)
+        ).one()
+        rule(event_to_domain(event_row), registered)
+        row = RegistrationRow(user_id=user_id, event_id=event_id)
+        self._session.add(row)
         try:
-            if self.is_registered(user_id, event_id):
-                raise AlreadyRegisteredError("You are already registered to this event")
-            registered = self._session.exec(
-                select(func.count())
-                .select_from(RegistrationRow)
-                .where(col(RegistrationRow.event_id) == event_id)
-            ).one()
-            rule(event_to_domain(event_row), registered)
-            row = RegistrationRow(user_id=user_id, event_id=event_id)
-            self._session.add(row)
-            self._session.commit()
+            self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             raise AlreadyRegisteredError("You are already registered to this event") from exc
-        except Exception:
-            self._session.rollback()
-            raise
         self._session.refresh(row)
         return _to_domain(row)
 
@@ -79,7 +76,6 @@ class SqlRegistrationRepository:
                 col(RegistrationRow.event_id) == event_id,
             )
         )
-        self._session.commit()
         return result.rowcount > 0
 
     def list_for_user(

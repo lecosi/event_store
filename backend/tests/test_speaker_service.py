@@ -11,7 +11,7 @@ from app.domain.enums import Role
 from app.domain.session import Session
 from app.domain.speaker import SpeakerDetails
 from app.domain.user import UserAccount
-from tests.fakes import FakeSessionRepository, FakeSpeakerRepository
+from tests.fakes import FakeSessionRepository, FakeSpeakerRepository, FakeUnitOfWork
 from tests.test_session_service import BASE, at
 
 ORGANIZER = UserAccount(id=1, email="o@x.com", password_hash="h", role=Role.ORGANIZER)
@@ -31,8 +31,13 @@ def sessions() -> FakeSessionRepository:
 
 
 @pytest.fixture
-def service(sessions: FakeSessionRepository) -> SpeakerService:
-    return SpeakerService(FakeSpeakerRepository(sessions))
+def uow() -> FakeUnitOfWork:
+    return FakeUnitOfWork()
+
+
+@pytest.fixture
+def service(sessions: FakeSessionRepository, uow: FakeUnitOfWork) -> SpeakerService:
+    return SpeakerService(FakeSpeakerRepository(sessions), uow)
 
 
 def test_organizer_and_admin_can_create_attendee_cannot(service: SpeakerService) -> None:
@@ -97,3 +102,37 @@ def test_list_page_trims_search_and_computes_pages(service: SpeakerService) -> N
     assert [s.name for s in page.items] == ["Ada", "Alan"]
     assert (page.total, page.pages) == (3, 2)
     assert service.list_page(q="   ").total == 3
+
+
+def test_create_update_and_delete_commit_once_each(
+    service: SpeakerService, uow: FakeUnitOfWork
+) -> None:
+    speaker = service.create(ORGANIZER, details())
+    service.update(ORGANIZER, speaker.id, details(name="Grace"))
+    service.delete(ORGANIZER, speaker.id)
+    assert (uow.commits, uow.rollbacks) == (3, 0)
+
+
+def test_duplicate_email_commits_nothing_and_stores_one_speaker(
+    service: SpeakerService, uow: FakeUnitOfWork
+) -> None:
+    service.create(ORGANIZER, details())
+    with pytest.raises(SpeakerEmailTakenError):
+        service.create(ORGANIZER, details(name="Other"))
+    assert (uow.commits, uow.rollbacks) == (1, 1)
+    assert service.list_page().total == 1
+
+
+def test_deleting_speaker_in_use_commits_nothing(
+    service: SpeakerService, sessions: FakeSessionRepository, uow: FakeUnitOfWork
+) -> None:
+    speaker = service.create(ORGANIZER, details())
+    sessions.add(
+        Session(
+            event_id=1, speaker_id=speaker.id, title="T", start_at=at(1), end_at=at(2), capacity=5
+        )
+    )
+    with pytest.raises(SpeakerInUseError):
+        service.delete(ORGANIZER, speaker.id)
+    assert uow.commits == 1
+    assert service.get(speaker.id).id == speaker.id

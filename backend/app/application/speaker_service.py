@@ -6,7 +6,7 @@ from app.application.errors import (
     SpeakerInUseError,
     SpeakerNotFoundError,
 )
-from app.application.ports import SpeakerRepository
+from app.application.ports import SpeakerRepository, UnitOfWork, transaction
 from app.domain.enums import Role
 from app.domain.speaker import Speaker, SpeakerDetails, SpeakerPage
 from app.domain.user import UserAccount
@@ -20,14 +20,18 @@ def _normalize(details: SpeakerDetails) -> SpeakerDetails:
 
 
 class SpeakerService:
-    def __init__(self, speakers: SpeakerRepository) -> None:
+    def __init__(self, speakers: SpeakerRepository, uow: UnitOfWork) -> None:
         self._speakers = speakers
+        self._uow = uow
 
     def create(self, actor: UserAccount, details: SpeakerDetails) -> Speaker:
-        self._require_manager(actor)
-        details = _normalize(details)
-        self._ensure_email_free(details.email, speaker_id=None)
-        return self._speakers.add(Speaker(name=details.name, bio=details.bio, email=details.email))
+        with transaction(self._uow):
+            self._require_manager(actor)
+            details = _normalize(details)
+            self._ensure_email_free(details.email, speaker_id=None)
+            return self._speakers.add(
+                Speaker(name=details.name, bio=details.bio, email=details.email)
+            )
 
     def get(self, speaker_id: int) -> Speaker:
         speaker = self._speakers.get(speaker_id)
@@ -41,18 +45,20 @@ class SpeakerService:
         return SpeakerPage(items=items, total=total, page=page, size=size)
 
     def update(self, actor: UserAccount, speaker_id: int, details: SpeakerDetails) -> Speaker:
-        self._require_manager(actor)
-        speaker = self.get(speaker_id)
-        details = _normalize(details)
-        self._ensure_email_free(details.email, speaker_id=speaker_id)
-        return self._speakers.update(speaker.with_details(details))
+        with transaction(self._uow):
+            self._require_manager(actor)
+            speaker = self.get(speaker_id)
+            details = _normalize(details)
+            self._ensure_email_free(details.email, speaker_id=speaker_id)
+            return self._speakers.update(speaker.with_details(details))
 
     def delete(self, actor: UserAccount, speaker_id: int) -> None:
-        self._require_manager(actor)
-        self.get(speaker_id)
-        if self._speakers.count_sessions(speaker_id) > 0:
-            raise SpeakerInUseError(speaker_id)
-        self._speakers.delete(speaker_id)
+        with transaction(self._uow):
+            self._require_manager(actor)
+            self.get(speaker_id)
+            if self._speakers.count_sessions(speaker_id) > 0:
+                raise SpeakerInUseError(speaker_id)
+            self._speakers.delete(speaker_id)
 
     def _ensure_email_free(self, email: str | None, speaker_id: int | None) -> None:
         if email is None:

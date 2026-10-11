@@ -16,6 +16,7 @@ from app.application.ports import (
     SessionRepository,
     SpeakerRepository,
     TokenService,
+    UnitOfWork,
     UserRepository,
 )
 from app.application.registration_service import RegistrationService
@@ -29,11 +30,16 @@ from app.infrastructure.db.registration_repository import SqlRegistrationReposit
 from app.infrastructure.db.session import get_session
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
+from app.infrastructure.db.unit_of_work import SqlUnitOfWork
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_unit_of_work(session: Session = Depends(get_session)) -> UnitOfWork:
+    return SqlUnitOfWork(session)
 
 
 def get_user_repository(session: Session = Depends(get_session)) -> UserRepository:
@@ -54,14 +60,16 @@ def get_auth_service(
     users: UserRepository = Depends(get_user_repository),
     hasher: PasswordHasher = Depends(get_password_hasher),
     tokens: TokenService = Depends(get_token_service),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> AuthService:
-    return AuthService(users, hasher, tokens)
+    return AuthService(users, hasher, tokens, uow)
 
 
 def get_user_admin_service(
     users: UserRepository = Depends(get_user_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> UserAdminService:
-    return UserAdminService(users)
+    return UserAdminService(users, uow)
 
 
 def get_current_user(
@@ -98,8 +106,11 @@ def get_event_repository(session: Session = Depends(get_session)) -> EventReposi
     return SqlEventRepository(session)
 
 
-def get_event_service(events: EventRepository = Depends(get_event_repository)) -> EventService:
-    return EventService(events)
+def get_event_service(
+    events: EventRepository = Depends(get_event_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
+) -> EventService:
+    return EventService(events, uow)
 
 
 def get_speaker_repository(session: Session = Depends(get_session)) -> SpeakerRepository:
@@ -112,16 +123,18 @@ def get_session_repository(session: Session = Depends(get_session)) -> SessionRe
 
 def get_speaker_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> SpeakerService:
-    return SpeakerService(speakers)
+    return SpeakerService(speakers, uow)
 
 
 def get_session_service(
     events: EventRepository = Depends(get_event_repository),
     sessions: SessionRepository = Depends(get_session_repository),
     speakers: SpeakerRepository = Depends(get_speaker_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> SessionService:
-    return SessionService(events, sessions, speakers)
+    return SessionService(events, sessions, speakers, uow)
 
 
 def get_registration_repository(
@@ -133,8 +146,9 @@ def get_registration_repository(
 def get_registration_service(
     events: EventRepository = Depends(get_event_repository),
     registrations: RegistrationRepository = Depends(get_registration_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> RegistrationService:
-    return RegistrationService(events, registrations)
+    return RegistrationService(events, registrations, uow)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:

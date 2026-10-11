@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from functools import partial
 
 from app.application.errors import EventNotFoundError
-from app.application.ports import EventRepository, RegistrationRepository
+from app.application.ports import EventRepository, RegistrationRepository, UnitOfWork, transaction
 from app.domain.enums import Role
 from app.domain.event import Event, can_view
 from app.domain.registration import (
@@ -29,27 +29,31 @@ class RegistrationService:
         self,
         events: EventRepository,
         registrations: RegistrationRepository,
+        uow: UnitOfWork,
         clock: Callable[[], datetime] = _utcnow,
     ) -> None:
         self._events = events
         self._registrations = registrations
+        self._uow = uow
         self._clock = clock
 
     def register(self, user: UserAccount, event_id: int) -> Registration:
         assert user.id is not None
-        self._get_visible(user, event_id)
-        rule = partial(ensure_can_register, now=self._clock())
-        return self._registrations.register(user.id, event_id, rule)
+        with transaction(self._uow):
+            self._get_visible(user, event_id)
+            rule = partial(ensure_can_register, now=self._clock())
+            return self._registrations.register(user.id, event_id, rule)
 
     def cancel(self, user: UserAccount, event_id: int) -> None:
         assert user.id is not None
-        event = self._events.get(event_id)
-        if event is None:
-            raise EventNotFoundError(event_id)
-        if not self._registrations.is_registered(user.id, event_id):
-            raise NotRegisteredError
-        ensure_can_cancel(event)
-        self._registrations.cancel(user.id, event_id)
+        with transaction(self._uow):
+            event = self._events.get(event_id)
+            if event is None:
+                raise EventNotFoundError(event_id)
+            if not self._registrations.is_registered(user.id, event_id):
+                raise NotRegisteredError
+            ensure_can_cancel(event)
+            self._registrations.cancel(user.id, event_id)
 
     def my_events(self, user: UserAccount, page: int = 1, size: int = 10) -> RegisteredEventPage:
         assert user.id is not None

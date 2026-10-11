@@ -55,7 +55,7 @@ class SqlEventRepository:
     def add(self, event: Event) -> Event:
         row = EventRow(organizer_id=event.organizer_id, **_fields(event))
         self._session.add(row)
-        self._session.commit()
+        self._session.flush()
         self._session.refresh(row)
         return _to_domain(row)
 
@@ -95,14 +95,13 @@ class SqlEventRepository:
             raise LookupError(f"Event {event.id} does not exist")
         _apply(row, event)
         self._session.add(row)
-        self._session.commit()
+        self._session.flush()
         self._session.refresh(row)
         return _to_domain(row)
 
     def delete(self, event_id: int) -> None:
         # Sessions and registrations go with the event through ON DELETE CASCADE.
         self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))
-        self._session.commit()
 
     def count_registrations(self, event_id: int) -> int:
         return self._session.exec(

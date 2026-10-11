@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from app.application.errors import EventNotFoundError, PermissionDeniedError
-from app.application.ports import EventRepository
+from app.application.ports import EventRepository, UnitOfWork, transaction
 from app.domain.enums import EventStatus, Role
 from app.domain.event import (
     Event,
@@ -30,26 +30,33 @@ def _utcnow() -> datetime:
 
 
 class EventService:
-    def __init__(self, events: EventRepository, clock: Callable[[], datetime] = _utcnow) -> None:
+    def __init__(
+        self,
+        events: EventRepository,
+        uow: UnitOfWork,
+        clock: Callable[[], datetime] = _utcnow,
+    ) -> None:
         self._events = events
+        self._uow = uow
         self._clock = clock
 
     def create(self, actor: UserAccount, details: EventDetails) -> Event:
-        if actor.role not in ORGANIZING_ROLES:
-            raise PermissionDeniedError
-        validate_details(details)
-        validate_starts_in_future(details.start_at, self._clock())
-        assert actor.id is not None
-        event = Event(
-            name=details.name,
-            description=details.description,
-            location=details.location,
-            start_at=details.start_at,
-            end_at=details.end_at,
-            capacity=details.capacity,
-            organizer_id=actor.id,
-        )
-        return self._events.add(event)
+        with transaction(self._uow):
+            if actor.role not in ORGANIZING_ROLES:
+                raise PermissionDeniedError
+            validate_details(details)
+            validate_starts_in_future(details.start_at, self._clock())
+            assert actor.id is not None
+            event = Event(
+                name=details.name,
+                description=details.description,
+                location=details.location,
+                start_at=details.start_at,
+                end_at=details.end_at,
+                capacity=details.capacity,
+                organizer_id=actor.id,
+            )
+            return self._events.add(event)
 
     def get(self, event_id: int, viewer: UserAccount | None) -> Event:
         event = self._events.get(event_id)
@@ -76,29 +83,32 @@ class EventService:
         return EventPage(items=items, total=total, page=page, size=size)
 
     def update(self, actor: UserAccount, event_id: int, details: EventDetails) -> Event:
-        event = self._get_managed(actor, event_id)
-        ensure_editable(event.status)
-        validate_details(details)
-        ensure_capacity_covers_sessions(
-            details.capacity, self._events.max_session_capacity(event_id)
-        )
-        ensure_capacity_covers_registrations(
-            details.capacity, self._events.count_registrations(event_id)
-        )
-        ensure_dates_cover_sessions(
-            details.start_at, details.end_at, self._events.session_bounds(event_id)
-        )
-        return self._events.update(event.with_details(details))
+        with transaction(self._uow):
+            event = self._get_managed(actor, event_id)
+            ensure_editable(event.status)
+            validate_details(details)
+            ensure_capacity_covers_sessions(
+                details.capacity, self._events.max_session_capacity(event_id)
+            )
+            ensure_capacity_covers_registrations(
+                details.capacity, self._events.count_registrations(event_id)
+            )
+            ensure_dates_cover_sessions(
+                details.start_at, details.end_at, self._events.session_bounds(event_id)
+            )
+            return self._events.update(event.with_details(details))
 
     def change_status(self, actor: UserAccount, event_id: int, target: EventStatus) -> Event:
-        event = self._get_managed(actor, event_id)
-        validate_transition(event.status, target)
-        event.status = target
-        return self._events.update(event)
+        with transaction(self._uow):
+            event = self._get_managed(actor, event_id)
+            validate_transition(event.status, target)
+            event.status = target
+            return self._events.update(event)
 
     def delete(self, actor: UserAccount, event_id: int) -> None:
-        self._get_managed(actor, event_id)
-        self._events.delete(event_id)
+        with transaction(self._uow):
+            self._get_managed(actor, event_id)
+            self._events.delete(event_id)
 
     def _get_managed(self, actor: UserAccount, event_id: int) -> Event:
         event = self._events.get(event_id)

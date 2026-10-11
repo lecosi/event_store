@@ -22,7 +22,7 @@ class SqlSpeakerRepository:
     def add(self, speaker: Speaker) -> Speaker:
         row = SpeakerRow(name=speaker.name, bio=speaker.bio, email=speaker.email)
         self._session.add(row)
-        self._commit(speaker.email)
+        self._flush(speaker.email)
         self._session.refresh(row)
         return _to_domain(row)
 
@@ -58,13 +58,13 @@ class SqlSpeakerRepository:
         row.bio = speaker.bio
         row.email = speaker.email
         self._session.add(row)
-        self._commit(speaker.email)
+        self._flush(speaker.email)
         self._session.refresh(row)
         return _to_domain(row)
 
-    def _commit(self, email: str | None) -> None:
+    def _flush(self, email: str | None) -> None:
         try:
-            self._session.commit()
+            self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             raise SpeakerEmailTakenError(email or "") from exc
@@ -73,7 +73,7 @@ class SqlSpeakerRepository:
         row = self._session.get(SpeakerRow, speaker_id)
         if row is not None:
             self._session.delete(row)
-            self._session.commit()
+            self._session.flush()
 
     def count_sessions(self, speaker_id: int) -> int:
         return self._session.exec(

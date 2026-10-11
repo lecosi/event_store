@@ -26,6 +26,7 @@ from app.infrastructure.db.registration_repository import SqlRegistrationReposit
 from app.infrastructure.db.session import get_engine
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
+from app.infrastructure.db.unit_of_work import SqlUnitOfWork
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
@@ -60,6 +61,7 @@ def _event(name: str, description: str, location: str, days: int, capacity: int)
 def main() -> int:
     admin_email = normalize_email(os.environ.get("ADMIN_EMAIL", ""))
     with Session(get_engine()) as db:
+        uow = SqlUnitOfWork(db)
         users = SqlUserRepository(db)
         admin = users.get_by_email(admin_email) if admin_email else None
         if admin is None:
@@ -67,18 +69,20 @@ def main() -> int:
             return 1
 
         events_repo = SqlEventRepository(db)
-        events = EventService(events_repo)
+        events = EventService(events_repo, uow)
         if events.list(admin, size=1).total > 0:
             print("Events already exist: demo data skipped")
             return 0
 
-        speaker_service = SpeakerService(SqlSpeakerRepository(db))
+        speaker_service = SpeakerService(SqlSpeakerRepository(db), uow)
         speakers = [speaker_service.create(admin, details) for details in SPEAKERS]
-        sessions = SessionService(events_repo, SqlSessionRepository(db), SqlSpeakerRepository(db))
-        registrations = RegistrationService(events_repo, SqlRegistrationRepository(db))
+        sessions = SessionService(
+            events_repo, SqlSessionRepository(db), SqlSpeakerRepository(db), uow
+        )
+        registrations = RegistrationService(events_repo, SqlRegistrationRepository(db), uow)
 
         hasher = Argon2PasswordHasher()
-        auth = AuthService(users, hasher, JwtTokenService("unused", "HS256", 1))
+        auth = AuthService(users, hasher, JwtTokenService("unused", "HS256", 1), uow)
         attendees = []
         for email in ATTENDEE_EMAILS:
             try:

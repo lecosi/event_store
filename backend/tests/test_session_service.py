@@ -13,7 +13,12 @@ from app.domain.event import Event, EventStateError
 from app.domain.session import SessionConflictError, SessionDetails, SessionValidationError
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
-from tests.fakes import FakeEventRepository, FakeSessionRepository, FakeSpeakerRepository
+from tests.fakes import (
+    FakeEventRepository,
+    FakeSessionRepository,
+    FakeSpeakerRepository,
+    FakeUnitOfWork,
+)
 
 BASE = datetime(2030, 1, 1, 9, tzinfo=UTC)
 
@@ -44,7 +49,8 @@ class Env:
         self.events = FakeEventRepository()
         self.sessions = FakeSessionRepository()
         self.speakers = FakeSpeakerRepository(self.sessions)
-        self.service = SessionService(self.events, self.sessions, self.speakers)
+        self.uow = FakeUnitOfWork()
+        self.service = SessionService(self.events, self.sessions, self.speakers, self.uow)
         self.event = self.add_event()
         self.speaker = self.speakers.add(Speaker(name="Ada", bio="", email=None))
 
@@ -182,3 +188,29 @@ def test_list_is_ordered_by_start_and_includes_speaker_name(env: Env) -> None:
     assert [s.session.title for s in listed] == ["Early", "Late"]
     assert listed[0].speaker_name == "Ada"
     assert listed[0].session.speaker_id == env.speaker.id
+
+
+def test_create_validates_across_repositories_then_commits_once(env: Env) -> None:
+    env.create()
+    assert (env.uow.commits, env.uow.rollbacks) == (1, 0)
+
+
+def test_conflicting_session_commits_nothing_and_is_not_stored(env: Env) -> None:
+    env.create()
+    with pytest.raises(SessionConflictError):
+        env.create()
+    assert (env.uow.commits, env.uow.rollbacks) == (1, 1)
+    assert len(env.sessions.list_for_event(env.event.id)) == 1
+
+
+def test_update_and_delete_commit_once_each(env: Env) -> None:
+    created = env.create()
+    env.service.update(OWNER, env.event.id, created.id, details(title="Closing"))
+    env.service.delete(OWNER, env.event.id, created.id)
+    assert env.uow.commits == 3
+
+
+def test_failed_delete_commits_nothing(env: Env) -> None:
+    with pytest.raises(SessionNotFoundError):
+        env.service.delete(OWNER, env.event.id, 999)
+    assert (env.uow.commits, env.uow.rollbacks) == (0, 1)

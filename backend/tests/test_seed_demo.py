@@ -21,10 +21,15 @@ def _count(session: Session, model: type) -> int:
 
 def test_loads_demo_data_and_is_idempotent(demo_env: Session) -> None:
     from app.application.admin_seed import ensure_admin
+    from app.infrastructure.db.unit_of_work import SqlUnitOfWork
     from app.infrastructure.db.user_repository import SqlUserRepository
 
     ensure_admin(
-        SqlUserRepository(demo_env), Argon2PasswordHasher(), "admin@example.com", "supersecret"
+        SqlUserRepository(demo_env),
+        Argon2PasswordHasher(),
+        SqlUnitOfWork(demo_env),
+        "admin@example.com",
+        "supersecret",
     )
     assert main() == 0
     demo_env.expire_all()
