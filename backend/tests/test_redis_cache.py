@@ -37,13 +37,13 @@ class StubRedis:
 
 
 @pytest.fixture
-def client() -> StubRedis:
+def redis_client() -> StubRedis:
     return StubRedis()
 
 
 @pytest.fixture
-def cache(client: StubRedis) -> RedisCache:
-    return RedisCache(client)  # type: ignore[arg-type]
+def cache(redis_client: StubRedis) -> RedisCache:
+    return RedisCache(redis_client)  # type: ignore[arg-type]
 
 
 def test_missing_entry_is_a_miss(cache):
@@ -62,9 +62,9 @@ def test_entries_of_other_keys_and_namespaces_are_isolated(cache):
     assert cache.get("speakers", "page=1") == "speakers-payload"
 
 
-def test_ttl_is_passed_to_the_client(cache, client):
+def test_ttl_is_passed_to_the_client(cache, redis_client):
     cache.set("sessions", "event=3", "payload", ttl_seconds=120)
-    assert list(client.expirations.values()) == [120]
+    assert list(redis_client.expirations.values()) == [120]
 
 
 def test_invalidation_makes_previous_entries_unreachable(cache):
@@ -87,24 +87,24 @@ def test_invalidation_only_affects_its_namespace(cache):
     assert cache.get("speakers", "page=1") == "speakers-payload"
 
 
-def test_invalidation_increments_the_namespace_version_counter(cache, client):
+def test_invalidation_increments_the_namespace_version_counter(cache, redis_client):
     cache.invalidate("events")
     cache.invalidate("events")
-    assert client.data["events:version"] == "2"
+    assert redis_client.data["events:version"] == "2"
 
 
 @pytest.mark.parametrize("error", [redis.ConnectionError("down"), redis.TimeoutError("slow")])
 class TestOutage:
-    def test_get_degrades_to_a_miss(self, cache, client, error):
-        client.fail_with = error
+    def test_get_degrades_to_a_miss(self, cache, redis_client, error):
+        redis_client.fail_with = error
         assert cache.get("events", "page=1") is None
 
-    def test_set_does_not_raise(self, cache, client, error):
-        client.fail_with = error
+    def test_set_does_not_raise(self, cache, redis_client, error):
+        redis_client.fail_with = error
         cache.set("events", "page=1", "payload", ttl_seconds=60)
 
-    def test_invalidate_does_not_raise(self, cache, client, error):
-        client.fail_with = error
+    def test_invalidate_does_not_raise(self, cache, redis_client, error):
+        redis_client.fail_with = error
         cache.invalidate("events")
 
 
@@ -117,8 +117,8 @@ def cache_logger_enabled():
     cache_logger.disabled = was_disabled
 
 
-def test_outage_is_logged_as_a_warning(cache, client, caplog, cache_logger_enabled):
-    client.fail_with = redis.ConnectionError("down")
+def test_outage_is_logged_as_a_warning(cache, redis_client, caplog, cache_logger_enabled):
+    redis_client.fail_with = redis.ConnectionError("down")
     with caplog.at_level(logging.WARNING):
         cache.get("events", "page=1")
     assert any(record.levelno == logging.WARNING for record in caplog.records)
@@ -135,25 +135,25 @@ def test_outage_is_logged_as_a_warning(cache, client, caplog, cache_logger_enabl
 )
 class TestOutageLogging:
     def test_warning_carries_no_traceback(
-        self, cache, client, caplog, cache_logger_enabled, operation
+        self, cache, redis_client, caplog, cache_logger_enabled, operation
     ):
-        client.fail_with = redis.ConnectionError("connection refused")
+        redis_client.fail_with = redis.ConnectionError("connection refused")
         with caplog.at_level(logging.WARNING):
             operation(cache)
         assert caplog.records
         assert all(record.exc_info is None for record in caplog.records)
 
     def test_warning_names_the_failure(
-        self, cache, client, caplog, cache_logger_enabled, operation
+        self, cache, redis_client, caplog, cache_logger_enabled, operation
     ):
-        client.fail_with = redis.ConnectionError("connection refused")
+        redis_client.fail_with = redis.ConnectionError("connection refused")
         with caplog.at_level(logging.WARNING):
             operation(cache)
         assert "connection refused" in caplog.text
 
 
-def test_os_level_socket_errors_also_degrade(cache, client):
-    client.fail_with = ConnectionResetError("reset")
+def test_os_level_socket_errors_also_degrade(cache, redis_client):
+    redis_client.fail_with = ConnectionResetError("reset")
     assert cache.get("events", "page=1") is None
 
 
