@@ -29,6 +29,8 @@ COPY --from=builder /app/.venv /app/.venv
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+# Seed scripts: run with `python -m scripts.seed` inside the container.
+COPY scripts ./scripts
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
