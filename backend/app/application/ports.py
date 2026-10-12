@@ -105,6 +105,14 @@ class EventRepository(Protocol):
 
     def update(self, event: Event) -> Event: ...
 
+    def list_published_ended_before(self, moment: datetime) -> list[Event]:
+        """Return the PUBLISHED events whose ``end_at`` is strictly before ``moment``.
+
+        Implementations lock the returned rows until the unit of work ends, so a concurrent
+        status change cannot be overwritten by the caller's update.
+        """
+        ...
+
     def delete(self, event_id: int) -> None:
         """Delete the event together with its dependent rows."""
         ...

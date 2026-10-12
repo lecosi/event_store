@@ -113,6 +113,13 @@ class FakeEventRepository:
         self._events[event.id] = event
         return event
 
+    def list_published_ended_before(self, moment: datetime) -> list[Event]:
+        return [
+            e
+            for e in self._events.values()
+            if e.status is EventStatus.PUBLISHED and ensure_utc(e.end_at) < ensure_utc(moment)
+        ]
+
     def delete(self, event_id: int) -> None:
         self._events.pop(event_id, None)
 

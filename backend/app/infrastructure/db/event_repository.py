@@ -75,6 +75,18 @@ class SqlEventRepository:
         self._session.refresh(row)
         return event_to_domain(row)
 
+    def list_published_ended_before(self, moment: datetime) -> list[Event]:
+        rows = self._session.exec(
+            select(EventRow)
+            .where(
+                col(EventRow.status) == EventStatus.PUBLISHED,
+                col(EventRow.end_at) < ensure_utc(moment),
+            )
+            .order_by(col(EventRow.end_at), col(EventRow.id))
+            .with_for_update()
+        ).all()
+        return [event_to_domain(row) for row in rows]
+
     def delete(self, event_id: int) -> None:
         # Sessions and registrations go with the event through ON DELETE CASCADE.
         # sqlmodel types exec() for selects only; a Delete runs through the same path.
