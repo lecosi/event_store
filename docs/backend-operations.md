@@ -16,18 +16,25 @@ Cómo ejecutar, configurar y mantener el backend. Para los scripts en detalle ve
 
 ```bash
 cp backend/.env.example backend/.env     # solo la primera vez; compose lee este archivo
+```
+
+Antes de levantar los servicios, reemplaza el `JWT_SECRET` de `backend/.env` por un valor
+propio: el archivo de ejemplo trae `change-me` y el backend se niega a iniciar con él. No
+reutilices el mismo secreto entre entornos. Genera uno con:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Luego levanta los servicios:
+
+```bash
 docker compose up -d --build
 docker compose ps                         # espera a que el backend esté "healthy"
 curl http://localhost:8000/api/v1/health  # {"status":"ok"}
 ```
 
-Luego abre `http://localhost:5173` (aplicación) o `http://localhost:8000/docs` (Swagger UI).
-
-Reemplaza el `JWT_SECRET` del archivo de ejemplo por un valor propio; genera uno con:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
+Abre `http://localhost:5173` (aplicación) o `http://localhost:8000/docs` (Swagger UI).
 
 Detén con `docker compose down` (agrega `-v` para eliminar el volumen de la base de datos).
 
@@ -76,8 +83,9 @@ Variables a nivel de Compose (shell o un archivo `.env` en la raíz): `POSTGRES_
 `DB_HOST_PORT` (por defecto `5432`), `CORS_ORIGINS` y `VITE_API_URL` (argumento de build del
 frontend, por defecto `http://localhost:8000/api/v1`).
 
-`backend/.env.example` no incluye `ADMIN_EMAIL` ni `ADMIN_PASSWORD`; agrégalas a
-`backend/.env` o pásalas con `-e` como se muestra más abajo.
+`backend/.env.example` trae `ADMIN_FULL_NAME`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` comentadas y
+sin contraseña real: descoméntalas en `backend/.env` con tus propios valores o pásalas con
+`-e` como se muestra más abajo.
 
 ## Migraciones
 
