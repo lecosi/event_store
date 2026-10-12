@@ -1,7 +1,8 @@
 # Arquitectura del backend
 
 El backend (`backend/app`) es un servicio FastAPI organizado con una arquitectura
-hexagonal (puertos y adaptadores). Las reglas de negocio estan centralizadas y descopladas, por lo cual, no conocen nada de HTTP, DB(relacionales, no relacionales, Caché, etc); estos son adaptadores que se conectan en un único lugar.
+hexagonal (puertos y adaptadores). Las reglas de negocio no conocen HTTP, bases de datos
+ni cache: esas piezas son adaptadores que se conectan entre sí en un único lugar.
 
 Stack: FastAPI, SQLModel/SQLAlchemy, Alembic, PostgreSQL 16, Redis,
 hash de contraseñas con Argon2 y tokens de acceso JWT.
@@ -79,9 +80,9 @@ caso de uso decide cuándo se vuelven definitivas con el gestor de contexto `tra
 de `ports.py`:
 
 ```python
-with transaction(self._uow):      # commit on success, rollback + re-raise on error
-    ...                           # rules + repository calls
-self._cache.invalidate()          # only after the commit succeeded
+with transaction(self._uow):      # commit si todo sale bien; rollback y se relanza el error si falla
+    ...                           # reglas + llamadas a repositorios
+self._cache.invalidate()          # solo después de que el commit tuvo éxito
 ```
 
 La invalidación del cache siempre ocurre después del bloque `with`, de modo que un cambio
@@ -115,8 +116,8 @@ Las pruebas reemplazan cualquiera de estas con `app.dependency_overrides` (ver
 
 Los casos de uso y el dominio lanzan sus propias excepciones. `app/api/error_handlers.py`
 mantiene una única tabla, `ERROR_RESPONSES`, del tipo de excepción al estado HTTP y al
-mensaje, y registra un solo manejador para todas ellas. Si una excepción no figura en la tabla, se usa la entrada de su clase padre
-más cercana.
+mensaje, y registra un solo manejador para todas ellas. Si una excepción no figura en la
+tabla, se usa la entrada de su clase padre más cercana.
 
 | Familia | Estado | Ejemplos |
 | --- | --- | --- |

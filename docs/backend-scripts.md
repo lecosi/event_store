@@ -4,9 +4,9 @@ Ejecútalos desde `backend/` (o dentro del contenedor del backend, donde se incl
 `scripts/`):
 
 ```bash
-python -m scripts.seed                # create or promote the administrator
-python -m scripts.seed_demo           # optional demo data, needs the administrator
-python -m scripts.close_past_events   # finish published events that already ended
+python -m scripts.seed                # crea o promueve al administrador
+python -m scripts.seed_demo           # datos de demostración opcionales; requiere el administrador
+python -m scripts.close_past_events   # finaliza eventos publicados que ya terminaron
 ```
 
 `seed` lee `ADMIN_EMAIL` y `ADMIN_PASSWORD` (y `ADMIN_FULL_NAME`, por defecto

@@ -6,13 +6,13 @@ mypy. Todos los comandos se ejecutan desde `backend/` con Poetry (`poetry instal
 ## Inicio rápido
 
 ```bash
-# from the repository root: PostgreSQL for the integration tests
-docker compose up -d db          # set DB_HOST_PORT if 5432 is busy
+# desde la raíz del repositorio: PostgreSQL para las pruebas de integración
+docker compose up -d db          # define DB_HOST_PORT si el 5432 está ocupado
 
 cd backend
-poetry run pytest                # everything
-poetry run pytest -m unit        # no database needed
-poetry run pytest -m integration # needs PostgreSQL
+poetry run pytest                # todas
+poetry run pytest -m unit        # no necesita base de datos
+poetry run pytest -m integration # necesita PostgreSQL
 poetry run pytest tests/test_session_registration_service.py -k overlap
 ```
 
@@ -66,9 +66,10 @@ en caso contrario. No hace falta marcar nada a mano, y `--strict-markers` está 
   `FakeEventRepository`, ...). Son rápidas y verifican reglas de negocio, incluido que un
   caso de uso que falla hace rollback y no invalida el cache. El tiempo se inyecta mediante
   un argumento de reloj (clock).
-- Las pruebas de API y de repositorios usan PostgreSQL real, porque comportamientos como
-  los bloqueos `FOR UPDATE`, las restricciones `CHECK`, `ON DELETE CASCADE`, el escapado de
-  `ILIKE` y la búsqueda por prefijo respaldada por índice no se puede confiar en un fake.
+- Las pruebas de API y de repositorios usan PostgreSQL real, porque no se puede confiar
+  en un fake para comportamientos como los bloqueos `FOR UPDATE`, las restricciones
+  `CHECK`, `ON DELETE CASCADE`, el escapado de `ILIKE` y la búsqueda por prefijo
+  respaldada por índice.
 - Las pruebas `*_concurrency_postgres.py` lanzan muchas peticiones paralelas mediante un
   `ThreadPoolExecutor` contra el mismo evento o sesión y verifican que nunca se excede la
   capacidad y que los duplicados se rechazan. El pool del motor está dimensionado
@@ -91,7 +92,7 @@ pruebas no dependen del secreto de tu `.env`.
 
 ```bash
 cd backend
-poetry run pytest --cov=app --cov-report=term-missing           # terminal
+poetry run pytest --cov=app --cov-report=term-missing           # en la terminal
 poetry run pytest --cov=app --cov-report=term-missing --cov-report=html   # htmlcov/index.html
 ```
 
@@ -108,7 +109,7 @@ gitignore.
 cd backend
 poetry run ruff check app scripts tests
 poetry run ruff format --check app scripts tests
-poetry run mypy                      # files = app, scripts (see pyproject.toml)
+poetry run mypy                      # files = app, scripts (ver pyproject.toml)
 ```
 
 - Ruff: longitud de línea 100, conjuntos de reglas `E`, `F`, `I`, `UP`, `B`.

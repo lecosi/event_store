@@ -15,9 +15,9 @@ Cómo ejecutar, configurar y mantener el backend. Para los scripts en detalle ve
 | `frontend` | `./frontend` | `5173` (puerto del contenedor 80) | Build estático, llama al backend desde el navegador |
 
 ```bash
-cp backend/.env.example backend/.env     # first time only; compose reads this file
+cp backend/.env.example backend/.env     # solo la primera vez; compose lee este archivo
 docker compose up -d --build
-docker compose ps                         # wait until backend is "healthy"
+docker compose ps                         # espera a que el backend esté "healthy"
 curl http://localhost:8000/api/v1/health  # {"status":"ok"}
 ```
 
@@ -86,9 +86,9 @@ de `DATABASE_URL`.
 
 ```bash
 cd backend
-poetry run alembic upgrade head                              # apply
-poetry run alembic current                                   # where the database is
-poetry run alembic revision --autogenerate -m "describe it"  # new migration
+poetry run alembic upgrade head                              # aplicar
+poetry run alembic current                                   # en qué revisión está la base de datos
+poetry run alembic revision --autogenerate -m "describe it"  # nueva migración
 ```
 
 Dentro de Docker el entrypoint aplica las migraciones en cada inicio, por lo que un
@@ -104,12 +104,12 @@ las migraciones crean las tablas, y ejecutar un seed antes de que terminen falla
 `relation "users" does not exist`.
 
 ```bash
-# administrator (creates it, or promotes an existing account to admin)
+# administrador (lo crea, o promueve una cuenta existente a admin)
 docker compose exec \
   -e ADMIN_EMAIL=admin@example.com -e ADMIN_PASSWORD='choose-a-password' \
   backend python -m scripts.seed
 
-# optional demo data (speakers, events, sessions, registrations, demo attendees)
+# datos de demostración opcionales (ponentes, eventos, sesiones, inscripciones, asistentes)
 docker compose exec -e ADMIN_EMAIL=admin@example.com \
   backend python -m scripts.seed_demo
 ```
@@ -133,7 +133,7 @@ terminaron. Nada lo ejecuta automáticamente; prográmalo (ejemplo de cron en
 ## Ejecución sin Docker
 
 ```bash
-docker compose up -d db redis        # or any PostgreSQL 16 / Redis
+docker compose up -d db redis        # o cualquier PostgreSQL 16 / Redis
 cd backend
 poetry install
 poetry run alembic upgrade head

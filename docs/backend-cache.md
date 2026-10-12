@@ -1,6 +1,6 @@
 # Cache del backend
 
-En el proyecto existen endpoints de lectura públicos, los cuales tienen uso constante y por definicion no es necesario tener real time la informacion que entregan. Por ello, se implementa un sistema de caché con `Redis`.
+En el proyecto existen endpoints de lectura públicos, los cuales tienen uso constante y por definición no es necesario tener en tiempo real la información que entregan. Por ello, se implementa un sistema de cache con `Redis`.
 
 Mapa del código:
 
@@ -12,7 +12,7 @@ Mapa del código:
 | Helper de read-through | `backend/app/infrastructure/cache/read_through.py` |
 | Adaptador Redis | `backend/app/infrastructure/cache/redis_cache.py` |
 | Adaptador sin efecto (no-op) | `backend/app/infrastructure/cache/null_cache.py` |
-| Conexion | `get_cache`, `get_*_cache` en `backend/app/api/dependencies.py` |
+| Conexión | `get_cache`, `get_*_cache` en `backend/app/api/dependencies.py` |
 
 ## Qué se cachea
 

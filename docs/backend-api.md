@@ -163,7 +163,7 @@ Las tablas de arriba se verificaron contra el OpenAPI generado. Para volver a li
 endpoints reales:
 
 ```bash
-cd backend   # JWT_SECRET must be set, see backend-operations.md
+cd backend   # JWT_SECRET debe estar definido, ver backend-operations.md
 poetry run python -c "from app.main import app; \
 [print(m.upper(), p) for p, ms in app.openapi()['paths'].items() for m in ms]"
 ```

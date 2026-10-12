@@ -7,10 +7,12 @@ estado de error ver [backend-api.md](backend-api.md).
 
 ## Roles y permisos
 
-Los roles se definen en `app/domain/enums.py`: `admin`, `organizer`, `attendee`.
+Los roles se definen en `app/domain/enums.py`. En la tabla se nombran en español y en el
+código, la API y la base de datos sus valores son `attendee` (Asistente), `organizer`
+(Organizador) y `admin` (Administrador).
 Los "roles organizadores" (`app/domain/roles.py`) son `organizer` y `admin`.
 
-| Capacidad | Anónimo | Attendee | Organizer | Admin |
+| Capacidad | Anónimo | Asistente | Organizador | Administrador |
 | --- | --- | --- | --- | --- |
 | Explorar eventos publicados, sesiones y ponentes | sí | sí | sí | sí |
 | Ver eventos no publicados | no | no | solo sus eventos | todos |
