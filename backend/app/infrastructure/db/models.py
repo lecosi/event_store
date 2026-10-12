@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 from app.application.clock import utc_now
@@ -13,6 +13,7 @@ _TZ_DATETIME: Any = DateTime(timezone=True)
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
+    __table_args__ = (Index("ix_users_email_lower_prefix", text("lower(email) text_pattern_ops")),)
 
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(max_length=255, unique=True, index=True)

@@ -66,8 +66,14 @@ class UserRepository(Protocol):
 
     def get_by_email(self, email: str) -> UserAccount | None: ...
 
-    def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
-        """Return the requested page (ordered by id) and the total number of users."""
+    def list_page(
+        self, page: int, size: int, email_prefix: str | None = None
+    ) -> tuple[list[UserAccount], int]:
+        """Return the requested page (ordered by id) and the total number of matching users.
+
+        ``email_prefix`` is a case-insensitive prefix match on the email; wildcards match
+        literally. ``None`` means no filter.
+        """
         ...
 
     def add(self, user: UserAccount) -> UserAccount:

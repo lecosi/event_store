@@ -53,8 +53,12 @@ class FakeUserRepository:
     def list_all(self) -> list[UserAccount]:
         return list(self._by_id.values())
 
-    def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
+    def list_page(
+        self, page: int, size: int, email_prefix: str | None = None
+    ) -> tuple[list[UserAccount], int]:
         users = sorted(self._by_id.values(), key=lambda u: u.id or 0)
+        if email_prefix is not None:
+            users = [u for u in users if u.email.lower().startswith(email_prefix.lower())]
         start = (page - 1) * size
         return users[start : start + size], len(users)
 

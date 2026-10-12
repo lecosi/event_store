@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.api.dependencies import get_user_admin_service, require_admin
@@ -85,12 +87,25 @@ router = APIRouter(
 
 @router.get("/users", response_model=UserPageResponse, summary="List users")
 def list_users(
+    email: Annotated[
+        str | None,
+        Query(
+            max_length=255,
+            description="Case-insensitive prefix search on the email; blank means no filter.",
+            examples=["ana.pe"],
+        ),
+    ] = None,
     page: PageNumber = 1,
     size: PageSize = 10,
     service: UserAdminService = Depends(get_user_admin_service),
 ) -> UserPageResponse:
-    """Paginated list of user accounts, ordered by id. Admin only."""
-    result = service.list_users(page=page, size=size)
+    """Paginated user accounts ordered by id, optionally filtered by `email`. Admin only.
+
+    `email` is a case-insensitive prefix match on the login email (wildcard characters are
+    matched literally). A blank value applies no filter. `total` and `pages` describe the
+    filtered set.
+    """
+    result = service.list_users(page=page, size=size, email_prefix=email)
     return UserPageResponse(
         items=[UserResponse.model_validate(u, from_attributes=True) for u in result.items],
         total=result.total,

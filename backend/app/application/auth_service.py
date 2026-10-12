@@ -76,8 +76,12 @@ class UserAdminService:
         self._users = users
         self._uow = uow
 
-    def list_users(self, page: int = 1, size: int = 10) -> UserPage:
-        items, total = self._users.list_page(page, size)
+    def list_users(
+        self, page: int = 1, size: int = 10, email_prefix: str | None = None
+    ) -> UserPage:
+        """Page of users, optionally narrowed to emails starting with ``email_prefix``."""
+        prefix = (email_prefix or "").strip() or None
+        items, total = self._users.list_page(page, size, prefix)
         return UserPage(items=items, total=total, page=page, size=size)
 
     def update_user(
