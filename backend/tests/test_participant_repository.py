@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.domain.enums import EventStatus, Role
 from app.domain.event import ParticipantFilters
 from app.domain.registration import ParticipantRow
-from app.infrastructure.db import registration_repository
+from app.infrastructure.db import report_queries
 from app.infrastructure.db.models import Event, Registration, User
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 
@@ -59,7 +59,7 @@ def test_streaming_reads_every_row_across_several_chunks(
     repository: SqlRegistrationRepository,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(registration_repository, "PARTICIPANT_CHUNK_SIZE", 2)
+    monkeypatch.setattr(report_queries, "PARTICIPANT_CHUNK_SIZE", 2)
     owner = add_user(session, 0, Role.ORGANIZER)
     event = add_event(session, owner, "PyCon")
     for n in range(1, 6):

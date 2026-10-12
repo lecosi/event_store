@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
 
@@ -15,7 +15,6 @@ from app.domain.session_registration import (
     SessionParticipantRow,
     SessionRegistration,
 )
-from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import (
     event_to_domain,
     session_registration_to_domain,
@@ -26,33 +25,19 @@ from app.infrastructure.db.models import Registration as RegistrationRow
 from app.infrastructure.db.models import Session as SessionRow
 from app.infrastructure.db.models import SessionRegistration as SessionRegistrationRow
 from app.infrastructure.db.models import User as UserRow
+from app.infrastructure.db.report_queries import fetch_page, scope_conditions, stream_rows
 
 ALREADY_ENROLLED = "You are already enrolled in this session"
-PARTICIPANT_CHUNK_SIZE = 500
 
 
 def _participant_conditions(filters: SessionParticipantFilters) -> list[Any]:
-    conditions: list[Any] = []
-    if filters.organizer_id is not None:
-        conditions.append(col(EventRow.organizer_id) == filters.organizer_id)
-    if filters.event_id is not None:
-        conditions.append(col(EventRow.id) == filters.event_id)
+    conditions = scope_conditions(
+        filters,
+        date_column=col(SessionRow.start_at),
+        text_columns=[col(SessionRow.title), col(EventRow.name)],
+    )
     if filters.session_id is not None:
         conditions.append(col(SessionRow.id) == filters.session_id)
-    if filters.status is not None:
-        conditions.append(col(EventRow.status) == filters.status)
-    if filters.q:
-        pattern = f"%{escape_like(filters.q)}%"
-        conditions.append(
-            or_(
-                col(SessionRow.title).ilike(pattern, escape=LIKE_ESCAPE),
-                col(EventRow.name).ilike(pattern, escape=LIKE_ESCAPE),
-            )
-        )
-    if filters.date_from is not None:
-        conditions.append(col(SessionRow.start_at) >= filters.date_from)
-    if filters.date_to is not None:
-        conditions.append(col(SessionRow.start_at) <= filters.date_to)
     return conditions
 
 
@@ -220,26 +205,16 @@ class SqlSessionRegistrationRepository:
     def list_participants(
         self, filters: SessionParticipantFilters, page: int, size: int
     ) -> tuple[list[SessionParticipantRow], int]:
-        total = self._session.exec(
+        count = (
             select(func.count())
             .select_from(SessionRegistrationRow)
             .join(SessionRow, col(SessionRow.id) == col(SessionRegistrationRow.session_id))
             .join(EventRow, col(EventRow.id) == col(SessionRow.event_id))
             .where(*_participant_conditions(filters))
-        ).one()
-        rows = self._session.exec(
-            _participant_rows(filters).offset((page - 1) * size).limit(size)
-        ).all()
-        return [_to_row(row) for row in rows], total
+        )
+        return fetch_page(self._session, _participant_rows(filters), count, _to_row, page, size)
 
     def iter_participants(
         self, filters: SessionParticipantFilters
     ) -> Iterator[SessionParticipantRow]:
-        # A streamed response outlives the request-scoped session, so the stream reads through
-        # its own short-lived one; rows arrive in chunks and memory stays constant.
-        with Session(self._session.get_bind()) as session:
-            result = session.exec(
-                _participant_rows(filters).execution_options(yield_per=PARTICIPANT_CHUNK_SIZE)
-            )
-            for row in result:
-                yield _to_row(row)
+        return stream_rows(self._session, _participant_rows(filters), _to_row)

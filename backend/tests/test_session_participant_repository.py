@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.domain.enums import EventStatus, Role
 from app.domain.session_registration import SessionParticipantFilters, SessionParticipantRow
-from app.infrastructure.db import session_registration_repository
+from app.infrastructure.db import report_queries
 from app.infrastructure.db.models import Event, SessionRegistration, Speaker, User
 from app.infrastructure.db.models import Session as SessionRow
 from app.infrastructure.db.session_registration_repository import SqlSessionRegistrationRepository
@@ -105,7 +105,7 @@ def test_streaming_reads_every_row_across_several_chunks(
     repository: SqlSessionRegistrationRepository,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(session_registration_repository, "PARTICIPANT_CHUNK_SIZE", 2)
+    monkeypatch.setattr(report_queries, "PARTICIPANT_CHUNK_SIZE", 2)
     owner = add_user(session, 0, Role.ORGANIZER)
     target = add_session(session, add_event(session, owner, "PyCon"), "Keynote")
     for n in range(1, 6):
