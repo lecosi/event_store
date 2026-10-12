@@ -1,22 +1,22 @@
 # Mis Eventos
 
-Event management application: organizers publish events with sessions and speakers,
-attendees register to events and enroll in sessions, and organizers export participant
-reports as CSV. The interface is in Spanish.
+Aplicación de gestión de eventos: los organizadores publican eventos con sesiones y
+ponentes, los asistentes se inscriben a los eventos y a las sesiones, y los organizadores
+exportan reportes de participantes en CSV. La interfaz está en español.
 
 ## Stack
 
-| Part | Technology |
+| Parte | Tecnología |
 | --- | --- |
-| Backend | Python 3.12, FastAPI, SQLModel, Alembic (hexagonal architecture) |
-| Database | PostgreSQL 16 |
-| Cache | Redis 7 (optional) |
+| Backend | Python 3.12, FastAPI, SQLModel, Alembic (arquitectura hexagonal) |
+| Base de datos | PostgreSQL 16 |
+| Cache | Redis 7 (opcional) |
 | Frontend | React, TypeScript, Vite |
-| Tests | pytest (backend), Vitest (frontend) |
+| Pruebas | pytest (backend), Vitest (frontend) |
 
-## Quick start
+## Inicio rápido
 
-Requires Docker with Compose.
+Requiere Docker con Compose.
 
 ```bash
 cp backend/.env.example backend/.env    # then set your own JWT_SECRET (32+ characters)
@@ -24,8 +24,9 @@ docker compose up -d --build
 docker compose ps                        # wait until backend is "healthy"
 ```
 
-Create the administrator once the backend is healthy (running it earlier fails with
-`relation "users" does not exist`, because migrations run at backend start):
+Crea el administrador una sola vez, cuando el backend esté saludable (`healthy`). Si se
+ejecuta antes falla con `relation "users" does not exist`, porque las migraciones se
+aplican al iniciar el backend:
 
 ```bash
 docker compose exec \
@@ -33,23 +34,23 @@ docker compose exec \
   backend python -m scripts.seed
 ```
 
-| Service | URL |
+| Servicio | URL |
 | --- | --- |
 | Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8000/api/v1 |
+| API del backend | http://localhost:8000/api/v1 |
 | Swagger UI | http://localhost:8000/docs |
 
-Optional demo data: `docker compose exec -e ADMIN_EMAIL=admin@example.com backend python -m scripts.seed_demo`.
+Datos de demostración opcionales: `docker compose exec -e ADMIN_EMAIL=admin@example.com backend python -m scripts.seed_demo`.
 
-## Documentation
+## Documentación
 
-- [docs/README.md](docs/README.md): index of all documents.
-- [docs/screens.md](docs/screens.md): application screens.
-- [docs/backend-architecture.md](docs/backend-architecture.md): how the backend is built.
-- [docs/backend-operations.md](docs/backend-operations.md): configuration, migrations, seeding.
-- [docs/backend-testing.md](docs/backend-testing.md): running tests and checks.
+- [docs/README.md](docs/README.md): índice de todos los documentos.
+- [docs/screens.md](docs/screens.md): pantallas de la aplicación.
+- [docs/backend-architecture.md](docs/backend-architecture.md): cómo está construido el backend.
+- [docs/backend-operations.md](docs/backend-operations.md): configuración, migraciones, carga inicial de datos (seed).
+- [docs/backend-testing.md](docs/backend-testing.md): ejecución de pruebas y verificaciones.
 
-## Repository layout
+## Estructura del repositorio
 
 ```text
 backend/    FastAPI service, Alembic migrations, scripts and tests

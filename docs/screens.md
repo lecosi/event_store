@@ -1,160 +1,161 @@
-# Screens
+# Pantallas
 
-Reserved space for screenshots of the application. The images are added later; until then
-each section holds a plain-text placeholder. The interface text of the app is in Spanish.
+Espacio reservado para capturas de pantalla de la aplicación. Las imágenes se agregan más
+adelante; mientras tanto, cada sección contiene un marcador de texto plano. El texto de la
+interfaz de la aplicación está en español.
 
-## How to add an image
+## Cómo agregar una imagen
 
-1. Take the screenshot (a desktop width of about 1280 px for pages, about 390 px for the
-   mobile ones) and save it as PNG in `docs/images/` using the file name shown in the
-   placeholder of the section, for example `docs/images/event-list.png`.
-2. In this file, replace the whole `Screenshot pending` block of that section with:
+1. Toma la captura (un ancho de escritorio de unos 1280 px para las páginas, unos 390 px
+   para las móviles) y guárdala como PNG en `docs/images/` con el nombre de archivo que
+   indica el marcador de la sección, por ejemplo `docs/images/event-list.png`.
+2. En este archivo, reemplaza todo el bloque `Captura pendiente` de esa sección por:
 
    ```markdown
    ![Event list with search and pagination](images/event-list.png)
    ```
 
-3. Keep the alt text short and descriptive. Do not add an image link before the file
-   exists, so there are no broken images.
-4. Do not include real personal data: use the demo seed (see
-   [backend-operations.md](backend-operations.md#seeding)).
+3. Mantén el texto alternativo corto y descriptivo. No agregues el enlace a una imagen
+   antes de que el archivo exista, para que no haya imágenes rotas.
+4. No incluyas datos personales reales: usa el seed de demostración (ver
+   [backend-operations.md](backend-operations.md#carga-inicial-de-datos-seed)).
 
-## Index
+## Índice
 
-| Screen | Route | Image file |
+| Pantalla | Ruta | Archivo de imagen |
 | --- | --- | --- |
-| [Login](#login) | `/login` | `docs/images/login.png` |
-| [Register](#register) | `/register` | `docs/images/register.png` |
-| [Event list](#event-list) | `/` | `docs/images/event-list.png` |
-| [Event detail](#event-detail) | `/events/:id` | `docs/images/event-detail.png` |
-| [Event detail, management view](#event-detail-management-view) | `/events/:id` | `docs/images/event-detail-manage.png` |
-| [Event form](#event-form) | `/events/new` and `/events/:id/edit` | `docs/images/event-form.png` |
-| [Speaker form](#speaker-form) | `/speakers/new` | `docs/images/speaker-form.png` |
-| [My events](#my-events) | `/profile` | `docs/images/profile.png` |
-| [Reports](#reports) | `/reports` | `docs/images/reports.png` |
-| [Admin users](#admin-users) | `/admin/users` | `docs/images/admin-users.png` |
-| [Not found](#not-found) | any unknown path (`*`) | `docs/images/not-found.png` |
-| [Navbar, anonymous](#navbar-anonymous) | all pages | `docs/images/navbar-anonymous.png` |
-| [Navbar, organizer](#navbar-organizer) | all pages | `docs/images/navbar-organizer.png` |
-| [Mobile: event list](#mobile-event-list) | `/` at phone width | `docs/images/mobile-event-list.png` |
-| [Mobile: event detail](#mobile-event-detail) | `/events/:id` at phone width | `docs/images/mobile-event-detail.png` |
+| [Inicio de sesión](#inicio-de-sesión) | `/login` | `docs/images/login.png` |
+| [Registro de cuenta](#registro-de-cuenta) | `/register` | `docs/images/register.png` |
+| [Listado de eventos](#listado-de-eventos) | `/` | `docs/images/event-list.png` |
+| [Detalle del evento](#detalle-del-evento) | `/events/:id` | `docs/images/event-detail.png` |
+| [Detalle del evento, vista de gestión](#detalle-del-evento-vista-de-gestión) | `/events/:id` | `docs/images/event-detail-manage.png` |
+| [Formulario de evento](#formulario-de-evento) | `/events/new` y `/events/:id/edit` | `docs/images/event-form.png` |
+| [Formulario de ponente](#formulario-de-ponente) | `/speakers/new` | `docs/images/speaker-form.png` |
+| [Mis eventos](#mis-eventos) | `/profile` | `docs/images/profile.png` |
+| [Reportes](#reportes) | `/reports` | `docs/images/reports.png` |
+| [Administración de usuarios](#administración-de-usuarios) | `/admin/users` | `docs/images/admin-users.png` |
+| [Página no encontrada](#página-no-encontrada) | cualquier ruta desconocida (`*`) | `docs/images/not-found.png` |
+| [Barra de navegación, anónimo](#barra-de-navegación-anónimo) | todas las páginas | `docs/images/navbar-anonymous.png` |
+| [Barra de navegación, organizador](#barra-de-navegación-organizador) | todas las páginas | `docs/images/navbar-organizer.png` |
+| [Móvil: listado de eventos](#móvil-listado-de-eventos) | `/` en ancho de teléfono | `docs/images/mobile-event-list.png` |
+| [Móvil: detalle del evento](#móvil-detalle-del-evento) | `/events/:id` en ancho de teléfono | `docs/images/mobile-event-detail.png` |
 
-## Login
+## Inicio de sesión
 
-**Route:** `/login`
+**Ruta:** `/login`
 
-Email and password form. Public. After signing in it returns the user to the page they came from.
+Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al usuario a la página de la que venía.
 
-> **Screenshot pending:** save the image as `docs/images/login.png` and replace this block with `![Login](images/login.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/login.png` y reemplaza este bloque con `![Inicio de sesión](images/login.png)`.
 
-## Register
+## Registro de cuenta
 
-**Route:** `/register`
+**Ruta:** `/register`
 
-Account creation form (name, email, password and confirmation). Public. New accounts get the organizer role.
+Formulario de creación de cuenta (nombre, correo, contraseña y confirmación). Público. Las cuentas nuevas reciben el rol de organizador.
 
-> **Screenshot pending:** save the image as `docs/images/register.png` and replace this block with `![Register](images/register.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/register.png` y reemplaza este bloque con `![Registro de cuenta](images/register.png)`.
 
-## Event list
+## Listado de eventos
 
-**Route:** `/`
+**Ruta:** `/`
 
-Searchable, paginated grid of event cards (9 per page) with a status badge. Public; organizers and admins also see non-published events according to their role.
+Cuadrícula de tarjetas de eventos con búsqueda y paginación (9 por página) y una insignia de estado. Público; los organizadores y administradores también ven los eventos no publicados según su rol.
 
-> **Screenshot pending:** save the image as `docs/images/event-list.png` and replace this block with `![Event list](images/event-list.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/event-list.png` y reemplaza este bloque con `![Listado de eventos](images/event-list.png)`.
 
-## Event detail
+## Detalle del evento
 
-**Route:** `/events/:id`
+**Ruta:** `/events/:id`
 
-Event information, status badge, seats left, the register/cancel button and the session list with per-session enrollment. Public to read; registering and enrolling need a login.
+Información del evento, insignia de estado, cupos disponibles, el botón de inscribirse/cancelar y la lista de sesiones con la inscripción a cada sesión. La lectura es pública; inscribirse requiere iniciar sesión.
 
-> **Screenshot pending:** save the image as `docs/images/event-detail.png` and replace this block with `![Event detail](images/event-detail.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/event-detail.png` y reemplaza este bloque con `![Detalle del evento](images/event-detail.png)`.
 
-## Event detail, management view
+## Detalle del evento, vista de gestión
 
-**Route:** `/events/:id`
+**Ruta:** `/events/:id`
 
-The same page for the event's organizer or an admin: edit link, status change, participants CSV download, delete, and the add/edit/delete session controls.
+La misma página para el organizador del evento o un administrador: enlace de edición, cambio de estado, descarga del CSV de participantes, eliminación y los controles para agregar, editar y eliminar sesiones.
 
-> **Screenshot pending:** save the image as `docs/images/event-detail-manage.png` and replace this block with `![Event detail, management view](images/event-detail-manage.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/event-detail-manage.png` y reemplaza este bloque con `![Detalle del evento, vista de gestión](images/event-detail-manage.png)`.
 
-## Event form
+## Formulario de evento
 
-**Route:** `/events/new` and `/events/:id/edit`
+**Ruta:** `/events/new` y `/events/:id/edit`
 
-Create or edit an event (name, description, location, dates, capacity). Organizers and admins; editing is limited to the event's organizer or an admin, and only while the event is not cancelled or finished.
+Crear o editar un evento (nombre, descripción, lugar, fechas, capacidad). Organizadores y administradores; la edición se limita al organizador del evento o a un administrador, y solo mientras el evento no esté cancelado ni finalizado.
 
-> **Screenshot pending:** save the image as `docs/images/event-form.png` and replace this block with `![Event form](images/event-form.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/event-form.png` y reemplaza este bloque con `![Formulario de evento](images/event-form.png)`.
 
-## Speaker form
+## Formulario de ponente
 
-**Route:** `/speakers/new`
+**Ruta:** `/speakers/new`
 
-Add a speaker (name, bio, optional email) to the shared directory. Organizers and admins.
+Agregar un ponente (nombre, biografía, correo opcional) al directorio compartido. Organizadores y administradores.
 
-> **Screenshot pending:** save the image as `docs/images/speaker-form.png` and replace this block with `![Speaker form](images/speaker-form.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/speaker-form.png` y reemplaza este bloque con `![Formulario de ponente](images/speaker-form.png)`.
 
-## My events
+## Mis eventos
 
-**Route:** `/profile`
+**Ruta:** `/profile`
 
-The logged-in user's profile summary and the events they are registered to, with a cancel action. Any logged-in user.
+El resumen del perfil del usuario con sesión iniciada y los eventos a los que está inscrito, con una acción para cancelar. Cualquier usuario con sesión iniciada.
 
-> **Screenshot pending:** save the image as `docs/images/profile.png` and replace this block with `![My events](images/profile.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/profile.png` y reemplaza este bloque con `![Mis eventos](images/profile.png)`.
 
-## Reports
+## Reportes
 
-**Route:** `/reports`
+**Ruta:** `/reports`
 
-Participants preview by event or by session with search, status and date filters, pagination and CSV download. Organizers (own events) and admins; other roles see a not-allowed message.
+Vista previa de participantes por evento o por sesión, con búsqueda, filtros de estado y de fecha, paginación y descarga en CSV. Organizadores (sus propios eventos) y administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> **Screenshot pending:** save the image as `docs/images/reports.png` and replace this block with `![Reports](images/reports.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/reports.png` y reemplaza este bloque con `![Reportes](images/reports.png)`.
 
-## Admin users
+## Administración de usuarios
 
-**Route:** `/admin/users`
+**Ruta:** `/admin/users`
 
-Email-prefix search over user accounts with inline editing of name, email, role and active flag. Admins only; other roles see a not-allowed message.
+Búsqueda por prefijo de correo sobre las cuentas de usuario, con edición en línea de nombre, correo, rol e indicador de activo. Solo administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> **Screenshot pending:** save the image as `docs/images/admin-users.png` and replace this block with `![Admin users](images/admin-users.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/admin-users.png` y reemplaza este bloque con `![Administración de usuarios](images/admin-users.png)`.
 
-## Not found
+## Página no encontrada
 
-**Route:** any unknown path (`*`)
+**Ruta:** cualquier ruta desconocida (`*`)
 
-Message and link back to the home page. Public.
+Mensaje y enlace de regreso a la página de inicio. Público.
 
-> **Screenshot pending:** save the image as `docs/images/not-found.png` and replace this block with `![Not found](images/not-found.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/not-found.png` y reemplaza este bloque con `![Página no encontrada](images/not-found.png)`.
 
-## Navbar, anonymous
+## Barra de navegación, anónimo
 
-**Route:** all pages
+**Ruta:** todas las páginas
 
-Brand link plus Login and Register links. Shown to visitors without a session.
+Enlace de la marca más los enlaces de inicio de sesión y registro. Se muestra a los visitantes sin sesión.
 
-> **Screenshot pending:** save the image as `docs/images/navbar-anonymous.png` and replace this block with `![Navbar, anonymous](images/navbar-anonymous.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/navbar-anonymous.png` y reemplaza este bloque con `![Barra de navegación, anónimo](images/navbar-anonymous.png)`.
 
-## Navbar, organizer
+## Barra de navegación, organizador
 
-**Route:** all pages
+**Ruta:** todas las páginas
 
-Shows New event, New speaker, Reports and My events, the user name and Logout. Admins also see Administration.
+Muestra Nuevo evento, Nuevo ponente, Reportes y Mis eventos, el nombre del usuario y Cerrar sesión. Los administradores también ven Administración.
 
-> **Screenshot pending:** save the image as `docs/images/navbar-organizer.png` and replace this block with `![Navbar, organizer](images/navbar-organizer.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/navbar-organizer.png` y reemplaza este bloque con `![Barra de navegación, organizador](images/navbar-organizer.png)`.
 
-## Mobile: event list
+## Móvil: listado de eventos
 
-**Route:** `/` at phone width
+**Ruta:** `/` en ancho de teléfono
 
-The event list below the 640 px breakpoint, where the navbar stacks vertically and the grid becomes a single column.
+El listado de eventos por debajo del punto de corte de 640 px, donde la barra de navegación se apila verticalmente y la cuadrícula pasa a una sola columna.
 
-> **Screenshot pending:** save the image as `docs/images/mobile-event-list.png` and replace this block with `![Mobile: event list](images/mobile-event-list.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/mobile-event-list.png` y reemplaza este bloque con `![Móvil: listado de eventos](images/mobile-event-list.png)`.
 
-## Mobile: event detail
+## Móvil: detalle del evento
 
-**Route:** `/events/:id` at phone width
+**Ruta:** `/events/:id` en ancho de teléfono
 
-The event detail and session list at phone width.
+El detalle del evento y la lista de sesiones en ancho de teléfono.
 
-> **Screenshot pending:** save the image as `docs/images/mobile-event-detail.png` and replace this block with `![Mobile: event detail](images/mobile-event-detail.png)`.
+> **Captura pendiente:** guarda la imagen como `docs/images/mobile-event-detail.png` y reemplaza este bloque con `![Móvil: detalle del evento](images/mobile-event-detail.png)`.
