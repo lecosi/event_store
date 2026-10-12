@@ -8,7 +8,7 @@ del backend describen el código tal como está hoy y referencian los archivos r
 | Documento | Qué cubre |
 | --- | --- |
 | [../README.md](../README.md) | Qué es el proyecto y cómo ejecutarlo con unos pocos comandos |
-| [screens.md](screens.md) | Pantallas de la aplicación, con espacios reservados para capturas |
+| [screens.md](screens.md) | Pantallas de la aplicación, con capturas |
 
 ## Backend: para entenderlo
 
@@ -27,6 +27,14 @@ del backend describen el código tal como está hoy y referencian los archivos r
 | [backend-operations.md](backend-operations.md) | Docker Compose, variables de entorno, migraciones, carga inicial de datos (seed) |
 | [backend-scripts.md](backend-scripts.md) | Scripts `seed`, `seed_demo` y `close_past_events`, programación de ejecución |
 | [coverage/README.md](coverage/README.md) | Resúmenes de cobertura de pruebas y cómo regenerar los reportes |
+
+## Frontend
+
+| Documento | Qué cubre |
+| --- | --- |
+| [frontend-architecture.md](frontend-architecture.md) | Mapa de `frontend/src`, una pantalla de extremo a extremo, rutas y protección por rol, sesión, cliente HTTP y traducción de errores |
+| [frontend-conventions.md](frontend-conventions.md) | Textos en español con i18n, validaciones frente al backend, estilos y componentes compartidos, cómo agregar una pantalla |
+| [frontend-operations.md](frontend-operations.md) | Scripts npm, Docker y nginx, conexión con el backend, pruebas, cobertura, lint y formato |
 
 ## Qué documento para qué pregunta
 
