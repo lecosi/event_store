@@ -1,6 +1,7 @@
-# Backend scripts
+# Scripts del backend
 
-Run them from `backend/` (or inside the backend container, where `scripts/` is shipped):
+Ejecútalos desde `backend/` (o dentro del contenedor del backend, donde se incluye
+`scripts/`):
 
 ```bash
 python -m scripts.seed                # create or promote the administrator
@@ -8,22 +9,26 @@ python -m scripts.seed_demo           # optional demo data, needs the administra
 python -m scripts.close_past_events   # finish published events that already ended
 ```
 
-`seed` reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` (and `ADMIN_FULL_NAME`, default
-`Administrator`); `seed_demo` reads `ADMIN_EMAIL`. Run them once the backend is healthy, so
-migrations are applied. See [backend-operations.md](backend-operations.md#seeding).
+`seed` lee `ADMIN_EMAIL` y `ADMIN_PASSWORD` (y `ADMIN_FULL_NAME`, por defecto
+`Administrator`); `seed_demo` lee `ADMIN_EMAIL`. Ejecútalos una vez que el backend esté
+saludable, para que las migraciones ya estén aplicadas. Ver
+[backend-operations.md](backend-operations.md#carga-inicial-de-datos-seed).
 
-## Finish past events
+## Finalizar eventos pasados
 
-`python -m scripts.close_past_events` moves every `published` event whose end date is
-before now to `finished`, and prints `Finished events: <n>`.
+`python -m scripts.close_past_events` mueve a `finished` todo evento `published` cuya fecha
+de fin es anterior al momento actual, e imprime `Finished events: <n>`.
 
-- Events still in progress, drafts, cancelled and already finished events are not touched.
-- Registrations and session enrollments are kept as the attendance history.
-- It is idempotent: running it again finishes nothing new.
-- It invalidates the events and sessions read cache when it finishes at least one event.
+- Los eventos aún en curso, los borradores, los cancelados y los ya finalizados no se
+  tocan.
+- Las inscripciones y las inscripciones a sesiones se conservan como historial de
+  asistencia.
+- Es idempotente: ejecutarlo de nuevo no finaliza nada nuevo.
+- Invalida el cache de lectura de eventos y sesiones cuando finaliza al menos un evento.
 
-It uses the same `DATABASE_URL` (and `REDIS_URL`, if set) as the API. Nothing runs it
-automatically, so schedule it. Example crontab entry, every day at 02:00:
+Usa el mismo `DATABASE_URL` (y `REDIS_URL`, si está definida) que la API. Nada lo ejecuta
+automáticamente, así que prográmalo. Ejemplo de entrada de crontab, todos los días a las
+02:00:
 
 ```cron
 0 2 * * * cd /srv/mis-eventos && docker compose exec -T backend python -m scripts.close_past_events

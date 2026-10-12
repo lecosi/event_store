@@ -1,9 +1,9 @@
-# Backend testing
+# Pruebas del backend
 
-The backend suite is pytest, in `backend/tests`. Static checks are Ruff and mypy.
-All commands run from `backend/` with Poetry (`poetry install` once).
+La suite del backend es pytest, en `backend/tests`. Las verificaciones estáticas son Ruff y
+mypy. Todos los comandos se ejecutan desde `backend/` con Poetry (`poetry install` una vez).
 
-## Quick start
+## Inicio rápido
 
 ```bash
 # from the repository root: PostgreSQL for the integration tests
@@ -16,75 +16,78 @@ poetry run pytest -m integration # needs PostgreSQL
 poetry run pytest tests/test_session_registration_service.py -k overlap
 ```
 
-Redis is not needed: the cache is tested through fakes (see
+Redis no es necesario: el cache se prueba mediante fakes (ver
 [backend-cache.md](backend-cache.md)).
 
-## Test database
+## Base de datos de pruebas
 
-`backend/tests/conftest.py` resolves the database in this order:
+`backend/tests/conftest.py` resuelve la base de datos en este orden:
 
-1. `TEST_DATABASE_URL`, when set.
-2. `DATABASE_URL` (from the environment or `backend/.env`) with `_test` appended to the
-   database name, for example `mis_eventos_test`.
+1. `TEST_DATABASE_URL`, cuando está definida.
+2. `DATABASE_URL` (del entorno o de `backend/.env`) con `_test` agregado al nombre de la
+   base de datos, por ejemplo `mis_eventos_test`.
 
-The database name must end in `_test`; otherwise the run aborts, so a real database is
-never truncated. The suite then:
+El nombre de la base de datos debe terminar en `_test`; de lo contrario la ejecución se
+aborta, de modo que nunca se trunca una base de datos real. Luego la suite:
 
-- creates the database when it is missing (connecting through the `postgres` database);
-- runs `alembic upgrade head` once per session, so migrations are exercised too;
-- truncates every table (`RESTART IDENTITY CASCADE`) before and after each test that uses
-  the database.
+- crea la base de datos cuando no existe (conectándose a través de la base `postgres`);
+- ejecuta `alembic upgrade head` una vez por sesión, de modo que las migraciones también se
+  ejercitan;
+- trunca todas las tablas (`RESTART IDENTITY CASCADE`) antes y después de cada prueba que
+  usa la base de datos.
 
-If PostgreSQL is unreachable the run exits with a message telling you to start it or set
-`TEST_DATABASE_URL`.
+Si PostgreSQL no es alcanzable, la ejecución termina con un mensaje que indica iniciarlo o
+definir `TEST_DATABASE_URL`.
 
-## Layout
+## Organización
 
-| Kind | Files | Runs against |
+| Tipo | Archivos | Se ejecuta contra |
 | --- | --- | --- |
-| Domain rules | `test_event_domain.py`, `test_session_domain.py`, `test_session_registration_domain.py` | Nothing (pure functions) |
-| Use cases (services) | `test_*_service.py`, `test_session_catalogue.py`, `test_close_past_events.py`, `test_report_service.py` | In-memory fakes |
-| HTTP API | `test_*_api.py` | FastAPI `TestClient` and PostgreSQL |
-| SQL adapters | `test_*_repository.py`, `test_unit_of_work.py`, `test_models.py`, `test_migration_full_name.py` | PostgreSQL |
-| Concurrency | `test_registration_concurrency_postgres.py`, `test_session_registration_concurrency_postgres.py` | PostgreSQL, threads |
+| Reglas de dominio | `test_event_domain.py`, `test_session_domain.py`, `test_session_registration_domain.py` | Nada (funciones puras) |
+| Casos de uso (servicios) | `test_*_service.py`, `test_session_catalogue.py`, `test_close_past_events.py`, `test_report_service.py` | Fakes en memoria |
+| API HTTP | `test_*_api.py` | `TestClient` de FastAPI y PostgreSQL |
+| Adaptadores SQL | `test_*_repository.py`, `test_unit_of_work.py`, `test_models.py`, `test_migration_full_name.py` | PostgreSQL |
+| Concurrencia | `test_registration_concurrency_postgres.py`, `test_session_registration_concurrency_postgres.py` | PostgreSQL, hilos |
 | Cache | `test_cache_*.py`, `test_cached_*.py`, `test_redis_cache.py` | Fakes (`FakeCache`, `UnreachableRedis`) |
-| Wiring and structure | `test_router_structure.py`, `test_error_handlers.py`, `test_config.py`, `test_cors.py`, `test_security.py` | Mostly nothing |
-| Scripts | `test_seed.py`, `test_seed_demo.py`, `test_close_past_events_script.py` | Fakes or PostgreSQL |
+| Cableado y estructura | `test_router_structure.py`, `test_error_handlers.py`, `test_config.py`, `test_cors.py`, `test_security.py` | Casi nada |
+| Scripts | `test_seed.py`, `test_seed_demo.py`, `test_close_past_events_script.py` | Fakes o PostgreSQL |
 
 ### Markers
 
-`pytest.mark.unit` and `pytest.mark.integration` are applied automatically by
-`pytest_collection_modifyitems` in `conftest.py`: a test is `integration` when it uses one
-of the fixtures `postgres_engine`, `clean_postgres`, `session` or `client`, `unit`
-otherwise. Nothing needs to be marked by hand, and `--strict-markers` is on.
+`pytest.mark.unit` y `pytest.mark.integration` se aplican automáticamente mediante
+`pytest_collection_modifyitems` en `conftest.py`: una prueba es `integration` cuando usa
+alguno de los fixtures `postgres_engine`, `clean_postgres`, `session` o `client`, y `unit`
+en caso contrario. No hace falta marcar nada a mano, y `--strict-markers` está activo.
 
-### Fakes versus PostgreSQL
+### Fakes frente a PostgreSQL
 
-- Service tests use the in-memory implementations in `backend/tests/fakes.py`
-  (`FakeUnitOfWork`, `FakeUserRepository`, `FakeEventRepository`, ...). They are fast and
-  assert business rules, including that a failing use case rolls back and does not
-  invalidate the cache. Time is injected through a clock argument.
-- API and repository tests use real PostgreSQL, because behavior such as `FOR UPDATE`
-  locks, `CHECK` constraints, `ON DELETE CASCADE`, `ILIKE` escaping and index-backed prefix
-  search cannot be trusted in a fake.
-- The `*_concurrency_postgres.py` tests fire many parallel requests through a
-  `ThreadPoolExecutor` against the same event or session and assert that capacity is never
-  exceeded and duplicates are rejected. The engine pool is sized (`POOL_SIZE = 12`) for this.
+- Las pruebas de servicios usan las implementaciones en memoria de
+  `backend/tests/fakes.py` (`FakeUnitOfWork`, `FakeUserRepository`,
+  `FakeEventRepository`, ...). Son rápidas y verifican reglas de negocio, incluido que un
+  caso de uso que falla hace rollback y no invalida el cache. El tiempo se inyecta mediante
+  un argumento de reloj (clock).
+- Las pruebas de API y de repositorios usan PostgreSQL real, porque comportamientos como
+  los bloqueos `FOR UPDATE`, las restricciones `CHECK`, `ON DELETE CASCADE`, el escapado de
+  `ILIKE` y la búsqueda por prefijo respaldada por índice no se puede confiar en un fake.
+- Las pruebas `*_concurrency_postgres.py` lanzan muchas peticiones paralelas mediante un
+  `ThreadPoolExecutor` contra el mismo evento o sesión y verifican que nunca se excede la
+  capacidad y que los duplicados se rechazan. El pool del motor está dimensionado
+  (`POOL_SIZE = 12`) para esto.
 
-### Useful fixtures (`conftest.py`)
+### Fixtures útiles (`conftest.py`)
 
-| Fixture | Provides |
+| Fixture | Provee |
 | --- | --- |
-| `client` | `TestClient` over a fresh app, with the DB session overridden |
-| `session` | A SQLModel `Session` on the clean test database |
-| `fake_cache` | Replaces the cache dependency with `FakeCache` |
-| `unreachable_cache` | A `RedisCache` whose client always fails |
-| `override_settings` | Overrides fields of `Settings` for the app under test |
+| `client` | `TestClient` sobre una app nueva, con la sesión de BD sobrescrita |
+| `session` | Una `Session` de SQLModel sobre la base de datos de pruebas limpia |
+| `fake_cache` | Reemplaza la dependencia de cache por `FakeCache` |
+| `unreachable_cache` | Un `RedisCache` cuyo cliente siempre falla |
+| `override_settings` | Sobrescribe campos de `Settings` para la app bajo prueba |
 
-`JWT_SECRET` is defaulted to a test-only value in `conftest.py`, so tests do not depend on
-your `.env` secret.
+`JWT_SECRET` toma por defecto un valor solo para pruebas en `conftest.py`, de modo que las
+pruebas no dependen del secreto de tu `.env`.
 
-## Coverage
+## Cobertura
 
 ```bash
 cd backend
@@ -92,13 +95,14 @@ poetry run pytest --cov=app --cov-report=term-missing           # terminal
 poetry run pytest --cov=app --cov-report=term-missing --cov-report=html   # htmlcov/index.html
 ```
 
-Configuration is in `backend/pyproject.toml`: line and branch coverage over `app`,
-`fail_under = 90` (the run fails below 90 percent), fully covered files are hidden from the
-report. The latest recorded summary is `docs/coverage/backend.txt`; how to regenerate the
-reports is in [coverage/README.md](coverage/README.md). `htmlcov/`, `coverage.xml` and
-`.coverage` are gitignored.
+La configuración está en `backend/pyproject.toml`: cobertura de líneas y de ramas sobre
+`app`, `fail_under = 90` (la ejecución falla por debajo del 90 por ciento), y los archivos
+totalmente cubiertos se ocultan del reporte. El último resumen registrado es
+`docs/coverage/backend.txt`; cómo regenerar los reportes está en
+[coverage/README.md](coverage/README.md). `htmlcov/`, `coverage.xml` y `.coverage` están en
+gitignore.
 
-## Lint and type checks
+## Lint y verificación de tipos
 
 ```bash
 cd backend
@@ -107,15 +111,18 @@ poetry run ruff format --check app scripts tests
 poetry run mypy                      # files = app, scripts (see pyproject.toml)
 ```
 
-- Ruff: line length 100, rule sets `E`, `F`, `I`, `UP`, `B`.
-- mypy: `disallow_untyped_defs`, `check_untyped_defs`, `warn_return_any` and related
-  strictness flags; tests are not type-checked.
-- Running `ruff check .` without paths also scans `alembic/versions`, where the initial
-  migrations currently report a few import-style findings that predate these docs.
+- Ruff: longitud de línea 100, conjuntos de reglas `E`, `F`, `I`, `UP`, `B`.
+- mypy: `disallow_untyped_defs`, `check_untyped_defs`, `warn_return_any` y otras opciones
+  de rigurosidad relacionadas; las pruebas no se verifican por tipos.
+- Ejecutar `ruff check .` sin rutas también analiza `alembic/versions`, donde las
+  migraciones iniciales reportan actualmente algunos hallazgos de estilo de imports que son
+  anteriores a esta documentación.
 
-## Writing a test
+## Escribir una prueba
 
-1. Domain rule: call the pure function with plain dataclasses; no fixtures.
-2. Use case: build the service with the fakes from `tests/fakes.py` and an injected clock.
-3. Endpoint: use `client` and the helpers already present in the nearest `test_*_api.py`.
-4. Name the behavior in the test name; keep intent out of comments.
+1. Regla de dominio: llama a la función pura con dataclasses simples; sin fixtures.
+2. Caso de uso: construye el servicio con los fakes de `tests/fakes.py` y un reloj
+   inyectado.
+3. Endpoint: usa `client` y los helpers que ya existen en el `test_*_api.py` más cercano.
+4. Nombra el comportamiento en el nombre de la prueba; deja la intención fuera de los
+   comentarios.

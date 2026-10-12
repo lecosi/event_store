@@ -1,18 +1,18 @@
-# Backend operations
+# Operación del backend
 
-How to run, configure and maintain the backend. For scripts in detail see
+Cómo ejecutar, configurar y mantener el backend. Para los scripts en detalle ver
 [backend-scripts.md](backend-scripts.md).
 
-## Run with Docker Compose
+## Ejecutar con Docker Compose
 
-`docker-compose.yml` defines four services:
+`docker-compose.yml` define cuatro servicios:
 
-| Service | Image / build | Host port | Notes |
+| Servicio | Imagen / build | Puerto del host | Notas |
 | --- | --- | --- | --- |
-| `db` | `postgres:16-alpine` | `127.0.0.1:${DB_HOST_PORT:-5432}` | Volume `db_data`; healthcheck with `pg_isready` |
-| `redis` | `redis:7-alpine` | none | Cache only: no persistence, 64 MB, `volatile-lru` |
-| `backend` | `./backend` | `8000` | Starts after `db` and `redis` are healthy |
-| `frontend` | `./frontend` | `5173` (container port 80) | Static build, calls the backend from the browser |
+| `db` | `postgres:16-alpine` | `127.0.0.1:${DB_HOST_PORT:-5432}` | Volumen `db_data`; healthcheck con `pg_isready` |
+| `redis` | `redis:7-alpine` | ninguno | Solo cache: sin persistencia, 64 MB, `volatile-lru` |
+| `backend` | `./backend` | `8000` | Inicia después de que `db` y `redis` estén saludables (healthy) |
+| `frontend` | `./frontend` | `5173` (puerto del contenedor 80) | Build estático, llama al backend desde el navegador |
 
 ```bash
 cp backend/.env.example backend/.env     # first time only; compose reads this file
@@ -21,66 +21,68 @@ docker compose ps                         # wait until backend is "healthy"
 curl http://localhost:8000/api/v1/health  # {"status":"ok"}
 ```
 
-Then open `http://localhost:5173` (app) or `http://localhost:8000/docs` (Swagger UI).
+Luego abre `http://localhost:5173` (aplicación) o `http://localhost:8000/docs` (Swagger UI).
 
-Replace the `JWT_SECRET` of the example file with your own value; generate one with:
+Reemplaza el `JWT_SECRET` del archivo de ejemplo por un valor propio; genera uno con:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Stop with `docker compose down` (add `-v` to delete the database volume).
+Detén con `docker compose down` (agrega `-v` para eliminar el volumen de la base de datos).
 
-### What the backend container does
+### Qué hace el contenedor del backend
 
-`backend/Dockerfile` builds a multi-stage image running as a non-root user.
-`backend/docker-entrypoint.sh` runs, in order:
+`backend/Dockerfile` construye una imagen multi-stage que corre como usuario sin privilegios
+de root. `backend/docker-entrypoint.sh` ejecuta, en orden:
 
-1. `alembic upgrade head` (applies pending migrations);
+1. `alembic upgrade head` (aplica las migraciones pendientes);
 2. `uvicorn app.main:app --host 0.0.0.0 --port 8000`.
 
-Its image healthcheck calls `GET /api/v1/health` (start period 20 s). Because migrations
-run before the server starts, the container only turns healthy once the schema exists.
+El healthcheck de su imagen llama a `GET /api/v1/health` (período de inicio de 20 s). Como
+las migraciones se ejecutan antes de que arranque el servidor, el contenedor solo se
+vuelve saludable una vez que existe el esquema.
 
-## Configuration
+## Configuración
 
-Settings come from environment variables, with `backend/.env` as a fallback when running
-outside Docker (`backend/app/core/config.py`). With Compose, `backend/.env` is passed as
-`env_file`, and Compose overrides `DATABASE_URL`, `REDIS_URL` and `CORS_ORIGINS` for the
-`backend` service.
+Los ajustes provienen de variables de entorno, con `backend/.env` como respaldo cuando se
+ejecuta fuera de Docker (`backend/app/core/config.py`). Con Compose, `backend/.env` se pasa
+como `env_file`, y Compose sobrescribe `DATABASE_URL`, `REDIS_URL` y `CORS_ORIGINS` para el
+servicio `backend`.
 
-| Variable | Default | Meaning |
+| Variable | Por defecto | Significado |
 | --- | --- | --- |
-| `DATABASE_URL` | local `mis_eventos` PostgreSQL (`postgresql+psycopg://...`) | SQLAlchemy URL of the database |
-| `JWT_SECRET` | none (required) | Signing key; at least 32 characters and not `change-me`, or the app refuses to start |
-| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Token lifetime |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed browser origins |
-| `REDIS_URL` | unset | Enables the Redis cache; unset means no cache (`NullCache`) |
-| `CACHE_TTL_EVENTS_SECONDS` | `60` | TTL of cached event lists (must be > 0) |
-| `CACHE_TTL_SESSIONS_SECONDS` | `120` | TTL of cached event schedules (must be > 0) |
-| `CACHE_TTL_SPEAKERS_SECONDS` | `300` | TTL of cached speaker reads (must be > 0) |
-| `APP_NAME` | `Mis Eventos` | Title shown in the OpenAPI document |
-| `ADMIN_FULL_NAME` | `Administrator` | Full name given to the admin created by the seed |
+| `DATABASE_URL` | PostgreSQL local `mis_eventos` (`postgresql+psycopg://...`) | URL de SQLAlchemy de la base de datos |
+| `JWT_SECRET` | ninguno (obligatorio) | Clave de firma; al menos 32 caracteres y distinta de `change-me`, o la aplicación se niega a iniciar |
+| `JWT_ALGORITHM` | `HS256` | Algoritmo de firma del JWT |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Duración del token |
+| `CORS_ORIGINS` | `http://localhost:5173` | Orígenes de navegador permitidos, separados por comas |
+| `REDIS_URL` | sin definir | Habilita el cache Redis; sin definir significa sin cache (`NullCache`) |
+| `CACHE_TTL_EVENTS_SECONDS` | `60` | TTL de los listados de eventos cacheados (debe ser > 0) |
+| `CACHE_TTL_SESSIONS_SECONDS` | `120` | TTL de los horarios de eventos cacheados (debe ser > 0) |
+| `CACHE_TTL_SPEAKERS_SECONDS` | `300` | TTL de las lecturas de ponentes cacheadas (debe ser > 0) |
+| `APP_NAME` | `Mis Eventos` | Título mostrado en el documento OpenAPI |
+| `ADMIN_FULL_NAME` | `Administrator` | Nombre completo asignado al admin creado por el seed |
 
-Read only by the scripts, with no default:
+Leídas solo por los scripts, sin valor por defecto:
 
-| Variable | Used by | Meaning |
+| Variable | Usada por | Significado |
 | --- | --- | --- |
-| `ADMIN_EMAIL` | `scripts.seed`, `scripts.seed_demo` | Email of the administrator |
-| `ADMIN_PASSWORD` | `scripts.seed` | Password of the administrator (at least 8 characters) |
+| `ADMIN_EMAIL` | `scripts.seed`, `scripts.seed_demo` | Correo del administrador |
+| `ADMIN_PASSWORD` | `scripts.seed` | Contraseña del administrador (al menos 8 caracteres) |
 
-Compose-level variables (shell or a root `.env` file): `POSTGRES_USER`, `POSTGRES_PASSWORD`,
-`POSTGRES_DB` (all default `mis_eventos`), `DB_HOST_PORT` (default `5432`), `CORS_ORIGINS`
-and `VITE_API_URL` (frontend build argument, default `http://localhost:8000/api/v1`).
+Variables a nivel de Compose (shell o un archivo `.env` en la raíz): `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, `POSTGRES_DB` (todas con valor por defecto `mis_eventos`),
+`DB_HOST_PORT` (por defecto `5432`), `CORS_ORIGINS` y `VITE_API_URL` (argumento de build del
+frontend, por defecto `http://localhost:8000/api/v1`).
 
-`backend/.env.example` does not include `ADMIN_EMAIL` and `ADMIN_PASSWORD`; add them to
-`backend/.env` or pass them with `-e` as shown below.
+`backend/.env.example` no incluye `ADMIN_EMAIL` ni `ADMIN_PASSWORD`; agrégalas a
+`backend/.env` o pásalas con `-e` como se muestra más abajo.
 
-## Migrations
+## Migraciones
 
-Alembic lives in `backend/alembic` (config `backend/alembic.ini`). The URL comes from
-`DATABASE_URL`.
+Alembic vive en `backend/alembic` (configuración en `backend/alembic.ini`). La URL proviene
+de `DATABASE_URL`.
 
 ```bash
 cd backend
@@ -89,15 +91,16 @@ poetry run alembic current                                   # where the databas
 poetry run alembic revision --autogenerate -m "describe it"  # new migration
 ```
 
-Inside Docker the entrypoint applies migrations on every start, so a normal deploy needs
-no manual step. Existing revisions are in `backend/alembic/versions` (`0001` to `0006`).
-Review autogenerated migrations by hand, and add a test when one changes data
-(`backend/tests/test_migration_full_name.py` is an example).
+Dentro de Docker el entrypoint aplica las migraciones en cada inicio, por lo que un
+despliegue normal no necesita ningún paso manual. Las revisiones existentes están en
+`backend/alembic/versions` (`0001` a `0006`). Revisa a mano las migraciones autogeneradas y
+agrega una prueba cuando una cambie datos (`backend/tests/test_migration_full_name.py` es un
+ejemplo).
 
-## Seeding
+## Carga inicial de datos (seed)
 
-Run seeds only after the backend container reports healthy: the migrations create the
-tables, and running a seed before they finish fails with
+Ejecuta los seeds solo después de que el contenedor del backend reporte estado saludable:
+las migraciones crean las tablas, y ejecutar un seed antes de que terminen falla con
 `relation "users" does not exist`.
 
 ```bash
@@ -111,23 +114,23 @@ docker compose exec -e ADMIN_EMAIL=admin@example.com \
   backend python -m scripts.seed_demo
 ```
 
-- `scripts.seed` is idempotent: it creates the admin or promotes the existing account,
-  keeping its own full name.
-- `scripts.seed_demo` requires that admin to exist and does nothing when events already
-  exist. It also creates five attendee accounts and prints their credentials; those
-  accounts are for demonstration only. Register a new account in the app to get an
-  organizer.
+- `scripts.seed` es idempotente: crea el admin o promueve la cuenta existente, conservando
+  su propio nombre completo.
+- `scripts.seed_demo` requiere que ese admin exista y no hace nada cuando ya existen
+  eventos. También crea cinco cuentas de asistentes e imprime sus credenciales; esas
+  cuentas son solo para demostración. Registra una cuenta nueva en la aplicación para
+  obtener un organizer.
 
-Outside Docker, run the same modules from `backend/` with `poetry run python -m scripts.<name>`
-and the variables exported.
+Fuera de Docker, ejecuta los mismos módulos desde `backend/` con
+`poetry run python -m scripts.<name>` y las variables exportadas.
 
-## Scheduled maintenance
+## Mantenimiento programado
 
-`python -m scripts.close_past_events` moves published events that already ended to
-`finished`. Nothing runs it automatically; schedule it (cron example in
+`python -m scripts.close_past_events` mueve a `finished` los eventos publicados que ya
+terminaron. Nada lo ejecuta automáticamente; prográmalo (ejemplo de cron en
 [backend-scripts.md](backend-scripts.md)).
 
-## Running without Docker
+## Ejecución sin Docker
 
 ```bash
 docker compose up -d db redis        # or any PostgreSQL 16 / Redis
@@ -137,17 +140,17 @@ poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 ```
 
-Set `REDIS_URL=redis://localhost:6379/0` in `backend/.env` to use the cache. Note that the
-compose `redis` service does not publish a host port, so for host-side runs use your own
-Redis or leave `REDIS_URL` unset.
+Define `REDIS_URL=redis://localhost:6379/0` en `backend/.env` para usar el cache. Ten en
+cuenta que el servicio `redis` de compose no publica un puerto del host, por lo que para
+ejecuciones en el host usa tu propio Redis o deja `REDIS_URL` sin definir.
 
-## Troubleshooting
+## Solución de problemas
 
-| Symptom | Cause | Fix |
+| Síntoma | Causa | Solución |
 | --- | --- | --- |
-| Backend exits at start with a `JWT_SECRET` message | Missing, short or placeholder secret | Set a random value of 32+ characters |
-| `compose up` fails because the env file is missing | `backend/.env` missing | `cp backend/.env.example backend/.env` |
-| Seed fails with `relation "users" does not exist` | Migrations not finished yet | Wait for `docker compose ps` to show `healthy`, retry |
-| Seed prints `ADMIN_EMAIL and ADMIN_PASSWORD must be set` | Variables not in the container | Pass `-e` or add them to `backend/.env` and recreate the container |
-| Browser shows CORS errors | Frontend origin not in `CORS_ORIGINS` | Add it (comma-separated) and restart the backend |
-| Port 5432 already in use | Local PostgreSQL | Set `DB_HOST_PORT` to another port |
+| El backend termina al iniciar con un mensaje sobre `JWT_SECRET` | Secreto ausente, corto o de ejemplo | Define un valor aleatorio de 32+ caracteres |
+| `compose up` falla porque falta el archivo de entorno | Falta `backend/.env` | `cp backend/.env.example backend/.env` |
+| El seed falla con `relation "users" does not exist` | Las migraciones aún no terminaron | Espera a que `docker compose ps` muestre `healthy` y reintenta |
+| El seed imprime `ADMIN_EMAIL and ADMIN_PASSWORD must be set` | Las variables no están en el contenedor | Pásalas con `-e` o agrégalas a `backend/.env` y recrea el contenedor |
+| El navegador muestra errores de CORS | El origen del frontend no está en `CORS_ORIGINS` | Agrégalo (separado por comas) y reinicia el backend |
+| El puerto 5432 ya está en uso | PostgreSQL local | Define `DB_HOST_PORT` con otro puerto |
