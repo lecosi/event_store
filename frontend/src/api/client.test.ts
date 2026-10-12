@@ -172,6 +172,14 @@ describe('known backend details', () => {
     ],
     ['You are not enrolled in this session', 'No estás inscrito en esta sesión.'],
     [
+      'the schedule of a session with enrollments cannot be changed',
+      'No se puede cambiar el horario de una sesión que ya tiene inscritos.',
+    ],
+    [
+      'a session with enrollments cannot be deleted',
+      'No se puede eliminar una sesión que ya tiene inscritos.',
+    ],
+    [
       'date_to must not be before date_from',
       'La fecha final no puede ser anterior a la fecha inicial.',
     ],
@@ -195,6 +203,10 @@ describe('parametrized backend details', () => {
     [
       'capacity cannot be lower than the current registrations (12)',
       'La capacidad no puede ser menor que las inscripciones actuales (12).',
+    ],
+    [
+      'capacity cannot be lower than the current enrollments (3)',
+      'La capacidad no puede ser menor que las inscripciones actuales de la sesión (3).',
     ],
     ['A cancelled event cannot be edited', 'Un evento cancelado no se puede editar.'],
     ['A finished event cannot be edited', 'Un evento finalizado no se puede editar.'],

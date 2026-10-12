@@ -319,6 +319,10 @@ export const es = {
       'Only sessions of published events accept enrollments':
         'Solo las sesiones de eventos publicados aceptan inscripciones.',
       'You are not enrolled in this session': 'No estás inscrito en esta sesión.',
+      'the schedule of a session with enrollments cannot be changed':
+        'No se puede cambiar el horario de una sesión que ya tiene inscritos.',
+      'a session with enrollments cannot be deleted':
+        'No se puede eliminar una sesión que ya tiene inscritos.',
       'date_to must not be before date_from':
         'La fecha final no puede ser anterior a la fecha inicial.',
     } as Record<string, string>,
@@ -329,6 +333,8 @@ export const es = {
       `La capacidad no puede ser menor que la de la sesión más grande (${n}).`,
     capacityBelowRegistrations: (n: string) =>
       `La capacidad no puede ser menor que las inscripciones actuales (${n}).`,
+    capacityBelowEnrollments: (n: string) =>
+      `La capacidad no puede ser menor que las inscripciones actuales de la sesión (${n}).`,
     eventNotEditable: (status: string) => `Un evento ${status.toLowerCase()} no se puede editar.`,
     statusTransition: (from: string, to: string) =>
       `No se puede cambiar el estado de ${from} a ${to}.`,

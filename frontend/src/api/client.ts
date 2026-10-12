@@ -43,6 +43,10 @@ const patterns: [RegExp, (...groups: string[]) => string][] = [
     messages.errors.capacityBelowRegistrations,
   ],
   [
+    /^capacity cannot be lower than the current enrollments \((\d+)\)$/,
+    messages.errors.capacityBelowEnrollments,
+  ],
+  [
     new RegExp(`^A (${statusWords}) event cannot be edited$`),
     (value) => messages.errors.eventNotEditable(label(value)),
   ],
