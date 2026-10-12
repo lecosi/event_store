@@ -161,6 +161,12 @@ class SpeakerUsageQueries(Protocol):
     def count_sessions(self, speaker_id: int) -> int: ...
 
 
+class EventAccess(Protocol):
+    def ensure_can_manage(self, actor: UserAccount, event_id: int) -> Event:
+        """Return the event when ``actor`` owns it or is an admin; raise otherwise."""
+        ...
+
+
 class SessionEnrollmentLock(Protocol):
     def lock_and_count_enrollments(self, session_id: int) -> int:
         """Lock the session row until the unit of work ends and return its enrollment count.

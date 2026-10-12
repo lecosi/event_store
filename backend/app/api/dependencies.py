@@ -11,8 +11,10 @@ from app.application.auth_service import AuthService, UserAdminService
 from app.application.clock import utc_now
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
+from app.application.guards import EventAccessPolicy
 from app.application.ports import (
     Cache,
+    EventAccess,
     EventRepository,
     EventUsageQueries,
     PasswordHasher,
@@ -237,19 +239,23 @@ def get_session_registration_service(
     return SessionRegistrationService(events, sessions, enrollments, availability, uow)
 
 
+def get_event_access(events: EventRepository = Depends(get_event_repository)) -> EventAccess:
+    return EventAccessPolicy(events)
+
+
 def get_report_service(
-    events: EventService = Depends(get_event_service),
+    access: EventAccess = Depends(get_event_access),
     registrations: RegistrationRepository = Depends(get_registration_repository),
 ) -> ReportService:
-    return ReportService(events, registrations)
+    return ReportService(access, registrations)
 
 
 def get_session_report_service(
-    events: EventService = Depends(get_event_service),
+    access: EventAccess = Depends(get_event_access),
     sessions: SessionRepository = Depends(get_session_repository),
     participants: SessionParticipantQueries = Depends(get_session_participant_queries),
 ) -> SessionReportService:
-    return SessionReportService(events, sessions, participants)
+    return SessionReportService(access, sessions, participants)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:

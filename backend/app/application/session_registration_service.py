@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from functools import partial
 
 from app.application.clock import Clock, utc_now
-from app.application.errors import EventNotFoundError, SessionNotFoundError
+from app.application.guards import EventAccessPolicy, get_event, get_session_in_event
 from app.application.ports import (
     EventRepository,
     SessionAvailabilityReader,
@@ -13,10 +13,7 @@ from app.application.ports import (
     UnitOfWork,
     transaction,
 )
-from app.domain.enums import Role
-from app.domain.event import Event, can_view
 from app.domain.registration import available_spots
-from app.domain.session import Session
 from app.domain.session_registration import (
     NotEnrolledError,
     SessionAvailability,
@@ -38,6 +35,7 @@ class SessionRegistrationService:
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
+        self._access = EventAccessPolicy(events)
         self._sessions = sessions
         self._enrollments = enrollments
         self._availability = availability
@@ -47,18 +45,16 @@ class SessionRegistrationService:
     def enroll(self, user: UserAccount, event_id: int, session_id: int) -> SessionRegistration:
         assert user.id is not None
         with transaction(self._uow):
-            self._get_visible(user, event_id)
-            self._get_in_event(event_id, session_id)
+            self._access.get_visible(user, event_id)
+            get_session_in_event(self._sessions, event_id, session_id)
             rule = partial(ensure_can_enroll, now=self._clock())
             return self._enrollments.enroll(user.id, session_id, rule)
 
     def cancel(self, user: UserAccount, event_id: int, session_id: int) -> None:
         assert user.id is not None
         with transaction(self._uow):
-            event = self._events.get(event_id)
-            if event is None:
-                raise EventNotFoundError(event_id)
-            self._get_in_event(event_id, session_id)
+            event = get_event(self._events, event_id)
+            get_session_in_event(self._sessions, event_id, session_id)
             if not self._enrollments.is_enrolled(user.id, session_id):
                 raise NotEnrolledError
             ensure_can_cancel_enrollment(event)
@@ -86,16 +82,3 @@ class SessionRegistrationService:
                 is_enrolled=session_id in mine,
             )
         return result
-
-    def _get_visible(self, user: UserAccount, event_id: int) -> Event:
-        event = self._events.get(event_id)
-        # Non-visible events look exactly like missing ones.
-        if event is None or not can_view(event, user.id, user.role is Role.ADMIN):
-            raise EventNotFoundError(event_id)
-        return event
-
-    def _get_in_event(self, event_id: int, session_id: int) -> Session:
-        session = self._sessions.get(session_id)
-        if session is None or session.event_id != event_id:
-            raise SessionNotFoundError(session_id)
-        return session

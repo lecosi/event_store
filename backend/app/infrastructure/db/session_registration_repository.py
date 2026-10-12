@@ -83,19 +83,28 @@ class SqlSessionRegistrationRepository:
         self._session = session
 
     def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
+        session_row = self._lock_session(session_id)
+        if self.is_enrolled(user_id, session_id):
+            raise AlreadyEnrolledError(ALREADY_ENROLLED)
+        rule(self._load_context(user_id, session_row))
+        return self._insert(user_id, session_id)
+
+    def _lock_session(self, session_id: int) -> SessionRow:
         # FOR UPDATE on the session row serializes concurrent enrollments to it; the lock lasts
-        # until the unit of work commits, so the last seat is never oversold. Locking the
-        # user's event registration too keeps a concurrent event cancellation from leaving an
-        # orphan enrollment behind.
+        # until the unit of work commits, so the last seat is never oversold.
         session_row = self._session.exec(
             select(SessionRow).where(col(SessionRow.id) == session_id).with_for_update()
         ).first()
         if session_row is None:
             raise SessionNotFoundError(session_id)
+        return session_row
+
+    def _load_context(self, user_id: int, session_row: SessionRow) -> EnrollmentContext:
+        """Read the facts the enrollment rule decides on; the rule itself lives in the domain."""
         event_row = self._session.get(EventRow, session_row.event_id)
         assert event_row is not None
-        if self.is_enrolled(user_id, session_id):
-            raise AlreadyEnrolledError(ALREADY_ENROLLED)
+        # Locking the user's event registration keeps a concurrent event cancellation from
+        # leaving an orphan enrollment behind.
         event_registered = (
             self._session.exec(
                 select(RegistrationRow.id)
@@ -110,7 +119,7 @@ class SqlSessionRegistrationRepository:
         enrolled_count = self._session.exec(
             select(func.count())
             .select_from(SessionRegistrationRow)
-            .where(col(SessionRegistrationRow.session_id) == session_id)
+            .where(col(SessionRegistrationRow.session_id) == session_row.id)
         ).one()
         enrolled_rows = self._session.exec(
             select(SessionRow)
@@ -120,15 +129,15 @@ class SqlSessionRegistrationRepository:
             )
             .where(col(SessionRegistrationRow.user_id) == user_id)
         ).all()
-        rule(
-            EnrollmentContext(
-                event=event_to_domain(event_row),
-                session=session_to_domain(session_row),
-                event_registered=event_registered,
-                enrolled_sessions=[session_to_domain(row) for row in enrolled_rows],
-                enrolled_count=enrolled_count,
-            )
+        return EnrollmentContext(
+            event=event_to_domain(event_row),
+            session=session_to_domain(session_row),
+            event_registered=event_registered,
+            enrolled_sessions=[session_to_domain(row) for row in enrolled_rows],
+            enrolled_count=enrolled_count,
         )
+
+    def _insert(self, user_id: int, session_id: int) -> SessionRegistration:
         row = SessionRegistrationRow(user_id=user_id, session_id=session_id)
         self._session.add(row)
         try:

@@ -15,11 +15,9 @@ from app.application.ports import (
     UnitOfWork,
     transaction,
 )
-from app.domain.enums import Role
+from app.domain.roles import ORGANIZING_ROLES
 from app.domain.speaker import Speaker, SpeakerDetails, SpeakerPage
 from app.domain.user import UserAccount
-
-MANAGING_ROLES = (Role.ORGANIZER, Role.ADMIN)
 
 
 def _normalize(details: SpeakerDetails) -> SpeakerDetails:
@@ -94,5 +92,5 @@ class SpeakerService:
 
     @staticmethod
     def _require_manager(actor: UserAccount) -> None:
-        if actor.role not in MANAGING_ROLES:
+        if actor.role not in ORGANIZING_ROLES:
             raise PermissionDeniedError

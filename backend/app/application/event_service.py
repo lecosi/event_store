@@ -2,6 +2,7 @@
 
 from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError, PermissionDeniedError
+from app.application.guards import EventAccessPolicy
 from app.application.ports import (
     EVENTS_NAMESPACE,
     SESSIONS_NAMESPACE,
@@ -26,9 +27,8 @@ from app.domain.event import (
     validate_starts_in_future,
     validate_transition,
 )
+from app.domain.roles import ORGANIZING_ROLES
 from app.domain.user import UserAccount
-
-ORGANIZING_ROLES = (Role.ORGANIZER, Role.ADMIN)
 
 
 def is_public_view(viewer: UserAccount | None) -> bool:
@@ -50,6 +50,7 @@ class EventService:
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
+        self._access = EventAccessPolicy(events)
         self._usage = usage
         self._uow = uow
         self._cache = cache
@@ -135,12 +136,7 @@ class EventService:
 
     def ensure_can_manage(self, actor: UserAccount, event_id: int) -> Event:
         """Return the event when ``actor`` owns it or is an admin; raise otherwise."""
-        event = self._events.get(event_id)
-        if event is None:
-            raise EventNotFoundError(event_id)
-        if actor.role is not Role.ADMIN and event.organizer_id != actor.id:
-            raise PermissionDeniedError
-        return event
+        return self._access.ensure_can_manage(actor, event_id)
 
     @staticmethod
     def _can_view(event: Event, viewer: UserAccount | None) -> bool:

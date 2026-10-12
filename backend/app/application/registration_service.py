@@ -3,7 +3,7 @@
 from functools import partial
 
 from app.application.clock import Clock, utc_now
-from app.application.errors import EventNotFoundError
+from app.application.guards import EventAccessPolicy, get_event
 from app.application.ports import (
     EventRepository,
     EventUsageQueries,
@@ -12,8 +12,7 @@ from app.application.ports import (
     UnitOfWork,
     transaction,
 )
-from app.domain.enums import Role
-from app.domain.event import Event, can_view
+from app.domain.event import Event
 from app.domain.registration import (
     Availability,
     NotRegisteredError,
@@ -37,6 +36,7 @@ class RegistrationService:
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
+        self._access = EventAccessPolicy(events)
         self._usage = usage
         self._registrations = registrations
         self._enrollments = enrollments
@@ -46,7 +46,7 @@ class RegistrationService:
     def register(self, user: UserAccount, event_id: int) -> Registration:
         assert user.id is not None
         with transaction(self._uow):
-            self._get_visible(user, event_id)
+            self._access.get_visible(user, event_id)
             rule = partial(ensure_can_register, now=self._clock())
             return self._registrations.register(user.id, event_id, rule)
 
@@ -58,9 +58,7 @@ class RegistrationService:
         """
         assert user.id is not None
         with transaction(self._uow):
-            event = self._events.get(event_id)
-            if event is None:
-                raise EventNotFoundError(event_id)
+            event = get_event(self._events, event_id)
             if not self._registrations.is_registered(user.id, event_id):
                 raise NotRegisteredError
             ensure_can_cancel(event)
@@ -79,10 +77,3 @@ class RegistrationService:
             viewer.id or 0, event.id
         )
         return Availability(registered, available_spots(event.capacity, registered), is_registered)
-
-    def _get_visible(self, user: UserAccount, event_id: int) -> Event:
-        event = self._events.get(event_id)
-        # Non-visible events look exactly like missing ones.
-        if event is None or not can_view(event, user.id, user.role is Role.ADMIN):
-            raise EventNotFoundError(event_id)
-        return event
