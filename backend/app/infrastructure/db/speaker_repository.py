@@ -62,7 +62,6 @@ class SqlSpeakerRepository:
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             raise SpeakerEmailTakenError(email or "") from exc
 
     def delete(self, speaker_id: int) -> None:

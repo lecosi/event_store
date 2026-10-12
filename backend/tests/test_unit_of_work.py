@@ -2,6 +2,7 @@ import pytest
 from sqlmodel import Session, func, select
 
 from app.application.errors import EmailAlreadyRegisteredError, SpeakerEmailTakenError
+from app.application.ports import transaction
 from app.domain.enums import Role
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
@@ -57,6 +58,7 @@ def test_duplicate_email_is_translated_at_flush_time(session: Session) -> None:
                 email="a@x.com", full_name="Test User", password_hash="h", role=Role.ATTENDEE
             )
         )
+    uow.rollback()
 
     assert (
         users.add(
@@ -77,6 +79,22 @@ def test_failed_flush_discards_earlier_uncommitted_writes_of_the_same_unit(
     speakers.add(Speaker(name="Grace", bio="", email="g@x.com"))
 
     with pytest.raises(SpeakerEmailTakenError):
+        speakers.add(Speaker(name="Dup", bio="", email="a@x.com"))
+    SqlUnitOfWork(session).rollback()
+
+    assert [s.name for s in speakers.list_page(None, 1, 10)[0]] == ["Ada"]
+
+
+def test_failed_write_inside_transaction_block_is_rolled_back_by_the_unit_of_work(
+    session: Session,
+) -> None:
+    speakers = SqlSpeakerRepository(session)
+    speakers.add(Speaker(name="Ada", bio="", email="a@x.com"))
+    uow = SqlUnitOfWork(session)
+    uow.commit()
+
+    with pytest.raises(SpeakerEmailTakenError), transaction(uow):
+        speakers.add(Speaker(name="Grace", bio="", email="g@x.com"))
         speakers.add(Speaker(name="Dup", bio="", email="a@x.com"))
 
     assert [s.name for s in speakers.list_page(None, 1, 10)[0]] == ["Ada"]

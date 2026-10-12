@@ -39,7 +39,6 @@ class SqlUserRepository:
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             raise EmailAlreadyRegisteredError(user.email) from exc
         self._session.refresh(row)
         return user_to_domain(row)
@@ -56,7 +55,6 @@ class SqlUserRepository:
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             raise EmailAlreadyRegisteredError(user.email) from exc
         self._session.refresh(row)
         return user_to_domain(row)

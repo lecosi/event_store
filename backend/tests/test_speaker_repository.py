@@ -5,6 +5,7 @@ from app.application.errors import SpeakerEmailTakenError
 from app.domain.speaker import Speaker
 from app.infrastructure.db.models import Speaker as SpeakerRow
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
+from app.infrastructure.db.unit_of_work import SqlUnitOfWork
 
 
 def test_absent_email_is_stored_as_null_and_may_repeat(session: Session) -> None:
@@ -23,6 +24,7 @@ def test_duplicate_email_on_add_maps_to_domain_error(session: Session) -> None:
     repo.add(Speaker(name="A", bio="", email="a@x.com"))
     with pytest.raises(SpeakerEmailTakenError):
         repo.add(Speaker(name="B", bio="", email="a@x.com"))
+    SqlUnitOfWork(session).rollback()
     assert repo.add(Speaker(name="C", bio="", email="c@x.com")).id is not None
 
 
