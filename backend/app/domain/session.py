@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from app.domain.event import ensure_utc
+from app.domain.event import EventStateError, ensure_utc
 
 
 class SessionValidationError(ValueError):
@@ -74,6 +74,25 @@ def validate_session_capacity(capacity: int, event_capacity: int) -> None:
         raise SessionValidationError(
             f"capacity cannot exceed the event capacity ({event_capacity})"
         )
+
+
+def ensure_capacity_covers_enrollments(capacity: int, enrollments: int) -> None:
+    if capacity < enrollments:
+        raise EventStateError(
+            f"capacity cannot be lower than the current enrollments ({enrollments})"
+        )
+
+
+def ensure_schedule_unchanged(current: Session, updated: Session) -> None:
+    if ensure_utc(current.start_at) != ensure_utc(updated.start_at) or ensure_utc(
+        current.end_at
+    ) != ensure_utc(updated.end_at):
+        raise EventStateError("the schedule of a session with enrollments cannot be changed")
+
+
+def ensure_deletable_without_enrollments(enrollments: int) -> None:
+    if enrollments > 0:
+        raise EventStateError("a session with enrollments cannot be deleted")
 
 
 def overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> bool:

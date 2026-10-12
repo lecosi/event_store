@@ -203,12 +203,82 @@ def test_cancelling_the_event_registration_removes_its_session_enrollments(
     assert session.exec(select(SessionRegistration)).all() == []
 
 
-def test_deleting_a_session_removes_its_enrollments(client: TestClient, session: Session) -> None:
+def test_deleting_a_session_with_enrollments_is_conflict(
+    client: TestClient, session: Session
+) -> None:
     owner, event_id, session_id = published_event_with_session(client, session)
     headers = registered_attendee(client, session, 1, event_id)
     enroll(client, headers, event_id, session_id)
+    response = client.delete(url(event_id, session_id), headers=owner)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "a session with enrollments cannot be deleted"
+    assert len(session.exec(select(SessionRegistration)).all()) == 1
+
+
+def test_deleting_a_session_without_enrollments_succeeds(
+    client: TestClient, session: Session
+) -> None:
+    owner, event_id, session_id = published_event_with_session(client, session)
     assert client.delete(url(event_id, session_id), headers=owner).status_code == 204
-    assert session.exec(select(SessionRegistration)).all() == []
+
+
+def test_session_deletion_is_allowed_once_every_enrollment_is_cancelled(
+    client: TestClient, session: Session
+) -> None:
+    owner, event_id, session_id = published_event_with_session(client, session)
+    headers = registered_attendee(client, session, 1, event_id)
+    enroll(client, headers, event_id, session_id)
+    client.delete(enroll_url(event_id, session_id), headers=headers)
+    assert client.delete(url(event_id, session_id), headers=owner).status_code == 204
+
+
+def test_session_capacity_below_enrollments_is_conflict(
+    client: TestClient, session: Session
+) -> None:
+    owner, event_id, session_id = published_event_with_session(client, session, capacity=5)
+    for n in (1, 2):
+        enroll(client, registered_attendee(client, session, n, event_id), event_id, session_id)
+    speaker_id = listed(client, event_id)["speaker"]["id"]
+    response = client.put(
+        url(event_id, session_id), json=session_body(speaker_id, capacity=1), headers=owner
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "capacity cannot be lower than the current enrollments (2)"
+    same = client.put(
+        url(event_id, session_id), json=session_body(speaker_id, capacity=2), headers=owner
+    )
+    assert same.status_code == 200
+
+
+def test_session_schedule_change_with_enrollments_is_conflict(
+    client: TestClient, session: Session
+) -> None:
+    owner, event_id, session_id = published_event_with_session(client, session)
+    enroll(client, registered_attendee(client, session, 1, event_id), event_id, session_id)
+    speaker_id = listed(client, event_id)["speaker"]["id"]
+    response = client.put(
+        url(event_id, session_id), json=session_body(speaker_id, start=3, end=4), headers=owner
+    )
+    assert response.status_code == 409
+    assert (
+        response.json()["detail"] == "the schedule of a session with enrollments cannot be changed"
+    )
+
+
+def test_title_and_speaker_stay_editable_with_enrollments(
+    client: TestClient, session: Session
+) -> None:
+    owner, event_id, session_id = published_event_with_session(client, session)
+    enroll(client, registered_attendee(client, session, 1, event_id), event_id, session_id)
+    other = make_speaker(client, owner, name="Grace")
+    response = client.put(
+        url(event_id, session_id),
+        json=session_body(other["id"], title="Renamed"),
+        headers=owner,
+    )
+    assert response.status_code == 200
+    assert response.json()["title"] == "Renamed"
+    assert response.json()["enrolled_count"] == 1
 
 
 def test_deleting_an_event_removes_its_session_enrollments(

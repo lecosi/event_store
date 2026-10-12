@@ -18,6 +18,9 @@ from app.domain.session import (
     SessionDetails,
     SessionValidationError,
     SessionWithSpeaker,
+    ensure_capacity_covers_enrollments,
+    ensure_deletable_without_enrollments,
+    ensure_schedule_unchanged,
     ensure_speaker_available,
     ensure_within_event,
     validate_session_capacity,
@@ -62,8 +65,13 @@ class SessionService:
     ) -> Session:
         with transaction(self._uow):
             event = self._get_managed_open(actor, event_id)
-            updated = self._get_in_event(event_id, session_id).with_details(details)
+            current = self._get_in_event(event_id, session_id)
+            updated = current.with_details(details)
             self._validate(event, updated)
+            enrollments = self._sessions.lock_and_count_enrollments(session_id)
+            if enrollments > 0:
+                ensure_capacity_covers_enrollments(updated.capacity, enrollments)
+                ensure_schedule_unchanged(current, updated)
             saved = self._sessions.update(updated)
         self._cache.invalidate(SESSIONS_NAMESPACE)
         return saved
@@ -72,6 +80,9 @@ class SessionService:
         with transaction(self._uow):
             self._get_managed_open(actor, event_id)
             self._get_in_event(event_id, session_id)
+            ensure_deletable_without_enrollments(
+                self._sessions.lock_and_count_enrollments(session_id)
+            )
             self._sessions.delete(session_id)
         self._cache.invalidate(SESSIONS_NAMESPACE)
 

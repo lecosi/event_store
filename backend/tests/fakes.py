@@ -137,6 +137,10 @@ class FakeSessionRepository:
     def __init__(self) -> None:
         self._sessions: dict[int, Session] = {}
         self._next_id = 1
+        self.enrollment_counts: dict[int, int] = {}
+
+    def lock_and_count_enrollments(self, session_id: int) -> int:
+        return self.enrollment_counts.get(session_id, 0)
 
     def add(self, session: Session) -> Session:
         session.id = self._next_id

@@ -17,6 +17,7 @@ from app.api.openapi_responses import (
     SESSION_NOT_FOUND,
     combine,
     conflict,
+    conflicts,
 )
 from app.api.speaker_schemas import ScheduledSession, SessionRequest, SessionResponse
 from app.application.event_service import EventService
@@ -38,6 +39,25 @@ SCHEDULE = TypeAdapter(list[ScheduledSession])
 SESSION_CONFLICT = conflict(
     "The speaker has an overlapping session, or the event is cancelled or finished.",
     "the speaker already has a session in that time slot",
+)
+
+UPDATE_CONFLICT = conflicts(
+    "The speaker has an overlapping session, the event is cancelled or finished, or the "
+    "session has enrollments that the change would affect.",
+    {
+        "speaker_overlap": (
+            "The speaker already has an overlapping session.",
+            "the speaker already has a session in that time slot",
+        ),
+        "capacity_below_enrollments": (
+            "The capacity is lower than the current enrollments.",
+            "capacity cannot be lower than the current enrollments (3)",
+        ),
+        "schedule_locked": (
+            "The session has enrollments and its dates changed.",
+            "the schedule of a session with enrollments cannot be changed",
+        ),
+    },
 )
 
 
@@ -110,7 +130,7 @@ def create_session(
     "/{session_id}",
     response_model=SessionResponse,
     summary="Update a session",
-    responses=combine(ORGANIZER_OR_ADMIN, EVENT_NOT_FOUND, SESSION_NOT_FOUND, SESSION_CONFLICT),
+    responses=combine(ORGANIZER_OR_ADMIN, EVENT_NOT_FOUND, SESSION_NOT_FOUND, UPDATE_CONFLICT),
 )
 def update_session(
     event_id: EventId,
@@ -123,7 +143,9 @@ def update_session(
     """Replace a session. Only the event's organizer or an admin.
 
     Same rules as creating a session; the session keeps its own slot when checking for
-    speaker overlaps. 404 when the session does not belong to the event.
+    speaker overlaps. 404 when the session does not belong to the event. Once the session has
+    enrollments, its capacity cannot go below the enrolled count and its dates cannot change
+    (409); title and speaker stay editable.
     """
     updated = service.update(user, event_id, session_id, _details(body))
     scheduled = ScheduledSession.from_domain(service.get_with_speaker(updated))
@@ -139,7 +161,19 @@ def update_session(
         ORGANIZER_OR_ADMIN,
         EVENT_NOT_FOUND,
         SESSION_NOT_FOUND,
-        conflict("The event is cancelled or finished.", "A finished event cannot be edited"),
+        conflicts(
+            "The event is cancelled or finished, or the session has enrollments.",
+            {
+                "closed_event": (
+                    "The event is cancelled or finished.",
+                    "A finished event cannot be edited",
+                ),
+                "with_enrollments": (
+                    "The session has enrollments.",
+                    "a session with enrollments cannot be deleted",
+                ),
+            },
+        ),
     ),
 )
 def delete_session(

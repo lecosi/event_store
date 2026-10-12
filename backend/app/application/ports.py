@@ -162,6 +162,14 @@ class SessionRepository(Protocol):
         """Return every session of the speaker, across all events."""
         ...
 
+    def lock_and_count_enrollments(self, session_id: int) -> int:
+        """Lock the session row until the unit of work ends and return its enrollment count.
+
+        Concurrent enrollments to the session are serialized behind the lock, so the count
+        cannot change before the surrounding update or delete is durable.
+        """
+        ...
+
     def update(self, session: Session) -> Session: ...
 
     def delete(self, session_id: int) -> None: ...

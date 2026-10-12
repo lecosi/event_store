@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -222,3 +222,70 @@ def test_failed_delete_commits_nothing(env: Env) -> None:
     with pytest.raises(SessionNotFoundError):
         env.service.delete(OWNER, env.event.id, 999)
     assert (env.uow.commits, env.uow.rollbacks) == (0, 1)
+
+
+def enrolled_session(env: Env, enrollments: int):  # noqa: ANN201
+    created = env.create()
+    env.sessions.enrollment_counts[created.id] = enrollments
+    return created
+
+
+def test_capacity_below_enrollments_is_rejected(env: Env) -> None:
+    created = enrolled_session(env, 5)
+    with pytest.raises(EventStateError, match=r"current enrollments \(5\)"):
+        env.service.update(OWNER, env.event.id, created.id, details(capacity=4))
+
+
+@pytest.mark.parametrize("capacity", [5, 6])
+def test_capacity_equal_or_above_enrollments_is_accepted(env: Env, capacity: int) -> None:
+    created = enrolled_session(env, 5)
+    updated = env.service.update(OWNER, env.event.id, created.id, details(capacity=capacity))
+    assert updated.capacity == capacity
+
+
+def test_schedule_change_is_rejected_with_enrollments(env: Env) -> None:
+    created = enrolled_session(env, 1)
+    with pytest.raises(EventStateError, match="schedule"):
+        env.service.update(OWNER, env.event.id, created.id, details(start_at=at(3), end_at=at(4)))
+
+
+def test_same_schedule_in_another_timezone_is_accepted_with_enrollments(env: Env) -> None:
+    created = enrolled_session(env, 1)
+    offset = timezone(timedelta(hours=-5))
+    updated = env.service.update(
+        OWNER,
+        env.event.id,
+        created.id,
+        details(start_at=at(1).astimezone(offset), end_at=at(2).astimezone(offset)),
+    )
+    assert updated.id == created.id
+
+
+def test_schedule_is_editable_with_zero_enrollments(env: Env) -> None:
+    created = env.create()
+    updated = env.service.update(
+        OWNER, env.event.id, created.id, details(start_at=at(3), end_at=at(4))
+    )
+    assert updated.start_at == at(3)
+
+
+def test_title_and_speaker_are_editable_with_enrollments(env: Env) -> None:
+    created = enrolled_session(env, 2)
+    other = env.speakers.add(Speaker(name="Grace", bio="", email=None))
+    updated = env.service.update(
+        OWNER, env.event.id, created.id, details(title="New", speaker_id=other.id)
+    )
+    assert (updated.title, updated.speaker_id) == ("New", other.id)
+
+
+def test_delete_is_blocked_with_enrollments(env: Env) -> None:
+    created = enrolled_session(env, 1)
+    with pytest.raises(EventStateError, match="cannot be deleted"):
+        env.service.delete(OWNER, env.event.id, created.id)
+    assert env.sessions.get(created.id) is not None
+
+
+def test_delete_is_allowed_without_enrollments(env: Env) -> None:
+    created = env.create()
+    env.service.delete(OWNER, env.event.id, created.id)
+    assert env.sessions.get(created.id) is None
