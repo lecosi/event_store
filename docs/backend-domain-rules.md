@@ -1,47 +1,51 @@
-# Backend domain rules
+# Reglas de dominio del backend
 
-Business rules as implemented. Pure rules live in `backend/app/domain`; the use cases that
-apply them are in `backend/app/application`. Every rule below is covered by tests, named
-next to it. For error status codes see [backend-api.md](backend-api.md).
+Reglas de negocio tal como están implementadas. Las reglas puras viven en
+`backend/app/domain`; los casos de uso que las aplican están en `backend/app/application`.
+Cada regla de abajo está cubierta por pruebas, nombradas junto a ella. Para los códigos de
+estado de error ver [backend-api.md](backend-api.md).
 
-## Roles and permissions
+## Roles y permisos
 
-Roles are defined in `app/domain/enums.py`: `admin`, `organizer`, `attendee`.
-"Organizing roles" (`app/domain/roles.py`) are `organizer` and `admin`.
+Los roles se definen en `app/domain/enums.py`: `admin`, `organizer`, `attendee`.
+Los "roles organizadores" (`app/domain/roles.py`) son `organizer` y `admin`.
 
-| Capability | Anonymous | Attendee | Organizer | Admin |
+| Capacidad | Anónimo | Attendee | Organizer | Admin |
 | --- | --- | --- | --- | --- |
-| Browse published events, sessions and speakers | yes | yes | yes | yes |
-| See non-published events | no | no | own events only | all |
-| Register to events and enroll in sessions | no | yes | yes | yes |
-| Create events, speakers | no | no | yes | yes |
-| Edit, change status, delete an event or its sessions | no | no | own events only | all |
-| Edit or delete a speaker | no | no | yes (any speaker) | yes |
-| Participant reports (JSON and CSV) | no | no | own events only | all |
-| List and edit users | no | no | no | yes |
+| Explorar eventos publicados, sesiones y ponentes | sí | sí | sí | sí |
+| Ver eventos no publicados | no | no | solo sus eventos | todos |
+| Inscribirse a eventos y a sesiones | no | sí | sí | sí |
+| Crear eventos y ponentes | no | no | sí | sí |
+| Editar, cambiar el estado o eliminar un evento o sus sesiones | no | no | solo sus eventos | todos |
+| Editar o eliminar un ponente | no | no | sí (cualquier ponente) | sí |
+| Reportes de participantes (JSON y CSV) | no | no | solo sus eventos | todos |
+| Listar y editar usuarios | no | no | no | sí |
 
-Details:
+Detalles:
 
-- Self-registration (`POST /api/v1/auth/register`) always creates an `organizer`; the
-  client cannot choose a role (`AuthService.register`). Only an admin can change a role,
-  and demo attendees come from the demo seed (see [backend-operations.md](backend-operations.md)).
-- Passwords need at least 8 characters (`app/domain/user.py`); the schema caps them at 128.
-  Emails are stored trimmed and lowercase. Full names are trimmed, 1 to 200 characters.
-- A wrong password, an unknown email and a deactivated account all answer the same 401, so
-  the login does not reveal which accounts exist. An unknown email still spends a hash
-  computation to blunt timing differences.
-- Deactivated users (`is_active = false`) cannot log in and their existing tokens stop
-  working, because `AuthService.authenticate` re-reads the user on every request.
-- Ownership is checked in `EventAccessPolicy.ensure_can_manage` (`app/application/guards.py`):
-  admin, or `event.organizer_id == actor.id`.
+- El autorregistro (`POST /api/v1/auth/register`) siempre crea un `organizer`; el cliente
+  no puede elegir un rol (`AuthService.register`). Solo un admin puede cambiar un rol, y
+  los asistentes de demostración provienen del seed de demostración (ver
+  [backend-operations.md](backend-operations.md)).
+- Las contraseñas requieren al menos 8 caracteres (`app/domain/user.py`); el esquema las
+  limita a 128. Los correos se almacenan sin espacios extremos y en minúsculas. Los nombres
+  completos se recortan y tienen de 1 a 200 caracteres.
+- Una contraseña incorrecta, un correo desconocido y una cuenta desactivada responden el
+  mismo 401, de modo que el inicio de sesión no revela qué cuentas existen. Un correo
+  desconocido igualmente gasta un cálculo de hash para atenuar las diferencias de tiempo.
+- Los usuarios desactivados (`is_active = false`) no pueden iniciar sesión y sus tokens
+  existentes dejan de funcionar, porque `AuthService.authenticate` vuelve a leer al usuario
+  en cada petición.
+- La propiedad se verifica en `EventAccessPolicy.ensure_can_manage`
+  (`app/application/guards.py`): admin, o `event.organizer_id == actor.id`.
 
-Tests: `test_auth_service.py`, `test_auth_api.py`, `test_event_service.py`,
+Pruebas: `test_auth_service.py`, `test_auth_api.py`, `test_event_service.py`,
 `test_events_api.py`.
 
-## Event lifecycle
+## Ciclo de vida del evento
 
-Statuses: `draft` (default), `published`, `cancelled`, `finished`.
-Allowed transitions (`ALLOWED_TRANSITIONS` in `app/domain/event.py`):
+Estados: `draft` (por defecto), `published`, `cancelled`, `finished`.
+Transiciones permitidas (`ALLOWED_TRANSITIONS` en `app/domain/event.py`):
 
 ```mermaid
 stateDiagram-v2
@@ -54,147 +58,156 @@ stateDiagram-v2
     finished --> [*]
 ```
 
-- `cancelled` and `finished` are final: no transition out and no edits
-  (`ensure_editable` raises a 409).
-- Any other transition answers 409 (`validate_transition`).
-- `published -> finished` is manual or done by the `close_past_events` script
-  (see [backend-scripts.md](backend-scripts.md)); nothing runs it automatically.
+- `cancelled` y `finished` son finales: no hay transición de salida ni ediciones
+  (`ensure_editable` lanza un 409).
+- Cualquier otra transición responde 409 (`validate_transition`).
+- `published -> finished` es manual o la hace el script `close_past_events`
+  (ver [backend-scripts.md](backend-scripts.md)); nada lo ejecuta automáticamente.
 
-### Visibility
+### Visibilidad
 
-`can_view` (`app/domain/event.py`): a `published` event is public; any other status is
-visible only to its organizer and to admins. For everyone else it answers 404, exactly like
-a missing event. In lists, anonymous users and attendees see only published events,
-organizers add their own events in any status, admins see all (`EventService.list`).
+`can_view` (`app/domain/event.py`): un evento `published` es público; cualquier otro estado
+es visible solo para su organizador y para los administradores. Para todos los demás
+responde 404, exactamente igual que un evento inexistente. En los listados, los usuarios
+anónimos y los asistentes ven solo los eventos publicados, los organizadores suman sus
+propios eventos en cualquier estado y los administradores ven todos (`EventService.list`).
 
-### Creating and editing
+### Creación y edición
 
-- `start_at` must be in the future when creating; `end_at` must be after `start_at`;
-  `capacity` at least 1 (`EventValidationError`, 422). The database repeats these as
-  `CHECK` constraints (`ck_event_capacity_positive`, `ck_event_dates_order`).
-- Updating an event also requires (409, `EventStateError`):
-  - capacity not below the largest session capacity;
-  - capacity not below the current event registrations;
-  - new dates that still contain every existing session.
-- Deleting an event removes its sessions, registrations and enrollments through
+- `start_at` debe estar en el futuro al crear; `end_at` debe ser posterior a `start_at`;
+  `capacity` al menos 1 (`EventValidationError`, 422). La base de datos repite estas
+  reglas como restricciones `CHECK` (`ck_event_capacity_positive`, `ck_event_dates_order`).
+- Actualizar un evento también requiere (409, `EventStateError`):
+  - capacidad no menor que la mayor capacidad de sus sesiones;
+  - capacidad no menor que las inscripciones actuales al evento;
+  - nuevas fechas que sigan conteniendo todas las sesiones existentes.
+- Eliminar un evento elimina sus sesiones, inscripciones e inscripciones a sesiones mediante
   `ON DELETE CASCADE` (`app/infrastructure/db/models.py`).
 
-Tests: `test_event_domain.py`, `test_event_service.py`, `test_events_api.py`.
+Pruebas: `test_event_domain.py`, `test_event_service.py`, `test_events_api.py`.
 
-## Registrations (event level)
+## Inscripciones (a nivel de evento)
 
-A registration is one user in one event, unique per `(user_id, event_id)`
+Una inscripción es un usuario en un evento, única por `(user_id, event_id)`
 (`uq_registration_user_event`).
 
-Registering (`RegistrationService.register`, `ensure_can_register`):
+Inscribirse (`RegistrationService.register`, `ensure_can_register`):
 
-1. The event must be visible to the user, otherwise 404.
-2. The user must not already be registered (409 `AlreadyRegisteredError`).
-3. Event is `published` (409 otherwise), has not ended (409), and has seats left (409
-   `EventFullError`).
+1. El evento debe ser visible para el usuario; de lo contrario, 404.
+2. El usuario no debe estar ya inscrito (409 `AlreadyRegisteredError`).
+3. El evento está `published` (409 en caso contrario), no ha terminado (409) y tiene cupos
+   disponibles (409 `EventFullError`).
 
-The event row is locked (`FOR UPDATE`) while counting, so the last seat is never oversold
-under concurrency; a unique-key race is mapped to the same "already registered" conflict.
+La fila del evento se bloquea (`FOR UPDATE`) mientras se cuenta, de modo que el último cupo
+nunca se sobrevende bajo concurrencia; una carrera por clave única se mapea al mismo
+conflicto de "ya inscrito".
 
-Cancelling (`RegistrationService.cancel`):
+Cancelar (`RegistrationService.cancel`):
 
-- Only an existing registration can be cancelled (404 `NotRegisteredError`).
-- Not allowed once the event is `finished` (409). Allowed for `cancelled` events.
-- It also deletes the user's enrollments in that event's sessions (cascade).
+- Solo se puede cancelar una inscripción existente (404 `NotRegisteredError`).
+- No está permitido una vez que el evento está `finished` (409). Está permitido para
+  eventos `cancelled`.
+- También elimina las inscripciones del usuario a las sesiones de ese evento (cascada).
 
-Tests: `test_registration_service.py`, `test_registrations_api.py`,
+Pruebas: `test_registration_service.py`, `test_registrations_api.py`,
 `test_registration_concurrency_postgres.py`.
 
-## Session enrollments (per session)
+## Inscripciones a sesiones (por sesión)
 
-A session belongs to an event and has its own capacity and one speaker. Enrolling needs the
-event registration first.
+Una sesión pertenece a un evento y tiene su propia capacidad y un ponente. Para inscribirse
+primero se necesita la inscripción al evento.
 
-`ensure_can_enroll` (`app/domain/session_registration.py`) checks, in this order:
+`ensure_can_enroll` (`app/domain/session_registration.py`) verifica, en este orden:
 
-1. The event is `published` (409 `EnrollmentClosedError`).
-2. The event has not ended, and the session has not ended.
-3. The user is registered to the event (409 `EventRegistrationRequiredError`).
-4. No overlap with another session the user is enrolled in (409 `ScheduleConflictError`).
-   Intervals are half-open: back-to-back sessions do not overlap.
-5. The session has seats left (409 `SessionFullError`).
+1. El evento está `published` (409 `EnrollmentClosedError`).
+2. El evento no ha terminado, y la sesión no ha terminado.
+3. El usuario está inscrito al evento (409 `EventRegistrationRequiredError`).
+4. No hay solapamiento con otra sesión a la que el usuario esté inscrito (409
+   `ScheduleConflictError`). Los intervalos son semiabiertos: las sesiones consecutivas no
+   se solapan.
+5. La sesión tiene cupos disponibles (409 `SessionFullError`).
 
-Plus: already enrolled is 409 `AlreadyEnrolledError`, and a session that does not belong
-to the event is 404. The session row is locked during the check, so concurrent enrollments
-cannot exceed capacity.
+Además: estar ya inscrito es 409 `AlreadyEnrolledError`, y una sesión que no pertenece al
+evento es 404. La fila de la sesión se bloquea durante la verificación, de modo que las
+inscripciones concurrentes no pueden exceder la capacidad.
 
-Cancelling an enrollment: 404 `NotEnrolledError` when there is none; 409 when the event is
-`finished`.
+Cancelar una inscripción a sesión: 404 `NotEnrolledError` cuando no existe; 409 cuando el
+evento está `finished`.
 
-Availability (`enrolled_count`, `available_spots`, `is_enrolled`) is read live on each
-request by `SessionCatalogue`, never from the cache.
+La disponibilidad (`enrolled_count`, `available_spots`, `is_enrolled`) la lee en vivo en
+cada petición `SessionCatalogue`, nunca desde el cache.
 
-Tests: `test_session_registration_domain.py`, `test_session_registration_service.py`,
+Pruebas: `test_session_registration_domain.py`, `test_session_registration_service.py`,
 `test_session_registrations_api.py`, `test_session_registration_concurrency_postgres.py`.
 
-## Sessions and speakers
+## Sesiones y ponentes
 
-Session rules (`app/domain/session.py`, `app/application/session_service.py`):
+Reglas de sesión (`app/domain/session.py`, `app/application/session_service.py`):
 
-- Only the event's organizer or an admin can create, update or delete sessions, and only
-  while the event is `draft` or `published`.
-- The session must be inside the event dates, end after it starts, have capacity of at
-  least 1 and not above the event capacity, and reference an existing speaker (422).
-- A speaker cannot have two overlapping sessions across any events (409
-  `SessionConflictError`); the session being updated is ignored in that check.
-- Guards when the session already has enrollments (409 `SessionStateError`): its
-  capacity cannot go below the enrollment count, its schedule cannot change, and it cannot
-  be deleted. The check runs under the session row lock.
+- Solo el organizador del evento o un admin puede crear, actualizar o eliminar sesiones, y
+  solo mientras el evento está `draft` o `published`.
+- La sesión debe estar dentro de las fechas del evento, terminar después de empezar, tener
+  capacidad de al menos 1 y no mayor que la capacidad del evento, y referenciar un ponente
+  existente (422).
+- Un ponente no puede tener dos sesiones solapadas en ningún evento (409
+  `SessionConflictError`); la sesión que se está actualizando se ignora en esa verificación.
+- Guardas cuando la sesión ya tiene inscripciones (409 `SessionStateError`): su capacidad
+  no puede bajar del número de inscritos, su horario no puede cambiar y no se puede
+  eliminar. La verificación se ejecuta bajo el bloqueo de la fila de la sesión.
 
-Speaker rules (`app/application/speaker_service.py`):
+Reglas de ponente (`app/application/speaker_service.py`):
 
-- Speakers are a shared directory, not owned by an event. Any organizer or admin can
-  create, edit or delete them; reading is public.
-- `email` is optional, stored trimmed and lowercase, and unique when present (409).
-- A speaker with sessions cannot be deleted (409 `SpeakerInUseError`).
+- Los ponentes son un directorio compartido, no pertenecen a un evento. Cualquier
+  organizador o admin puede crearlos, editarlos o eliminarlos; la lectura es pública.
+- `email` es opcional, se almacena sin espacios extremos y en minúsculas, y es único cuando
+  está presente (409).
+- Un ponente con sesiones no se puede eliminar (409 `SpeakerInUseError`).
 
-Tests: `test_session_domain.py`, `test_session_service.py`, `test_sessions_api.py`,
+Pruebas: `test_session_domain.py`, `test_session_service.py`, `test_sessions_api.py`,
 `test_speaker_service.py`, `test_speakers_api.py`.
 
-## Reports and CSV
+## Reportes y CSV
 
-Two reports share the same rules (`app/application/report_service.py`): participants by
-event registration, and participants by session enrollment.
+Dos reportes comparten las mismas reglas (`app/application/report_service.py`):
+participantes por inscripción al evento y participantes por inscripción a sesión.
 
-- Roles: organizer or admin; attendees get 403. Organizers are scoped to their own events;
-  a foreign `event_id` or `session_id` is 403 and an unknown one is 404.
-- Filters combine with AND: `event_id`, `session_id` (session report), `q`, `status`
-  (event status), `date_from` and `date_to`.
-- Dates are whole UTC days, both inclusive, applied to the event start (registrations
-  report) or the session start (sessions report). `date_to` before `date_from` is 422.
-- `q` is a case-insensitive substring of the event name; in the session report also of the
-  session title. Participant names and emails are not searched.
-- The JSON preview is paginated. The `.csv` variants stream the whole result in the same
-  order, without loading it in memory (`app/api/csv_export.py`).
+- Roles: organizer o admin; los asistentes reciben 403. Los organizadores están limitados a
+  sus propios eventos; un `event_id` o `session_id` ajeno es 403 y uno desconocido es 404.
+- Los filtros se combinan con AND: `event_id`, `session_id` (reporte de sesiones), `q`,
+  `status` (estado del evento), `date_from` y `date_to`.
+- Las fechas son días UTC completos, ambos extremos inclusivos, aplicados al inicio del
+  evento (reporte de inscripciones) o al inicio de la sesión (reporte de sesiones).
+  `date_to` anterior a `date_from` es 422.
+- `q` es una subcadena, sin distinguir mayúsculas, del nombre del evento; en el reporte de
+  sesiones también del título de la sesión. No se buscan nombres ni correos de participantes.
+- La vista previa JSON está paginada. Las variantes `.csv` entregan en streaming todo el
+  resultado en el mismo orden, sin cargarlo en memoria (`app/api/csv_export.py`).
 
-CSV format: UTF-8 with BOM, `;` as delimiter, `\r\n` line endings, Spanish headers. Cells
-starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'` so spreadsheets
-do not execute them as formulas. The response has `Content-Disposition: attachment` and
-`Cache-Control: no-store`. File names (`app/application/report_filenames.py`):
-`participantes_evento_<id>.csv` or `participantes_<YYYYMMDD>.csv`, and
-`participantes_sesion_<id>.csv` or `participantes_sesiones_<YYYYMMDD>.csv`.
+Formato del CSV: UTF-8 con BOM, `;` como delimitador, fin de línea `\r\n`, encabezados en
+español. Las celdas que empiezan con `=`, `+`, `-`, `@`, tabulación o retorno de carro
+llevan un `'` inicial para que las hojas de cálculo no las ejecuten como fórmulas. La
+respuesta tiene `Content-Disposition: attachment` y `Cache-Control: no-store`. Nombres de
+archivo (`app/application/report_filenames.py`): `participantes_evento_<id>.csv` o
+`participantes_<YYYYMMDD>.csv`, y `participantes_sesion_<id>.csv` o
+`participantes_sesiones_<YYYYMMDD>.csv`.
 
-Tests: `test_report_service.py`, `test_session_report_service.py`, `test_reports_api.py`,
+Pruebas: `test_report_service.py`, `test_session_report_service.py`, `test_reports_api.py`,
 `test_session_reports_api.py`, `test_csv_export.py`, `test_report_filenames.py`.
 
-## User administration
+## Administración de usuarios
 
-Admin only (`/api/v1/admin/users`).
+Solo admin (`/api/v1/admin/users`).
 
-- Listing is paginated, ordered by id, with an optional `email` prefix search:
-  case-insensitive, wildcard characters matched literally, blank means no filter. It is
-  served by the expression index `ix_users_email_lower_prefix`
-  (`lower(email) text_pattern_ops`, migration `0006_user_email_prefix_index.py`).
-- `PATCH` is partial and needs at least one of `full_name`, `email`, `role`, `is_active`.
-  A new email must not belong to another user (409). Tokens already issued stay valid after
-  an email change because they carry the user id.
-- Self-lockout rule (`UserAdminService.update_user`): an admin cannot change their own role
-  to anything but `admin`, nor deactivate themselves (409). They may edit their own name and
-  email; another admin has to do the rest.
+- El listado está paginado, ordenado por id, con una búsqueda opcional por prefijo de
+  `email`: sin distinguir mayúsculas, los comodines se interpretan literalmente y un valor
+  en blanco significa sin filtro. Lo sirve el índice de expresión
+  `ix_users_email_lower_prefix` (`lower(email) text_pattern_ops`, migración
+  `0006_user_email_prefix_index.py`).
+- `PATCH` es parcial y necesita al menos uno de `full_name`, `email`, `role`, `is_active`.
+  Un correo nuevo no debe pertenecer a otro usuario (409). Los tokens ya emitidos siguen
+  siendo válidos tras un cambio de correo porque llevan el id del usuario.
+- Regla de autobloqueo (`UserAdminService.update_user`): un admin no puede cambiar su
+  propio rol a nada distinto de `admin`, ni desactivarse a sí mismo (409). Sí puede editar
+  su propio nombre y correo; el resto lo tiene que hacer otro admin.
 
-Tests: `test_admin_user_search.py`, `test_auth_service.py`, `test_user_repository.py`.
+Pruebas: `test_admin_user_search.py`, `test_auth_service.py`, `test_user_repository.py`.

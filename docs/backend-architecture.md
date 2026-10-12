@@ -1,36 +1,38 @@
-# Backend architecture
+# Arquitectura del backend
 
-The backend (`backend/app`) is a FastAPI service organized as a hexagonal (ports and
-adapters) architecture. Business rules live in plain Python and know nothing about HTTP,
-SQL or Redis; those are adapters plugged in at one place.
+El backend (`backend/app`) es un servicio FastAPI organizado con una arquitectura
+hexagonal (puertos y adaptadores). Las reglas de negocio viven en Python puro y no saben
+nada de HTTP, SQL ni Redis; esos son adaptadores que se conectan en un único lugar.
 
-Stack: FastAPI, SQLModel/SQLAlchemy, Alembic, PostgreSQL 16, Redis 7 (optional cache),
-Argon2 password hashing and JWT access tokens.
+Stack: FastAPI, SQLModel/SQLAlchemy, Alembic, PostgreSQL 16, Redis 7 (cache opcional),
+hash de contraseñas con Argon2 y tokens de acceso JWT.
 
-## Layers
+## Capas
 
-| Layer | Path | Responsibility | May import |
+| Capa | Ruta | Responsabilidad | Puede importar |
 | --- | --- | --- | --- |
-| Domain | `app/domain` | Entities, value objects and business rules as pure functions (`ensure_can_enroll`, `validate_transition`, ...). | Standard library only |
-| Application | `app/application` | Use cases (services), ports (`Protocol`s), cache policies, guards. | Domain |
-| Infrastructure | `app/infrastructure` | Adapters: SQL repositories, Unit of Work, Redis/Null cache, JWT, Argon2. | Application, Domain |
-| API | `app/api` | HTTP routers, request/response schemas, dependency wiring, error mapping. | Application, Domain, Infrastructure (wiring only) |
+| Dominio | `app/domain` | Entidades, objetos de valor y reglas de negocio como funciones puras (`ensure_can_enroll`, `validate_transition`, ...). | Solo la biblioteca estándar |
+| Aplicación | `app/application` | Casos de uso (servicios), puertos (`Protocol`s), políticas de cache, guardas. | Dominio |
+| Infraestructura | `app/infrastructure` | Adaptadores: repositorios SQL, Unit of Work, cache Redis/Null, JWT, Argon2. | Aplicación, Dominio |
+| API | `app/api` | Routers HTTP, esquemas de petición/respuesta, cableado de dependencias, mapeo de errores. | Aplicación, Dominio, Infraestructura (solo para el cableado) |
 
-`app/core/config.py` holds the environment-driven `Settings`; `app/main.py` builds the
-FastAPI app (CORS, routers, exception handlers).
+`app/core/config.py` contiene los `Settings` guiados por variables de entorno;
+`app/main.py` construye la aplicación FastAPI (CORS, routers, manejadores de excepciones).
 
-### Dependency rule
+### Regla de dependencias
 
-Dependencies point inward: `api -> infrastructure -> application -> domain`.
+Las dependencias apuntan hacia adentro: `api -> infrastructure -> application -> domain`.
 
-- `app/domain` and `app/application` do not import `fastapi`, `sqlmodel`, `sqlalchemy`
-  or `redis` (checked by search at the time of writing; there is no automated import test).
-- Use cases receive ports through their constructor, so they run in tests with in-memory
-  fakes (`backend/tests/fakes.py`).
-- Only `app/api/dependencies.py` imports concrete adapters.
+- `app/domain` y `app/application` no importan `fastapi`, `sqlmodel`, `sqlalchemy`
+  ni `redis` (verificado por búsqueda al momento de escribir esto; no hay una prueba
+  automatizada de imports).
+- Los casos de uso reciben los puertos por el constructor, por lo que se ejecutan en las
+  pruebas con fakes en memoria (`backend/tests/fakes.py`).
+- Solo `app/api/dependencies.py` importa adaptadores concretos.
 
-`backend/tests/test_router_structure.py` enforces one more rule: routers contain no
-`try/except` and no `isinstance` chains. Errors are translated in one place (see below).
+`backend/tests/test_router_structure.py` hace cumplir una regla más: los routers no
+contienen `try/except` ni cadenas de `isinstance`. Los errores se traducen en un solo
+lugar (ver más abajo).
 
 ```mermaid
 flowchart LR
@@ -44,12 +46,12 @@ flowchart LR
     Deps -. wires .-> Adapter
 ```
 
-## Ports and adapters
+## Puertos y adaptadores
 
-Ports are declared in `app/application/ports.py`; read-side contracts used by the API are
-in `app/application/readers.py`.
+Los puertos se declaran en `app/application/ports.py`; los contratos del lado de lectura
+que usa la API están en `app/application/readers.py`.
 
-| Port | Adapter | File |
+| Puerto | Adaptador | Archivo |
 | --- | --- | --- |
 | `UnitOfWork` | `SqlUnitOfWork` | `app/infrastructure/db/unit_of_work.py` |
 | `UserRepository` | `SqlUserRepository` | `app/infrastructure/db/user_repository.py` |
@@ -57,25 +59,26 @@ in `app/application/readers.py`.
 | `SpeakerRepository` | `SqlSpeakerRepository` | `app/infrastructure/db/speaker_repository.py` |
 | `SessionRepository` | `SqlSessionRepository` | `app/infrastructure/db/session_repository.py` |
 | `RegistrationRepository` | `SqlRegistrationRepository` | `app/infrastructure/db/registration_repository.py` |
-| `SessionEnrollmentWriter`, `SessionEnrollmentLock`, `SessionAvailabilityReader`, `SessionParticipantQueries` | `SqlSessionRegistrationRepository` (one class, four ports) | `app/infrastructure/db/session_registration_repository.py` |
+| `SessionEnrollmentWriter`, `SessionEnrollmentLock`, `SessionAvailabilityReader`, `SessionParticipantQueries` | `SqlSessionRegistrationRepository` (una clase, cuatro puertos) | `app/infrastructure/db/session_registration_repository.py` |
 | `EventUsageQueries`, `SpeakerUsageQueries` | `SqlEventUsageQueries`, `SqlSpeakerUsageQueries` | `app/infrastructure/db/usage_queries.py` |
-| `EventAccess` | `EventAccessPolicy` (application-level policy over `EventRepository`) | `app/application/guards.py` |
+| `EventAccess` | `EventAccessPolicy` (política a nivel de aplicación sobre `EventRepository`) | `app/application/guards.py` |
 | `Cache` | `RedisCache`, `NullCache` | `app/infrastructure/cache/` |
 | `PasswordHasher` | `Argon2PasswordHasher` | `app/infrastructure/security/password_hasher.py` |
 | `TokenService` | `JwtTokenService` | `app/infrastructure/security/jwt_tokens.py` |
 
-Read-side contracts (`EventLookup`, `EventCatalogue`, `SpeakerDirectory`, `EventSchedule`)
-are implemented both by the plain services and by cached decorators in
-`app/infrastructure/cache/cached_readers.py`. See [backend-cache.md](backend-cache.md).
+Los contratos del lado de lectura (`EventLookup`, `EventCatalogue`, `SpeakerDirectory`,
+`EventSchedule`) los implementan tanto los servicios simples como los decoradores con
+cache de `app/infrastructure/cache/cached_readers.py`. Ver [backend-cache.md](backend-cache.md).
 
-Report queries (`report_queries.py`) and the persistence models (`models.py`, mapped to
-domain objects by `mappers.py`) are internal to the SQL adapter.
+Las consultas de reportes (`report_queries.py`) y los modelos de persistencia
+(`models.py`, mapeados a objetos de dominio por `mappers.py`) son internos del adaptador SQL.
 
-## Unit of Work and transactions
+## Unidad de trabajo (Unit of Work) y transacciones
 
-`SqlUnitOfWork` wraps the request-scoped SQLModel `Session` that every repository of the
-request shares. Repositories only stage writes; the use case decides when they become
-durable with the `transaction()` context manager from `ports.py`:
+`SqlUnitOfWork` envuelve la `Session` de SQLModel con alcance de petición que comparten
+todos los repositorios de esa petición. Los repositorios solo preparan las escrituras; el
+caso de uso decide cuándo se vuelven definitivas con el gestor de contexto `transaction()`
+de `ports.py`:
 
 ```python
 with transaction(self._uow):      # commit on success, rollback + re-raise on error
@@ -83,48 +86,53 @@ with transaction(self._uow):      # commit on success, rollback + re-raise on er
 self._cache.invalidate()          # only after the commit succeeded
 ```
 
-Cache invalidation always happens after the `with` block, so a rolled-back change never
-drops cache entries and a committed one always does.
+La invalidación del cache siempre ocurre después del bloque `with`, de modo que un cambio
+revertido nunca descarta entradas del cache y uno confirmado siempre lo hace.
 
-Concurrency-sensitive writes take row locks (`SELECT ... FOR UPDATE`) inside the
-transaction: `RegistrationRepository.lock_event`, `SessionEnrollmentWriter.lock_session`,
-`lock_event_registration` and `SessionEnrollmentLock.lock_and_count_enrollments`. A unique
-constraint is the last line of defence: its `IntegrityError` becomes `DuplicateEntryError`,
-which the use case turns into the matching domain conflict.
+Las escrituras sensibles a la concurrencia toman bloqueos de fila (`SELECT ... FOR UPDATE`)
+dentro de la transacción: `RegistrationRepository.lock_event`,
+`SessionEnrollmentWriter.lock_session`, `lock_event_registration` y
+`SessionEnrollmentLock.lock_and_count_enrollments`. Una restricción de unicidad es la
+última línea de defensa: su `IntegrityError` se convierte en `DuplicateEntryError`, que el
+caso de uso transforma en el conflicto de dominio correspondiente.
 
-## Composition root
+## Raíz de composición
 
-`app/api/dependencies.py` is the only place where concrete adapters meet use cases. Each
-`get_*` function is a FastAPI dependency:
+`app/api/dependencies.py` es el único lugar donde los adaptadores concretos se encuentran
+con los casos de uso. Cada función `get_*` es una dependencia de FastAPI:
 
-- `get_session` (in `infrastructure/db/session.py`) yields one `Session` per request.
-- `get_unit_of_work`, `get_*_repository` build adapters on that session.
-- `get_cache` returns `RedisCache` when `REDIS_URL` is set, `NullCache` otherwise.
-- `get_event_service`, `get_session_service`, ... assemble use cases from ports.
-- `get_current_user` / `get_optional_user` resolve the bearer token;
-  `require_role(...)`, `organizer_or_admin` and `require_admin` are the role guards.
+- `get_session` (en `infrastructure/db/session.py`) entrega una `Session` por petición.
+- `get_unit_of_work`, `get_*_repository` construyen adaptadores sobre esa sesión.
+- `get_cache` devuelve `RedisCache` cuando `REDIS_URL` está definida y `NullCache` en caso
+  contrario.
+- `get_event_service`, `get_session_service`, ... ensamblan los casos de uso a partir de
+  los puertos.
+- `get_current_user` / `get_optional_user` resuelven el bearer token;
+  `require_role(...)`, `organizer_or_admin` y `require_admin` son las guardas de rol.
 
-Tests swap any of these with `app.dependency_overrides` (see `backend/tests/conftest.py`).
+Las pruebas reemplazan cualquiera de estas con `app.dependency_overrides` (ver
+`backend/tests/conftest.py`).
 
-## Error mapping
+## Mapeo de errores
 
-Use cases and the domain raise their own exceptions. `app/api/error_handlers.py` keeps a
-single table, `ERROR_RESPONSES`, from exception type to HTTP status and message, and
-registers one handler for all of them. Subclasses resolve through the MRO.
+Los casos de uso y el dominio lanzan sus propias excepciones. `app/api/error_handlers.py`
+mantiene una única tabla, `ERROR_RESPONSES`, del tipo de excepción al estado HTTP y al
+mensaje, y registra un solo manejador para todas ellas. Las subclases se resuelven por el
+MRO.
 
-| Family | Status | Examples |
+| Familia | Estado | Ejemplos |
 | --- | --- | --- |
-| Not found / not visible | 404 | `EventNotFoundError`, `NotRegisteredError`, `NotEnrolledError` |
-| Permission | 403 | `PermissionDeniedError` |
-| Validation of business rules | 422 | `EventValidationError`, `SessionValidationError`, `InvalidFullNameError` |
-| State or uniqueness conflicts | 409 | `EventStateError`, `EventFullError`, `ScheduleConflictError`, `SelfLockoutError`, `SpeakerInUseError`, `EmailAlreadyRegisteredError` |
-| Bad credentials | 401 | `InvalidCredentialsError` (with `WWW-Authenticate: Bearer`) |
+| No encontrado / no visible | 404 | `EventNotFoundError`, `NotRegisteredError`, `NotEnrolledError` |
+| Permisos | 403 | `PermissionDeniedError` |
+| Validación de reglas de negocio | 422 | `EventValidationError`, `SessionValidationError`, `InvalidFullNameError` |
+| Conflictos de estado o unicidad | 409 | `EventStateError`, `EventFullError`, `ScheduleConflictError`, `SelfLockoutError`, `SpeakerInUseError`, `EmailAlreadyRegisteredError` |
+| Credenciales incorrectas | 401 | `InvalidCredentialsError` (con `WWW-Authenticate: Bearer`) |
 
-Authentication failures from `get_current_user` and role checks from `require_role` raise
-`HTTPException` directly (401 and 403). The response body is always `{"detail": "..."}`;
-see [backend-api.md](backend-api.md).
+Los fallos de autenticación de `get_current_user` y las verificaciones de rol de
+`require_role` lanzan `HTTPException` directamente (401 y 403). El cuerpo de la respuesta
+siempre es `{"detail": "..."}`; ver [backend-api.md](backend-api.md).
 
-## One request, end to end: enroll in a session
+## Una petición de extremo a extremo: inscripción a una sesión
 
 `POST /api/v1/events/{event_id}/sessions/{session_id}/register`
 
@@ -148,34 +156,35 @@ sequenceDiagram
     R-->>C: 201 (or 404 / 409 via error_handlers)
 ```
 
-1. `get_current_user` decodes the JWT and loads the active user (401 otherwise).
+1. `get_current_user` decodifica el JWT y carga al usuario activo (401 en caso contrario).
 2. `SessionRegistrationService.enroll` (`app/application/session_registration_service.py`)
-   opens a `transaction`, checks the event is visible to the user and the session belongs
-   to it, and locks the session row so concurrent enrollments serialize.
-3. It builds an `EnrollmentContext` and calls the pure rule `ensure_can_enroll`
-   (`app/domain/session_registration.py`): event published and not ended, session not ended,
-   user registered to the event, no overlapping enrollment, seats left.
-4. The row is added; a unique-key race becomes `AlreadyEnrolledError`. Any
-   `EnrollmentConflictError` is mapped to 409 by `error_handlers.py`.
+   abre una `transaction`, verifica que el evento sea visible para el usuario y que la
+   sesión pertenezca a él, y bloquea la fila de la sesión para que las inscripciones
+   concurrentes se serialicen.
+3. Construye un `EnrollmentContext` y llama a la regla pura `ensure_can_enroll`
+   (`app/domain/session_registration.py`): evento publicado y no terminado, sesión no
+   terminada, usuario inscrito al evento, sin inscripción solapada, cupos disponibles.
+4. Se agrega la fila; una carrera por clave única se convierte en `AlreadyEnrolledError`.
+   Cualquier `EnrollmentConflictError` se mapea a 409 en `error_handlers.py`.
 
-The rules themselves are listed in [backend-domain-rules.md](backend-domain-rules.md).
+Las reglas en sí están listadas en [backend-domain-rules.md](backend-domain-rules.md).
 
-## SOLID in practice
+## SOLID en la práctica
 
-| Principle | Where it shows |
+| Principio | Dónde se ve |
 | --- | --- |
-| Single responsibility | `EventAccessPolicy` only answers who may see or manage an event; `cache_policy.py` only knows keys, namespaces and TTLs; `report_filenames.py` only builds download names. |
-| Open/closed | New cached reads are added as decorators (`CachedEventSchedule`) without touching the services; new error types are one line in `ERROR_RESPONSES`. |
-| Liskov | `NullCache` and `RedisCache` are interchangeable behind `Cache`; cached readers are drop-in replacements for the plain services behind `EventCatalogue`, `SpeakerDirectory`, `EventSchedule`. |
-| Interface segregation | The enrollment adapter is one class but four narrow ports: `SessionRegistrationService` needs `SessionEnrollmentWriter`, `SessionService` only `SessionEnrollmentLock`, `SessionCatalogue` only `SessionAvailabilityReader`, reports only `SessionParticipantQueries`. |
-| Dependency inversion | Services import `ports.py`, never `infrastructure`; `dependencies.py` injects the adapters. |
+| Responsabilidad única | `EventAccessPolicy` solo responde quién puede ver o gestionar un evento; `cache_policy.py` solo conoce claves, namespaces y TTL; `report_filenames.py` solo construye nombres de descarga. |
+| Abierto/cerrado | Las nuevas lecturas con cache se agregan como decoradores (`CachedEventSchedule`) sin tocar los servicios; los nuevos tipos de error son una línea en `ERROR_RESPONSES`. |
+| Liskov | `NullCache` y `RedisCache` son intercambiables detrás de `Cache`; los lectores con cache reemplazan directamente a los servicios simples detrás de `EventCatalogue`, `SpeakerDirectory`, `EventSchedule`. |
+| Segregación de interfaces | El adaptador de inscripciones es una clase pero cuatro puertos estrechos: `SessionRegistrationService` necesita `SessionEnrollmentWriter`, `SessionService` solo `SessionEnrollmentLock`, `SessionCatalogue` solo `SessionAvailabilityReader`, y los reportes solo `SessionParticipantQueries`. |
+| Inversión de dependencias | Los servicios importan `ports.py`, nunca `infrastructure`; `dependencies.py` inyecta los adaptadores. |
 
-Other examples:
+Otros ejemplos:
 
-- `SessionCatalogue` (`app/application/session_catalogue.py`) is a query service: it merges
-  the shareable cached schedule with live per-viewer availability, so a cached payload never
-  contains viewer-specific data.
-- `EventAccess` is a port, so the report services depend on "can manage this event" rather
-  than on the event repository.
-- Time comes from an injected `Clock` (`app/application/clock.py`), which keeps date rules
-  deterministic in tests.
+- `SessionCatalogue` (`app/application/session_catalogue.py`) es un servicio de consulta:
+  combina el horario compartible con cache con la disponibilidad en vivo por usuario,
+  de modo que un payload cacheado nunca contiene datos específicos de cada usuario.
+- `EventAccess` es un puerto, por lo que los servicios de reportes dependen de "puede
+  gestionar este evento" en lugar de depender del repositorio de eventos.
+- El tiempo proviene de un `Clock` inyectado (`app/application/clock.py`), lo que mantiene
+  las reglas de fechas deterministas en las pruebas.
