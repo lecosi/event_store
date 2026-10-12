@@ -24,6 +24,7 @@ from app.domain.speaker import SpeakerDetails
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session import get_engine
+from app.infrastructure.db.session_registration_repository import SqlSessionRegistrationRepository
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
@@ -83,7 +84,9 @@ def main() -> int:
         sessions = SessionService(
             events_repo, SqlSessionRepository(db), SqlSpeakerRepository(db), uow
         )
-        registrations = RegistrationService(events_repo, SqlRegistrationRepository(db), uow)
+        registrations = RegistrationService(
+            events_repo, SqlRegistrationRepository(db), SqlSessionRegistrationRepository(db), uow
+        )
 
         hasher = Argon2PasswordHasher()
         auth = AuthService(users, hasher, JwtTokenService("unused", "HS256", 1), uow)

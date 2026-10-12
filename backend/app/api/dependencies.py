@@ -170,18 +170,19 @@ def get_registration_repository(
     return SqlRegistrationRepository(session)
 
 
-def get_registration_service(
-    events: EventRepository = Depends(get_event_repository),
-    registrations: RegistrationRepository = Depends(get_registration_repository),
-    uow: UnitOfWork = Depends(get_unit_of_work),
-) -> RegistrationService:
-    return RegistrationService(events, registrations, uow)
-
-
 def get_session_registration_repository(
     session: Session = Depends(get_session),
 ) -> SessionRegistrationRepository:
     return SqlSessionRegistrationRepository(session)
+
+
+def get_registration_service(
+    events: EventRepository = Depends(get_event_repository),
+    registrations: RegistrationRepository = Depends(get_registration_repository),
+    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
+) -> RegistrationService:
+    return RegistrationService(events, registrations, enrollments, uow)
 
 
 def get_session_registration_service(

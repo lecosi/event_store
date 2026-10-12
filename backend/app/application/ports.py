@@ -194,7 +194,11 @@ class RegistrationRepository(Protocol):
     def is_registered(self, user_id: int, event_id: int) -> bool: ...
 
     def cancel(self, user_id: int, event_id: int) -> bool:
-        """Delete the registration; return False when there was none."""
+        """Delete the registration row only; return False when there was none.
+
+        The user's session enrollments of that event are removed separately through
+        ``SessionRegistrationRepository.cancel_for_event``.
+        """
         ...
 
     def list_for_user(
@@ -237,6 +241,14 @@ class SessionRegistrationRepository(Protocol):
 
     def cancel(self, user_id: int, session_id: int) -> bool:
         """Delete the enrollment; return False when there was none."""
+        ...
+
+    def cancel_for_event(self, user_id: int, event_id: int) -> int:
+        """Delete the user's enrollments in every session of the event; return how many.
+
+        Must run after the event registration is deleted, so that the delete first waits
+        for a concurrent ``enroll`` holding the registration row lock and then includes it.
+        """
         ...
 
     def counts_for_event(self, event_id: int) -> dict[int, int]:

@@ -171,6 +171,16 @@ class SqlSessionRegistrationRepository:
         )
         return bool(result.rowcount > 0)
 
+    def cancel_for_event(self, user_id: int, event_id: int) -> int:
+        event_sessions = select(col(SessionRow.id)).where(col(SessionRow.event_id) == event_id)
+        result = self._session.exec(  # type: ignore[call-overload]
+            delete(SessionRegistrationRow).where(
+                col(SessionRegistrationRow.user_id) == user_id,
+                col(SessionRegistrationRow.session_id).in_(event_sessions),
+            )
+        )
+        return int(result.rowcount)
+
     def counts_for_event(self, event_id: int) -> dict[int, int]:
         rows = self._session.exec(
             select(col(SessionRegistrationRow.session_id), func.count())

@@ -4,7 +4,13 @@ from functools import partial
 
 from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError
-from app.application.ports import EventRepository, RegistrationRepository, UnitOfWork, transaction
+from app.application.ports import (
+    EventRepository,
+    RegistrationRepository,
+    SessionRegistrationRepository,
+    UnitOfWork,
+    transaction,
+)
 from app.domain.enums import Role
 from app.domain.event import Event, can_view
 from app.domain.registration import (
@@ -24,11 +30,13 @@ class RegistrationService:
         self,
         events: EventRepository,
         registrations: RegistrationRepository,
+        enrollments: SessionRegistrationRepository,
         uow: UnitOfWork,
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
         self._registrations = registrations
+        self._enrollments = enrollments
         self._uow = uow
         self._clock = clock
 
@@ -40,6 +48,11 @@ class RegistrationService:
             return self._registrations.register(user.id, event_id, rule)
 
     def cancel(self, user: UserAccount, event_id: int) -> None:
+        """Cancel the registration and the user's enrollments in the event's sessions.
+
+        The registration is deleted first: that delete waits for a concurrent enrollment
+        holding its row lock, so the enrollments removed afterwards include that one.
+        """
         assert user.id is not None
         with transaction(self._uow):
             event = self._events.get(event_id)
@@ -49,6 +62,7 @@ class RegistrationService:
                 raise NotRegisteredError
             ensure_can_cancel(event)
             self._registrations.cancel(user.id, event_id)
+            self._enrollments.cancel_for_event(user.id, event_id)
 
     def my_events(self, user: UserAccount, page: int = 1, size: int = 10) -> RegisteredEventPage:
         assert user.id is not None

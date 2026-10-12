@@ -18,8 +18,6 @@ from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import event_to_domain, registration_to_domain
 from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration as RegistrationRow
-from app.infrastructure.db.models import Session as SessionRow
-from app.infrastructure.db.models import SessionRegistration as SessionRegistrationRow
 from app.infrastructure.db.models import User as UserRow
 
 PARTICIPANT_CHUNK_SIZE = 500
@@ -109,15 +107,6 @@ class SqlRegistrationRepository:
             delete(RegistrationRow).where(
                 col(RegistrationRow.user_id) == user_id,
                 col(RegistrationRow.event_id) == event_id,
-            )
-        )
-        # The registration goes first so that it also waits for a concurrent enrollment that
-        # holds its row lock; the enrollments deleted afterwards then include that one.
-        event_sessions = select(col(SessionRow.id)).where(col(SessionRow.event_id) == event_id)
-        self._session.exec(  # type: ignore[call-overload]
-            delete(SessionRegistrationRow).where(
-                col(SessionRegistrationRow.user_id) == user_id,
-                col(SessionRegistrationRow.session_id).in_(event_sessions),
             )
         )
         return bool(result.rowcount > 0)

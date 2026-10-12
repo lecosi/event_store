@@ -51,7 +51,7 @@ class World:
             self.events, self.sessions, self.enrollments, self.uow, clock=lambda: NOW
         )
         self.event_service = RegistrationService(
-            self.events, self.registrations, self.uow, clock=lambda: NOW
+            self.events, self.registrations, self.enrollments, self.uow, clock=lambda: NOW
         )
 
     def event(self, status: EventStatus = EventStatus.PUBLISHED) -> Event:
@@ -224,3 +224,37 @@ def test_availability_reports_counts_spots_and_viewer_enrollment(world: World) -
         2,
         False,
     )
+
+
+def test_cancelling_the_event_registration_removes_the_users_session_enrollments(
+    world: World,
+) -> None:
+    event = world.event()
+    sessions = [world.session(event, start_hours=h, end_hours=h + 1) for h in (1, 2)]
+    world.event_service.register(user(1), event.id or 0)
+    for session in sessions:
+        world.service.enroll(user(1), event.id or 0, session.id or 0)
+    world.event_service.cancel(user(1), event.id or 0)
+    assert world.enrollments.enrolled_session_ids(1, event.id or 0) == set()
+
+
+def test_cancelling_the_event_registration_keeps_other_users_enrollments(world: World) -> None:
+    event, session = registered_world(world, capacity=5)
+    world.event_service.register(user(2), event.id or 0)
+    world.service.enroll(user(1), event.id or 0, session.id or 0)
+    world.service.enroll(user(2), event.id or 0, session.id or 0)
+    world.event_service.cancel(user(1), event.id or 0)
+    assert world.enrollments.is_enrolled(2, session.id or 0)
+
+
+def test_cancelling_the_event_registration_keeps_enrollments_of_other_events(
+    world: World,
+) -> None:
+    event, session = registered_world(world)
+    other_event = world.event()
+    other_session = world.session(other_event, start_hours=5, end_hours=6)
+    world.event_service.register(user(1), other_event.id or 0)
+    world.service.enroll(user(1), event.id or 0, session.id or 0)
+    world.service.enroll(user(1), other_event.id or 0, other_session.id or 0)
+    world.event_service.cancel(user(1), event.id or 0)
+    assert world.enrollments.is_enrolled(1, other_session.id or 0)

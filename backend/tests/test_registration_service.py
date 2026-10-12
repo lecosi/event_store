@@ -13,7 +13,13 @@ from app.domain.registration import (
     RegistrationClosedError,
 )
 from app.domain.user import UserAccount
-from tests.fakes import FakeEventRepository, FakeRegistrationRepository, FakeUnitOfWork
+from tests.fakes import (
+    FakeEventRepository,
+    FakeRegistrationRepository,
+    FakeSessionRegistrationRepository,
+    FakeSessionRepository,
+    FakeUnitOfWork,
+)
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
@@ -36,7 +42,9 @@ def uow() -> FakeUnitOfWork:
 
 @pytest.fixture
 def service(events: FakeEventRepository, uow: FakeUnitOfWork) -> RegistrationService:
-    return RegistrationService(events, FakeRegistrationRepository(events), uow, clock=lambda: NOW)
+    registrations = FakeRegistrationRepository(events)
+    enrollments = FakeSessionRegistrationRepository(events, FakeSessionRepository(), registrations)
+    return RegistrationService(events, registrations, enrollments, uow, clock=lambda: NOW)
 
 
 def add_event(

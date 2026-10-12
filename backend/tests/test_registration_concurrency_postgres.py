@@ -13,6 +13,7 @@ from app.domain.user import UserAccount
 from app.infrastructure.db import models
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
+from app.infrastructure.db.session_registration_repository import SqlSessionRegistrationRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
 
 THREADS = 12
@@ -55,6 +56,7 @@ def test_only_one_registration_wins_a_capacity_one_event(
             service = RegistrationService(
                 SqlEventRepository(session),
                 SqlRegistrationRepository(session),
+                SqlSessionRegistrationRepository(session),
                 SqlUnitOfWork(session),
             )
             user = UserAccount(

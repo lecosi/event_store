@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -174,7 +174,6 @@ class FakeRegistrationRepository:
         self._events = events
         self._users = users or FakeUserRepository()
         self._rows: dict[tuple[int, int], datetime] = {}
-        self.cancel_hooks: list[Callable[[int, int], None]] = []
 
     def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
         event = self._events.get(event_id)
@@ -195,8 +194,6 @@ class FakeRegistrationRepository:
         if self._rows.pop((user_id, event_id), None) is None:
             return False
         self._events.registrations[event_id] -= 1
-        for hook in self.cancel_hooks:
-            hook(user_id, event_id)
         return True
 
     def list_for_user(
@@ -263,11 +260,13 @@ class FakeSessionRegistrationRepository:
         self._registrations = registrations
         self._users = users or FakeUserRepository()
         self._rows: dict[tuple[int, int], datetime] = {}
-        registrations.cancel_hooks.append(self._drop_event_enrollments)
 
-    def _drop_event_enrollments(self, user_id: int, event_id: int) -> None:
+    def cancel_for_event(self, user_id: int, event_id: int) -> int:
+        removed = 0
         for session in self._sessions.list_for_event(event_id):
-            self._rows.pop((user_id, session.id or 0), None)
+            if self._rows.pop((user_id, session.id or 0), None) is not None:
+                removed += 1
+        return removed
 
     def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
         session = self._sessions.get(session_id)
