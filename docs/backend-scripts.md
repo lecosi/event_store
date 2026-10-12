@@ -4,8 +4,13 @@ Run them from `backend/` (or inside the backend container, where `scripts/` is s
 
 ```bash
 python -m scripts.seed                # create or promote the administrator
+python -m scripts.seed_demo           # optional demo data, needs the administrator
 python -m scripts.close_past_events   # finish published events that already ended
 ```
+
+`seed` reads `ADMIN_EMAIL` and `ADMIN_PASSWORD` (and `ADMIN_FULL_NAME`, default
+`Administrator`); `seed_demo` reads `ADMIN_EMAIL`. Run them once the backend is healthy, so
+migrations are applied. See [backend-operations.md](backend-operations.md#seeding).
 
 ## Finish past events
 
