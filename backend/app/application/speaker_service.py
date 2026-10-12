@@ -10,8 +10,8 @@ from app.application.ports import (
     SESSIONS_NAMESPACE,
     SPEAKERS_NAMESPACE,
     Cache,
-    NullCache,
     SpeakerRepository,
+    SpeakerUsageQueries,
     UnitOfWork,
     transaction,
 )
@@ -29,11 +29,16 @@ def _normalize(details: SpeakerDetails) -> SpeakerDetails:
 
 class SpeakerService:
     def __init__(
-        self, speakers: SpeakerRepository, uow: UnitOfWork, cache: Cache | None = None
+        self,
+        speakers: SpeakerRepository,
+        usage: SpeakerUsageQueries,
+        uow: UnitOfWork,
+        cache: Cache,
     ) -> None:
         self._speakers = speakers
+        self._usage = usage
         self._uow = uow
-        self._cache: Cache = cache if cache is not None else NullCache()
+        self._cache = cache
 
     def create(self, actor: UserAccount, details: SpeakerDetails) -> Speaker:
         with transaction(self._uow):
@@ -71,7 +76,7 @@ class SpeakerService:
         with transaction(self._uow):
             self._require_manager(actor)
             self.get(speaker_id)
-            if self._speakers.count_sessions(speaker_id) > 0:
+            if self._usage.count_sessions(speaker_id) > 0:
                 raise SpeakerInUseError(speaker_id)
             self._speakers.delete(speaker_id)
         self._invalidate_speaker_and_sessions()

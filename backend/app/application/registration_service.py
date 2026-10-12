@@ -6,8 +6,9 @@ from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError
 from app.application.ports import (
     EventRepository,
+    EventUsageQueries,
     RegistrationRepository,
-    SessionRegistrationRepository,
+    SessionEnrollmentWriter,
     UnitOfWork,
     transaction,
 )
@@ -29,12 +30,14 @@ class RegistrationService:
     def __init__(
         self,
         events: EventRepository,
+        usage: EventUsageQueries,
         registrations: RegistrationRepository,
-        enrollments: SessionRegistrationRepository,
+        enrollments: SessionEnrollmentWriter,
         uow: UnitOfWork,
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
+        self._usage = usage
         self._registrations = registrations
         self._enrollments = enrollments
         self._uow = uow
@@ -71,7 +74,7 @@ class RegistrationService:
 
     def availability(self, event: Event, viewer: UserAccount | None) -> Availability:
         assert event.id is not None
-        registered = self._events.count_registrations(event.id)
+        registered = self._usage.count_registrations(event.id)
         is_registered = viewer is not None and self._registrations.is_registered(
             viewer.id or 0, event.id
         )

@@ -1,8 +1,8 @@
 import pytest
 
 from app.api.dependencies import get_cache
-from app.application.ports import NullCache
 from app.core.config import Settings
+from app.infrastructure.cache.null_cache import NullCache
 from app.infrastructure.cache.redis_cache import RedisCache
 
 pytestmark = pytest.mark.unit

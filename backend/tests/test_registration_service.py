@@ -15,6 +15,7 @@ from app.domain.registration import (
 from app.domain.user import UserAccount
 from tests.fakes import (
     FakeEventRepository,
+    FakeEventUsageQueries,
     FakeRegistrationRepository,
     FakeSessionRegistrationRepository,
     FakeSessionRepository,
@@ -44,7 +45,9 @@ def uow() -> FakeUnitOfWork:
 def service(events: FakeEventRepository, uow: FakeUnitOfWork) -> RegistrationService:
     registrations = FakeRegistrationRepository(events)
     enrollments = FakeSessionRegistrationRepository(events, FakeSessionRepository(), registrations)
-    return RegistrationService(events, registrations, enrollments, uow, clock=lambda: NOW)
+    return RegistrationService(
+        events, FakeEventUsageQueries(events), registrations, enrollments, uow, clock=lambda: NOW
+    )
 
 
 def add_event(
@@ -203,7 +206,7 @@ def test_rejected_registration_commits_nothing_and_keeps_count(
     with pytest.raises(EventFullError):
         service.register(user(2), event.id)
     assert (uow.commits, uow.rollbacks) == (1, 1)
-    assert events.count_registrations(event.id) == 1
+    assert events.registrations[event.id] == 1
 
 
 def test_cancel_commits_once_and_failed_cancel_commits_nothing(

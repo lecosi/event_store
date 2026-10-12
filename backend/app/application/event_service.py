@@ -7,7 +7,7 @@ from app.application.ports import (
     SESSIONS_NAMESPACE,
     Cache,
     EventRepository,
-    NullCache,
+    EventUsageQueries,
     UnitOfWork,
     transaction,
 )
@@ -44,14 +44,16 @@ class EventService:
     def __init__(
         self,
         events: EventRepository,
+        usage: EventUsageQueries,
         uow: UnitOfWork,
+        cache: Cache,
         clock: Clock = utc_now,
-        cache: Cache | None = None,
     ) -> None:
         self._events = events
+        self._usage = usage
         self._uow = uow
+        self._cache = cache
         self._clock = clock
-        self._cache: Cache = cache if cache is not None else NullCache()
 
     def create(self, actor: UserAccount, details: EventDetails) -> Event:
         with transaction(self._uow):
@@ -103,13 +105,13 @@ class EventService:
             ensure_editable(event.status)
             validate_details(details)
             ensure_capacity_covers_sessions(
-                details.capacity, self._events.max_session_capacity(event_id)
+                details.capacity, self._usage.max_session_capacity(event_id)
             )
             ensure_capacity_covers_registrations(
-                details.capacity, self._events.count_registrations(event_id)
+                details.capacity, self._usage.count_registrations(event_id)
             )
             ensure_dates_cover_sessions(
-                details.start_at, details.end_at, self._events.session_bounds(event_id)
+                details.start_at, details.end_at, self._usage.session_bounds(event_id)
             )
             updated = self._events.update(event.with_details(details))
         self._cache.invalidate(EVENTS_NAMESPACE)

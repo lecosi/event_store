@@ -88,7 +88,11 @@ def _to_row(row: Any) -> SessionParticipantRow:
 
 
 class SqlSessionRegistrationRepository:
-    """SQLModel implementation of the SessionRegistrationRepository port."""
+    """SQLModel adapter for the session enrollment ports.
+
+    Implements SessionEnrollmentWriter, SessionAvailabilityReader, SessionParticipantQueries
+    and SessionEnrollmentLock over the same table; services depend on each port separately.
+    """
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -149,6 +153,18 @@ class SqlSessionRegistrationRepository:
             raise AlreadyEnrolledError(ALREADY_ENROLLED) from exc
         self._session.refresh(row)
         return session_registration_to_domain(row)
+
+    def lock_and_count_enrollments(self, session_id: int) -> int:
+        # Same FOR UPDATE row lock that enrollment takes, so an enroll cannot slip in
+        # between this check and the update or delete that follows in the same transaction.
+        self._session.exec(
+            select(col(SessionRow.id)).where(col(SessionRow.id) == session_id).with_for_update()
+        ).first()
+        return self._session.exec(
+            select(func.count())
+            .select_from(SessionRegistrationRow)
+            .where(col(SessionRegistrationRow.session_id) == session_id)
+        ).one()
 
     def is_enrolled(self, user_id: int, session_id: int) -> bool:
         return (

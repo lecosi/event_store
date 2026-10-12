@@ -67,10 +67,12 @@ def test_only_one_enrollment_wins_a_capacity_one_session(
 
     def attempt(user_id: int) -> bool:
         with Session(clean_postgres) as session:
+            enrollments = SqlSessionRegistrationRepository(session)
             service = SessionRegistrationService(
                 SqlEventRepository(session),
                 SqlSessionRepository(session),
-                SqlSessionRegistrationRepository(session),
+                enrollments,
+                enrollments,
                 SqlUnitOfWork(session),
             )
             user = UserAccount(

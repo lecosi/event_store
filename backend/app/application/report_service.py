@@ -8,7 +8,7 @@ from app.application.errors import PermissionDeniedError, SessionNotFoundError
 from app.application.event_service import ORGANIZING_ROLES, EventService
 from app.application.ports import (
     RegistrationRepository,
-    SessionRegistrationRepository,
+    SessionParticipantQueries,
     SessionRepository,
 )
 from app.domain.enums import EventStatus, Role
@@ -90,7 +90,7 @@ class SessionReportService:
         self,
         events: EventService,
         sessions: SessionRepository,
-        enrollments: SessionRegistrationRepository,
+        enrollments: SessionParticipantQueries,
     ) -> None:
         self._events = events
         self._sessions = sessions

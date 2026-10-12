@@ -10,7 +10,9 @@ from app.domain.event import Event, EventValidationError
 from app.domain.registration import ParticipantRow
 from app.domain.user import UserAccount
 from tests.fakes import (
+    FakeCache,
     FakeEventRepository,
+    FakeEventUsageQueries,
     FakeRegistrationRepository,
     FakeUnitOfWork,
     FakeUserRepository,
@@ -36,7 +38,10 @@ class Scenario:
         self.users = FakeUserRepository()
         self.registrations = FakeRegistrationRepository(self.events, self.users)
         self.service = ReportService(
-            EventService(self.events, FakeUnitOfWork()), self.registrations
+            EventService(
+                self.events, FakeEventUsageQueries(self.events), FakeUnitOfWork(), FakeCache()
+            ),
+            self.registrations,
         )
 
     def event(self, name: str, organizer_id: int, days: int = 1, **fields: object) -> Event:

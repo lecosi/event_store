@@ -21,6 +21,7 @@ from app.domain.enums import EventStatus, Role
 from app.domain.event import Event, EventDetails
 from app.domain.session import SessionDetails
 from app.domain.speaker import SpeakerDetails
+from app.infrastructure.cache.null_cache import NullCache
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session import get_engine
@@ -28,6 +29,7 @@ from app.infrastructure.db.session_registration_repository import SqlSessionRegi
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
+from app.infrastructure.db.usage_queries import SqlEventUsageQueries, SqlSpeakerUsageQueries
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
@@ -74,18 +76,31 @@ def main() -> int:
             return 1
 
         events_repo = SqlEventRepository(db)
-        events = EventService(events_repo, uow)
+        cache = NullCache()
+        events = EventService(events_repo, SqlEventUsageQueries(db), uow, cache)
         if events.list(admin, size=1).total > 0:
             print("Events already exist: demo data skipped")
             return 0
 
-        speaker_service = SpeakerService(SqlSpeakerRepository(db), uow)
+        speaker_service = SpeakerService(
+            SqlSpeakerRepository(db), SqlSpeakerUsageQueries(db), uow, cache
+        )
         speakers = [speaker_service.create(admin, details) for details in SPEAKERS]
+        enrollment_repo = SqlSessionRegistrationRepository(db)
         sessions = SessionService(
-            events_repo, SqlSessionRepository(db), SqlSpeakerRepository(db), uow
+            events_repo,
+            SqlSessionRepository(db),
+            SqlSpeakerRepository(db),
+            enrollment_repo,
+            uow,
+            cache,
         )
         registrations = RegistrationService(
-            events_repo, SqlRegistrationRepository(db), SqlSessionRegistrationRepository(db), uow
+            events_repo,
+            SqlEventUsageQueries(db),
+            SqlRegistrationRepository(db),
+            enrollment_repo,
+            uow,
         )
 
         hasher = Argon2PasswordHasher()

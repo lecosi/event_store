@@ -8,8 +8,6 @@ from app.domain.event import Event, EventFilters, ensure_utc
 from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import event_to_domain
 from app.infrastructure.db.models import Event as EventRow
-from app.infrastructure.db.models import Registration
-from app.infrastructure.db.models import Session as SessionRow
 
 
 def _apply(row: EventRow, event: Event) -> None:
@@ -91,29 +89,6 @@ class SqlEventRepository:
         # Sessions and registrations go with the event through ON DELETE CASCADE.
         # sqlmodel types exec() for selects only; a Delete runs through the same path.
         self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))  # type: ignore[call-overload]
-
-    def count_registrations(self, event_id: int) -> int:
-        return self._session.exec(
-            select(func.count())
-            .select_from(Registration)
-            .where(col(Registration.event_id) == event_id)
-        ).one()
-
-    def max_session_capacity(self, event_id: int) -> int:
-        largest = self._session.exec(
-            select(func.max(SessionRow.capacity)).where(col(SessionRow.event_id) == event_id)
-        ).one()
-        return largest or 0
-
-    def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
-        first, last = self._session.exec(
-            select(func.min(SessionRow.start_at), func.max(SessionRow.end_at)).where(
-                col(SessionRow.event_id) == event_id
-            )
-        ).one()
-        if first is None or last is None:
-            return None
-        return ensure_utc(first), ensure_utc(last)
 
 
 def _fields(event: Event) -> dict[str, object]:

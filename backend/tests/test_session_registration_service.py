@@ -19,6 +19,7 @@ from app.domain.session_registration import (
 from app.domain.user import UserAccount
 from tests.fakes import (
     FakeEventRepository,
+    FakeEventUsageQueries,
     FakeRegistrationRepository,
     FakeSessionRegistrationRepository,
     FakeSessionRepository,
@@ -48,10 +49,20 @@ class World:
         )
         self.uow = FakeUnitOfWork()
         self.service = SessionRegistrationService(
-            self.events, self.sessions, self.enrollments, self.uow, clock=lambda: NOW
+            self.events,
+            self.sessions,
+            self.enrollments,
+            self.enrollments,
+            self.uow,
+            clock=lambda: NOW,
         )
         self.event_service = RegistrationService(
-            self.events, self.registrations, self.enrollments, self.uow, clock=lambda: NOW
+            self.events,
+            FakeEventUsageQueries(self.events),
+            self.registrations,
+            self.enrollments,
+            self.uow,
+            clock=lambda: NOW,
         )
 
     def event(self, status: EventStatus = EventStatus.PUBLISHED) -> Event:
@@ -164,6 +175,7 @@ def test_enroll_rejects_when_the_session_has_ended(world: World) -> None:
     late = SessionRegistrationService(
         world.events,
         world.sessions,
+        world.enrollments,
         world.enrollments,
         world.uow,
         clock=lambda: session.end_at + timedelta(minutes=1),

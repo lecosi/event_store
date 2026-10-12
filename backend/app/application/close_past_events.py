@@ -6,7 +6,6 @@ from app.application.ports import (
     SESSIONS_NAMESPACE,
     Cache,
     EventRepository,
-    NullCache,
     UnitOfWork,
     transaction,
 )
@@ -17,8 +16,8 @@ from app.domain.event import validate_transition
 def close_past_events(
     events: EventRepository,
     uow: UnitOfWork,
+    cache: Cache,
     clock: Clock = utc_now,
-    cache: Cache | None = None,
 ) -> int:
     """Move every PUBLISHED event with ``end_at`` before now to FINISHED; return how many.
 
@@ -33,7 +32,6 @@ def close_past_events(
             event.status = EventStatus.FINISHED
             events.update(event)
     if past:
-        active_cache: Cache = cache if cache is not None else NullCache()
-        active_cache.invalidate(EVENTS_NAMESPACE)
-        active_cache.invalidate(SESSIONS_NAMESPACE)
+        cache.invalidate(EVENTS_NAMESPACE)
+        cache.invalidate(SESSIONS_NAMESPACE)
     return len(past)

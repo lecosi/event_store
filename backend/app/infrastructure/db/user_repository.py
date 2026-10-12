@@ -21,10 +21,6 @@ class SqlUserRepository:
         row = self._session.exec(select(User).where(User.email == email)).first()
         return user_to_domain(row) if row else None
 
-    def list_all(self) -> list[UserAccount]:
-        rows = self._session.exec(select(User).order_by(col(User.id))).all()
-        return [user_to_domain(row) for row in rows]
-
     def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
         total = self._session.exec(select(func.count()).select_from(User)).one()
         rows = self._session.exec(

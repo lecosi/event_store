@@ -7,7 +7,7 @@ from app.application.event_service import EventService
 from app.domain.enums import EventStatus, Role
 from app.domain.event import EventDetails, EventFilters, EventStateError, EventValidationError
 from app.domain.user import UserAccount
-from tests.fakes import FakeEventRepository, FakeUnitOfWork
+from tests.fakes import FakeCache, FakeEventRepository, FakeEventUsageQueries, FakeUnitOfWork
 
 NOW = datetime(2030, 1, 1, tzinfo=UTC)
 
@@ -50,7 +50,7 @@ def uow() -> FakeUnitOfWork:
 
 @pytest.fixture
 def service(repo: FakeEventRepository, uow: FakeUnitOfWork) -> EventService:
-    return EventService(repo, uow, clock=lambda: NOW)
+    return EventService(repo, FakeEventUsageQueries(repo), uow, FakeCache(), clock=lambda: NOW)
 
 
 def test_create_starts_as_draft_and_owned_by_actor(service: EventService) -> None:

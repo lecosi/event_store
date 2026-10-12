@@ -7,7 +7,8 @@ from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError, SessionNotFoundError
 from app.application.ports import (
     EventRepository,
-    SessionRegistrationRepository,
+    SessionAvailabilityReader,
+    SessionEnrollmentWriter,
     SessionRepository,
     UnitOfWork,
     transaction,
@@ -31,13 +32,15 @@ class SessionRegistrationService:
         self,
         events: EventRepository,
         sessions: SessionRepository,
-        enrollments: SessionRegistrationRepository,
+        enrollments: SessionEnrollmentWriter,
+        availability: SessionAvailabilityReader,
         uow: UnitOfWork,
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
         self._sessions = sessions
         self._enrollments = enrollments
+        self._availability = availability
         self._uow = uow
         self._clock = clock
 
@@ -68,9 +71,9 @@ class SessionRegistrationService:
 
         Read live on every call: it must never come from a shared cached payload.
         """
-        counts = self._enrollments.counts_for_event(event_id)
+        counts = self._availability.counts_for_event(event_id)
         mine = (
-            self._enrollments.enrolled_session_ids(viewer.id, event_id)
+            self._availability.enrolled_session_ids(viewer.id, event_id)
             if viewer is not None and viewer.id is not None
             else set()
         )

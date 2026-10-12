@@ -7,6 +7,7 @@ from app.application.ports import EVENTS_NAMESPACE, SESSIONS_NAMESPACE
 from app.domain.enums import EventStatus
 from app.domain.event import Event
 from app.domain.session import Session
+from app.infrastructure.cache.null_cache import NullCache
 from tests.fakes import (
     FakeCache,
     FakeEventRepository,
@@ -41,7 +42,7 @@ class Env:
         )
 
     def close(self) -> int:
-        return close_past_events(self.events, self.uow, clock=lambda: NOW, cache=self.cache)
+        return close_past_events(self.events, self.uow, self.cache, clock=lambda: NOW)
 
     def status_of(self, event: Event) -> EventStatus:
         stored = self.events.get(event.id or 0)
@@ -148,7 +149,7 @@ def test_registrations_and_session_enrollments_are_kept(env: Env) -> None:
     assert enrollments.is_enrolled(7, session.id or 0)
 
 
-def test_works_without_a_cache(env: Env) -> None:
+def test_works_with_a_null_cache(env: Env) -> None:
     env.event(EventStatus.PUBLISHED, timedelta(hours=-1))
 
-    assert close_past_events(env.events, env.uow, clock=lambda: NOW) == 1
+    assert close_past_events(env.events, env.uow, NullCache(), clock=lambda: NOW) == 1

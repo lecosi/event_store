@@ -20,8 +20,11 @@ from app.domain.user import UserAccount
 from tests.fakes import (
     FakeCache,
     FakeEventRepository,
+    FakeEventUsageQueries,
+    FakeSessionEnrollmentLock,
     FakeSessionRepository,
     FakeSpeakerRepository,
+    FakeSpeakerUsageQueries,
     FakeUnitOfWork,
 )
 
@@ -51,14 +54,25 @@ class Env:
         self.cache = CommitAwareCache(self.uow)
         self.events = FakeEventRepository()
         self.sessions = FakeSessionRepository()
-        self.speakers = FakeSpeakerRepository(self.sessions)
+        self.speakers = FakeSpeakerRepository()
         self.event_service = EventService(
-            self.events, self.uow, clock=lambda: NOW, cache=self.cache
+            self.events,
+            FakeEventUsageQueries(self.events),
+            self.uow,
+            self.cache,
+            clock=lambda: NOW,
         )
         self.session_service = SessionService(
-            self.events, self.sessions, self.speakers, self.uow, self.cache
+            self.events,
+            self.sessions,
+            self.speakers,
+            FakeSessionEnrollmentLock(self.sessions),
+            self.uow,
+            self.cache,
         )
-        self.speaker_service = SpeakerService(self.speakers, self.uow, self.cache)
+        self.speaker_service = SpeakerService(
+            self.speakers, FakeSpeakerUsageQueries(self.sessions), self.uow, self.cache
+        )
         self.event = self.events.add(
             Event(
                 name="Conf",

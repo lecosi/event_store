@@ -6,7 +6,6 @@ from app.application.errors import SpeakerEmailTakenError
 from app.domain.speaker import Speaker
 from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import speaker_to_domain
-from app.infrastructure.db.models import Session as SessionRow
 from app.infrastructure.db.models import Speaker as SpeakerRow
 
 
@@ -71,10 +70,3 @@ class SqlSpeakerRepository:
         if row is not None:
             self._session.delete(row)
             self._session.flush()
-
-    def count_sessions(self, speaker_id: int) -> int:
-        return self._session.exec(
-            select(func.count())
-            .select_from(SessionRow)
-            .where(col(SessionRow.speaker_id) == speaker_id)
-        ).one()

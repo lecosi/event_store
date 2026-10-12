@@ -1,7 +1,8 @@
 """Ports (abstractions) that the application layer depends on.
 
 Infrastructure provides the implementations; use cases receive them by injection.
-Each port is small and focused (interface segregation).
+Each port is small and focused (interface segregation): a use case depends only on the
+ports for the roles it actually plays, even when one adapter implements several of them.
 """
 
 from collections.abc import Callable, Iterator
@@ -61,25 +62,10 @@ class Cache(Protocol):
         ...
 
 
-class NullCache:
-    """No-op cache: every read is a miss. Default when no cache backend is configured."""
-
-    def get(self, namespace: str, key: str) -> str | None:
-        return None
-
-    def set(self, namespace: str, key: str, value: str, ttl_seconds: int) -> None:
-        return None
-
-    def invalidate(self, namespace: str) -> None:
-        return None
-
-
 class UserRepository(Protocol):
     def get_by_id(self, user_id: int) -> UserAccount | None: ...
 
     def get_by_email(self, email: str) -> UserAccount | None: ...
-
-    def list_all(self) -> list[UserAccount]: ...
 
     def list_page(self, page: int, size: int) -> tuple[list[UserAccount], int]:
         """Return the requested page (ordered by id) and the total number of users."""
@@ -117,16 +103,6 @@ class EventRepository(Protocol):
         """Delete the event together with its dependent rows."""
         ...
 
-    def count_registrations(self, event_id: int) -> int: ...
-
-    def max_session_capacity(self, event_id: int) -> int:
-        """Largest capacity among the event's sessions (0 when it has none)."""
-        ...
-
-    def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
-        """Earliest session start and latest session end (None when it has no sessions)."""
-        ...
-
 
 class SpeakerRepository(Protocol):
     def add(self, speaker: Speaker) -> Speaker: ...
@@ -146,8 +122,6 @@ class SpeakerRepository(Protocol):
 
     def delete(self, speaker_id: int) -> None: ...
 
-    def count_sessions(self, speaker_id: int) -> int: ...
-
 
 class SessionRepository(Protocol):
     def add(self, session: Session) -> Session: ...
@@ -162,6 +136,32 @@ class SessionRepository(Protocol):
         """Return every session of the speaker, across all events."""
         ...
 
+    def update(self, session: Session) -> Session: ...
+
+    def delete(self, session_id: int) -> None: ...
+
+
+class EventUsageQueries(Protocol):
+    """Read-only questions about what depends on an event, across aggregates."""
+
+    def count_registrations(self, event_id: int) -> int: ...
+
+    def max_session_capacity(self, event_id: int) -> int:
+        """Largest capacity among the event's sessions (0 when it has none)."""
+        ...
+
+    def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
+        """Earliest session start and latest session end (None when it has no sessions)."""
+        ...
+
+
+class SpeakerUsageQueries(Protocol):
+    """Read-only questions about what depends on a speaker, across aggregates."""
+
+    def count_sessions(self, speaker_id: int) -> int: ...
+
+
+class SessionEnrollmentLock(Protocol):
     def lock_and_count_enrollments(self, session_id: int) -> int:
         """Lock the session row until the unit of work ends and return its enrollment count.
 
@@ -169,10 +169,6 @@ class SessionRepository(Protocol):
         cannot change before the surrounding update or delete is durable.
         """
         ...
-
-    def update(self, session: Session) -> Session: ...
-
-    def delete(self, session_id: int) -> None: ...
 
 
 RegistrationRule = Callable[[Event, int], None]
@@ -197,7 +193,7 @@ class RegistrationRepository(Protocol):
         """Delete the registration row only; return False when there was none.
 
         The user's session enrollments of that event are removed separately through
-        ``SessionRegistrationRepository.cancel_for_event``.
+        ``SessionEnrollmentWriter.cancel_for_event``.
         """
         ...
 
@@ -225,7 +221,9 @@ EnrollmentRule = Callable[[EnrollmentContext], None]
 """Domain rule evaluated with the locked session and the user's enrollment state."""
 
 
-class SessionRegistrationRepository(Protocol):
+class SessionEnrollmentWriter(Protocol):
+    """Stages enrollment changes and answers the checks that guard them."""
+
     def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
         """Check ``rule`` against the locked session and stage the enrollment.
 
@@ -251,6 +249,8 @@ class SessionRegistrationRepository(Protocol):
         """
         ...
 
+
+class SessionAvailabilityReader(Protocol):
     def counts_for_event(self, event_id: int) -> dict[int, int]:
         """Enrollments per session id for the event's sessions (absent ids have none)."""
         ...
@@ -259,6 +259,8 @@ class SessionRegistrationRepository(Protocol):
         """Ids of the event's sessions the user is enrolled in."""
         ...
 
+
+class SessionParticipantQueries(Protocol):
     def list_participants(
         self, filters: SessionParticipantFilters, page: int, size: int
     ) -> tuple[list[SessionParticipantRow], int]:

@@ -11,7 +11,13 @@ from app.domain.enums import Role
 from app.domain.session import Session
 from app.domain.speaker import SpeakerDetails
 from app.domain.user import UserAccount
-from tests.fakes import FakeSessionRepository, FakeSpeakerRepository, FakeUnitOfWork
+from tests.fakes import (
+    FakeCache,
+    FakeSessionRepository,
+    FakeSpeakerRepository,
+    FakeSpeakerUsageQueries,
+    FakeUnitOfWork,
+)
 from tests.test_session_service import BASE, at
 
 ORGANIZER = UserAccount(
@@ -43,7 +49,9 @@ def uow() -> FakeUnitOfWork:
 
 @pytest.fixture
 def service(sessions: FakeSessionRepository, uow: FakeUnitOfWork) -> SpeakerService:
-    return SpeakerService(FakeSpeakerRepository(sessions), uow)
+    return SpeakerService(
+        FakeSpeakerRepository(), FakeSpeakerUsageQueries(sessions), uow, FakeCache()
+    )
 
 
 def test_organizer_and_admin_can_create_attendee_cannot(service: SpeakerService) -> None:

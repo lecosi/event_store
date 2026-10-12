@@ -19,7 +19,9 @@ from app.domain.session import (
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 from tests.fakes import (
+    FakeCache,
     FakeEventRepository,
+    FakeSessionEnrollmentLock,
     FakeSessionRepository,
     FakeSpeakerRepository,
     FakeUnitOfWork,
@@ -61,9 +63,16 @@ class Env:
     def __init__(self) -> None:
         self.events = FakeEventRepository()
         self.sessions = FakeSessionRepository()
-        self.speakers = FakeSpeakerRepository(self.sessions)
+        self.speakers = FakeSpeakerRepository()
         self.uow = FakeUnitOfWork()
-        self.service = SessionService(self.events, self.sessions, self.speakers, self.uow)
+        self.service = SessionService(
+            self.events,
+            self.sessions,
+            self.speakers,
+            FakeSessionEnrollmentLock(self.sessions),
+            self.uow,
+            FakeCache(),
+        )
         self.event = self.add_event()
         self.speaker = self.speakers.add(Speaker(name="Ada", bio="", email=None))
 

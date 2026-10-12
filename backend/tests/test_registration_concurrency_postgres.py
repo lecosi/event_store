@@ -15,6 +15,7 @@ from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session_registration_repository import SqlSessionRegistrationRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
+from app.infrastructure.db.usage_queries import SqlEventUsageQueries
 
 THREADS = 12
 
@@ -55,6 +56,7 @@ def test_only_one_registration_wins_a_capacity_one_event(
         with Session(clean_postgres) as session:
             service = RegistrationService(
                 SqlEventRepository(session),
+                SqlEventUsageQueries(session),
                 SqlRegistrationRepository(session),
                 SqlSessionRegistrationRepository(session),
                 SqlUnitOfWork(session),

@@ -15,7 +15,9 @@ from app.domain.session import Session
 from app.domain.session_registration import SessionParticipantRow
 from app.domain.user import UserAccount
 from tests.fakes import (
+    FakeCache,
     FakeEventRepository,
+    FakeEventUsageQueries,
     FakeRegistrationRepository,
     FakeSessionRegistrationRepository,
     FakeSessionRepository,
@@ -47,7 +49,11 @@ class Scenario:
             self.events, self.sessions, registrations, self.users
         )
         self.service = SessionReportService(
-            EventService(self.events, FakeUnitOfWork()), self.sessions, self.enrollments
+            EventService(
+                self.events, FakeEventUsageQueries(self.events), FakeUnitOfWork(), FakeCache()
+            ),
+            self.sessions,
+            self.enrollments,
         )
 
     def event(self, name: str, organizer_id: int, **fields: object) -> Event:

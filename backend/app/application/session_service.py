@@ -5,7 +5,7 @@ from app.application.ports import (
     SESSIONS_NAMESPACE,
     Cache,
     EventRepository,
-    NullCache,
+    SessionEnrollmentLock,
     SessionRepository,
     SpeakerRepository,
     UnitOfWork,
@@ -35,14 +35,16 @@ class SessionService:
         events: EventRepository,
         sessions: SessionRepository,
         speakers: SpeakerRepository,
+        enrollment_lock: SessionEnrollmentLock,
         uow: UnitOfWork,
-        cache: Cache | None = None,
+        cache: Cache,
     ) -> None:
         self._events = events
         self._sessions = sessions
         self._speakers = speakers
+        self._enrollment_lock = enrollment_lock
         self._uow = uow
-        self._cache: Cache = cache if cache is not None else NullCache()
+        self._cache = cache
 
     def create(self, actor: UserAccount, event_id: int, details: SessionDetails) -> Session:
         with transaction(self._uow):
@@ -68,7 +70,7 @@ class SessionService:
             current = self._get_in_event(event_id, session_id)
             updated = current.with_details(details)
             self._validate(event, updated)
-            enrollments = self._sessions.lock_and_count_enrollments(session_id)
+            enrollments = self._enrollment_lock.lock_and_count_enrollments(session_id)
             if enrollments > 0:
                 ensure_capacity_covers_enrollments(updated.capacity, enrollments)
                 ensure_schedule_unchanged(current, updated)
@@ -81,7 +83,7 @@ class SessionService:
             self._get_managed_open(actor, event_id)
             self._get_in_event(event_id, session_id)
             ensure_deletable_without_enrollments(
-                self._sessions.lock_and_count_enrollments(session_id)
+                self._enrollment_lock.lock_and_count_enrollments(session_id)
             )
             self._sessions.delete(session_id)
         self._cache.invalidate(SESSIONS_NAMESPACE)

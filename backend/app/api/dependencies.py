@@ -14,12 +14,16 @@ from app.application.event_service import EventService
 from app.application.ports import (
     Cache,
     EventRepository,
-    NullCache,
+    EventUsageQueries,
     PasswordHasher,
     RegistrationRepository,
-    SessionRegistrationRepository,
+    SessionAvailabilityReader,
+    SessionEnrollmentLock,
+    SessionEnrollmentWriter,
+    SessionParticipantQueries,
     SessionRepository,
     SpeakerRepository,
+    SpeakerUsageQueries,
     TokenService,
     UnitOfWork,
     UserRepository,
@@ -32,6 +36,7 @@ from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.user import UserAccount
+from app.infrastructure.cache.null_cache import NullCache
 from app.infrastructure.cache.redis_cache import RedisCache
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
@@ -42,6 +47,7 @@ from app.infrastructure.db.session_registration_repository import (
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
+from app.infrastructure.db.usage_queries import SqlEventUsageQueries, SqlSpeakerUsageQueries
 from app.infrastructure.db.user_repository import SqlUserRepository
 from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
@@ -130,16 +136,25 @@ def get_event_repository(session: Session = Depends(get_session)) -> EventReposi
     return SqlEventRepository(session)
 
 
+def get_event_usage_queries(session: Session = Depends(get_session)) -> EventUsageQueries:
+    return SqlEventUsageQueries(session)
+
+
 def get_event_service(
     events: EventRepository = Depends(get_event_repository),
+    usage: EventUsageQueries = Depends(get_event_usage_queries),
     uow: UnitOfWork = Depends(get_unit_of_work),
     cache: Cache = Depends(get_cache),
 ) -> EventService:
-    return EventService(events, uow, cache=cache)
+    return EventService(events, usage, uow, cache)
 
 
 def get_speaker_repository(session: Session = Depends(get_session)) -> SpeakerRepository:
     return SqlSpeakerRepository(session)
+
+
+def get_speaker_usage_queries(session: Session = Depends(get_session)) -> SpeakerUsageQueries:
+    return SqlSpeakerUsageQueries(session)
 
 
 def get_session_repository(session: Session = Depends(get_session)) -> SessionRepository:
@@ -148,20 +163,52 @@ def get_session_repository(session: Session = Depends(get_session)) -> SessionRe
 
 def get_speaker_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
+    usage: SpeakerUsageQueries = Depends(get_speaker_usage_queries),
     uow: UnitOfWork = Depends(get_unit_of_work),
     cache: Cache = Depends(get_cache),
 ) -> SpeakerService:
-    return SpeakerService(speakers, uow, cache)
+    return SpeakerService(speakers, usage, uow, cache)
+
+
+def get_session_registration_repository(
+    session: Session = Depends(get_session),
+) -> SqlSessionRegistrationRepository:
+    return SqlSessionRegistrationRepository(session)
+
+
+def get_enrollment_lock(
+    enrollments: SqlSessionRegistrationRepository = Depends(get_session_registration_repository),
+) -> SessionEnrollmentLock:
+    return enrollments
+
+
+def get_enrollment_writer(
+    enrollments: SqlSessionRegistrationRepository = Depends(get_session_registration_repository),
+) -> SessionEnrollmentWriter:
+    return enrollments
+
+
+def get_availability_reader(
+    enrollments: SqlSessionRegistrationRepository = Depends(get_session_registration_repository),
+) -> SessionAvailabilityReader:
+    return enrollments
+
+
+def get_session_participant_queries(
+    enrollments: SqlSessionRegistrationRepository = Depends(get_session_registration_repository),
+) -> SessionParticipantQueries:
+    return enrollments
 
 
 def get_session_service(
     events: EventRepository = Depends(get_event_repository),
     sessions: SessionRepository = Depends(get_session_repository),
     speakers: SpeakerRepository = Depends(get_speaker_repository),
+    enrollment_lock: SessionEnrollmentLock = Depends(get_enrollment_lock),
     uow: UnitOfWork = Depends(get_unit_of_work),
     cache: Cache = Depends(get_cache),
 ) -> SessionService:
-    return SessionService(events, sessions, speakers, uow, cache)
+    return SessionService(events, sessions, speakers, enrollment_lock, uow, cache)
 
 
 def get_registration_repository(
@@ -170,28 +217,24 @@ def get_registration_repository(
     return SqlRegistrationRepository(session)
 
 
-def get_session_registration_repository(
-    session: Session = Depends(get_session),
-) -> SessionRegistrationRepository:
-    return SqlSessionRegistrationRepository(session)
-
-
 def get_registration_service(
     events: EventRepository = Depends(get_event_repository),
+    usage: EventUsageQueries = Depends(get_event_usage_queries),
     registrations: RegistrationRepository = Depends(get_registration_repository),
-    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+    enrollments: SessionEnrollmentWriter = Depends(get_enrollment_writer),
     uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> RegistrationService:
-    return RegistrationService(events, registrations, enrollments, uow)
+    return RegistrationService(events, usage, registrations, enrollments, uow)
 
 
 def get_session_registration_service(
     events: EventRepository = Depends(get_event_repository),
     sessions: SessionRepository = Depends(get_session_repository),
-    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+    enrollments: SessionEnrollmentWriter = Depends(get_enrollment_writer),
+    availability: SessionAvailabilityReader = Depends(get_availability_reader),
     uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> SessionRegistrationService:
-    return SessionRegistrationService(events, sessions, enrollments, uow)
+    return SessionRegistrationService(events, sessions, enrollments, availability, uow)
 
 
 def get_report_service(
@@ -204,9 +247,9 @@ def get_report_service(
 def get_session_report_service(
     events: EventService = Depends(get_event_service),
     sessions: SessionRepository = Depends(get_session_repository),
-    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+    participants: SessionParticipantQueries = Depends(get_session_participant_queries),
 ) -> SessionReportService:
-    return SessionReportService(events, sessions, enrollments)
+    return SessionReportService(events, sessions, participants)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:

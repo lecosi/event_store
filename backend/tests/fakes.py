@@ -123,14 +123,19 @@ class FakeEventRepository:
     def delete(self, event_id: int) -> None:
         self._events.pop(event_id, None)
 
+
+class FakeEventUsageQueries:
+    def __init__(self, events: FakeEventRepository) -> None:
+        self._events = events
+
     def count_registrations(self, event_id: int) -> int:
-        return self.registrations.get(event_id, 0)
+        return self._events.registrations.get(event_id, 0)
 
     def max_session_capacity(self, event_id: int) -> int:
-        return self.max_session_capacities.get(event_id, 0)
+        return self._events.max_session_capacities.get(event_id, 0)
 
     def session_bounds(self, event_id: int) -> tuple[datetime, datetime] | None:
-        return self.session_bounds_by_event.get(event_id)
+        return self._events.session_bounds_by_event.get(event_id)
 
 
 class FakeSessionRepository:
@@ -138,9 +143,6 @@ class FakeSessionRepository:
         self._sessions: dict[int, Session] = {}
         self._next_id = 1
         self.enrollment_counts: dict[int, int] = {}
-
-    def lock_and_count_enrollments(self, session_id: int) -> int:
-        return self.enrollment_counts.get(session_id, 0)
 
     def add(self, session: Session) -> Session:
         session.id = self._next_id
@@ -167,6 +169,14 @@ class FakeSessionRepository:
         self._sessions.pop(session_id, None)
 
 
+class FakeSessionEnrollmentLock:
+    def __init__(self, sessions: FakeSessionRepository) -> None:
+        self._sessions = sessions
+
+    def lock_and_count_enrollments(self, session_id: int) -> int:
+        return self._sessions.enrollment_counts.get(session_id, 0)
+
+
 class FakeRegistrationRepository:
     def __init__(
         self, events: FakeEventRepository, users: FakeUserRepository | None = None
@@ -181,10 +191,10 @@ class FakeRegistrationRepository:
             raise EventNotFoundError(event_id)
         if (user_id, event_id) in self._rows:
             raise AlreadyRegisteredError("Already registered")
-        rule(event, self._events.count_registrations(event_id))
+        rule(event, self._events.registrations.get(event_id, 0))
         created_at = datetime.now(UTC)
         self._rows[(user_id, event_id)] = created_at
-        self._events.registrations[event_id] = self._events.count_registrations(event_id) + 1
+        self._events.registrations[event_id] = self._events.registrations.get(event_id, 0) + 1
         return Registration(user_id=user_id, event_id=event_id, created_at=created_at)
 
     def is_registered(self, user_id: int, event_id: int) -> bool:
@@ -364,10 +374,9 @@ class FakeSessionRegistrationRepository:
 
 
 class FakeSpeakerRepository:
-    def __init__(self, sessions: FakeSessionRepository | None = None) -> None:
+    def __init__(self) -> None:
         self._speakers: dict[int, Speaker] = {}
         self._next_id = 1
-        self._sessions = sessions or FakeSessionRepository()
 
     def add(self, speaker: Speaker) -> Speaker:
         speaker.id = self._next_id
@@ -395,6 +404,11 @@ class FakeSpeakerRepository:
 
     def delete(self, speaker_id: int) -> None:
         self._speakers.pop(speaker_id, None)
+
+
+class FakeSpeakerUsageQueries:
+    def __init__(self, sessions: FakeSessionRepository) -> None:
+        self._sessions = sessions
 
     def count_sessions(self, speaker_id: int) -> int:
         return len(self._sessions.list_for_speaker(speaker_id))
