@@ -21,7 +21,7 @@ from app.domain.registration import (
     NotRegisteredError,
     RegistrationClosedError,
 )
-from app.domain.session import SessionConflictError, SessionValidationError
+from app.domain.session import SessionConflictError, SessionStateError, SessionValidationError
 from app.main import create_app
 
 EXPECTED = [
@@ -34,6 +34,7 @@ EXPECTED = [
     (EventValidationError("bad dates"), 422, "bad dates"),
     (SessionValidationError("bad slot"), 422, "bad slot"),
     (EventStateError("event is closed"), 409, "event is closed"),
+    (SessionStateError("session has enrollments"), 409, "session has enrollments"),
     (SessionConflictError("speaker busy"), 409, "speaker busy"),
     (AlreadyRegisteredError("already in"), 409, "already in"),
     (EventFullError("no spots"), 409, "no spots"),

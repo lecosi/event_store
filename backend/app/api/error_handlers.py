@@ -17,7 +17,7 @@ from app.application.errors import (
 )
 from app.domain.event import EventStateError, EventValidationError
 from app.domain.registration import NotRegisteredError, RegistrationConflictError
-from app.domain.session import SessionConflictError, SessionValidationError
+from app.domain.session import SessionConflictError, SessionStateError, SessionValidationError
 from app.domain.session_registration import EnrollmentConflictError, NotEnrolledError
 from app.domain.user import InvalidFullNameError
 
@@ -48,6 +48,7 @@ ERROR_RESPONSES: dict[type[Exception], ErrorResponse] = {
     SessionValidationError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
     InvalidFullNameError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
     EventStateError: ErrorResponse(status.HTTP_409_CONFLICT),
+    SessionStateError: ErrorResponse(status.HTTP_409_CONFLICT),
     SessionConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     RegistrationConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     EnrollmentConflictError: ErrorResponse(status.HTTP_409_CONFLICT),

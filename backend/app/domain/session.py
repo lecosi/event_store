@@ -4,11 +4,15 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from app.domain.event import EventStateError, ensure_utc
+from app.domain.event import ensure_utc
 
 
 class SessionValidationError(ValueError):
     """The session data violates a business rule (maps to HTTP 422)."""
+
+
+class SessionStateError(Exception):
+    """The session's current enrollments forbid the requested change (maps to HTTP 409)."""
 
 
 class SessionConflictError(Exception):
@@ -78,7 +82,7 @@ def validate_session_capacity(capacity: int, event_capacity: int) -> None:
 
 def ensure_capacity_covers_enrollments(capacity: int, enrollments: int) -> None:
     if capacity < enrollments:
-        raise EventStateError(
+        raise SessionStateError(
             f"capacity cannot be lower than the current enrollments ({enrollments})"
         )
 
@@ -87,12 +91,12 @@ def ensure_schedule_unchanged(current: Session, updated: Session) -> None:
     if ensure_utc(current.start_at) != ensure_utc(updated.start_at) or ensure_utc(
         current.end_at
     ) != ensure_utc(updated.end_at):
-        raise EventStateError("the schedule of a session with enrollments cannot be changed")
+        raise SessionStateError("the schedule of a session with enrollments cannot be changed")
 
 
 def ensure_deletable_without_enrollments(enrollments: int) -> None:
     if enrollments > 0:
-        raise EventStateError("a session with enrollments cannot be deleted")
+        raise SessionStateError("a session with enrollments cannot be deleted")
 
 
 def overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> bool:
