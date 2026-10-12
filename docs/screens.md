@@ -1,31 +1,11 @@
-# Pantallas
-
-Espacio reservado para capturas de pantalla de la aplicación. Las imágenes se agregan más
-adelante; mientras tanto, cada sección contiene un marcador de texto plano. El texto de la
-interfaz de la aplicación está en español.
-
-## Cómo agregar una imagen
-
-1. Toma la captura (un ancho de escritorio de unos 1280 px para las páginas, unos 390 px
-   para las móviles) y guárdala como PNG en `docs/images/` con el nombre de archivo que
-   indica el marcador de la sección, por ejemplo `docs/images/event-list.png`.
-2. En este archivo, reemplaza todo el bloque `Captura pendiente` de esa sección por:
-
-   ```markdown
-   ![Event list with search and pagination](images/event-list.png)
-   ```
-
-3. Mantén el texto alternativo corto y descriptivo. No agregues el enlace a una imagen
-   antes de que el archivo exista, para que no haya imágenes rotas.
-4. No incluyas datos personales reales: usa el seed de demostración (ver
-   [backend-operations.md](backend-operations.md#carga-inicial-de-datos-seed)).
+# Documentación de módulos en la plataforma
 
 ## Índice
 
 | Pantalla | Ruta | Archivo de imagen |
 | --- | --- | --- |
-| [Inicio de sesión](#inicio-de-sesión) | `/login` | `docs/images/login.png` |
 | [Registro de cuenta](#registro-de-cuenta) | `/register` | `docs/images/register.png` |
+| [Inicio de sesión](#inicio-de-sesión) | `/login` | `docs/images/login.png` |
 | [Listado de eventos](#listado-de-eventos) | `/` | `docs/images/event-list.png` |
 | [Detalle del evento](#detalle-del-evento) | `/events/:id` | `docs/images/event-detail.png` |
 | [Detalle del evento, vista de gestión](#detalle-del-evento-vista-de-gestión) | `/events/:id` | `docs/images/event-detail-manage.png` |
@@ -34,19 +14,11 @@ interfaz de la aplicación está en español.
 | [Mis eventos](#mis-eventos) | `/profile` | `docs/images/profile.png` |
 | [Reportes](#reportes) | `/reports` | `docs/images/reports.png` |
 | [Administración de usuarios](#administración-de-usuarios) | `/admin/users` | `docs/images/admin-users.png` |
-| [Página no encontrada](#página-no-encontrada) | cualquier ruta desconocida (`*`) | `docs/images/not-found.png` |
-| [Barra de navegación, anónimo](#barra-de-navegación-anónimo) | todas las páginas | `docs/images/navbar-anonymous.png` |
-| [Barra de navegación, organizador](#barra-de-navegación-organizador) | todas las páginas | `docs/images/navbar-organizer.png` |
-| [Móvil: listado de eventos](#móvil-listado-de-eventos) | `/` en ancho de teléfono | `docs/images/mobile-event-list.png` |
-| [Móvil: detalle del evento](#móvil-detalle-del-evento) | `/events/:id` en ancho de teléfono | `docs/images/mobile-event-detail.png` |
-
-## Inicio de sesión
-
-**Ruta:** `/login`
-
-Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al usuario a la página de la que venía.
-
-> **Captura pendiente:** guarda la imagen como `docs/images/login.png` y reemplaza este bloque con `![Inicio de sesión](images/login.png)`.
+| [Página no encontrada](#página-no-encontrada) | cualquier ruta desconocida (`*`) | `docs/images/page-not-found.png` |
+| [Barra de navegación, anónimo](#barra-de-navegación-anónimo) | todas las páginas | `docs/images/navbar-without-sesion.png` |
+| [Barra de navegación, organizador](#barra-de-navegación-organizador) | todas las páginas | `docs/images/navbar-with-sesion-org.png` |
+| [Móvil: listado de eventos](#móvil-listado-de-eventos) | `/` en ancho de teléfono | `docs/images/event-list-mb.png` |
+| [Móvil: detalle del evento](#móvil-detalle-del-evento) | `/events/:id` en ancho de teléfono | `docs/images/event-detail-mb.png` |
 
 ## Registro de cuenta
 
@@ -54,7 +26,15 @@ Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al u
 
 Formulario de creación de cuenta (nombre, correo, contraseña y confirmación). Público. Las cuentas nuevas reciben el rol de organizador.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/register.png` y reemplaza este bloque con `![Registro de cuenta](images/register.png)`.
+> <img src="images/register.png" alt="Registro de Usuario" width="500">
+
+## Inicio de sesión
+
+**Ruta:** `/login`
+
+Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al usuario a la página de la que venía.
+
+> <img src="images/login.png" alt="Inicio de sesión" width="500">
 
 ## Listado de eventos
 
@@ -62,7 +42,7 @@ Formulario de creación de cuenta (nombre, correo, contraseña y confirmación).
 
 Cuadrícula de tarjetas de eventos con búsqueda y paginación (9 por página) y una insignia de estado. Público; los organizadores y administradores también ven los eventos no publicados según su rol.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/event-list.png` y reemplaza este bloque con `![Listado de eventos](images/event-list.png)`.
+> <img src="images/event-list.png" alt="Lista de eventos publicados" width="500">
 
 ## Detalle del evento
 
@@ -70,7 +50,7 @@ Cuadrícula de tarjetas de eventos con búsqueda y paginación (9 por página) y
 
 Información del evento, insignia de estado, cupos disponibles, el botón de inscribirse/cancelar y la lista de sesiones con la inscripción a cada sesión. La lectura es pública; inscribirse requiere iniciar sesión.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/event-detail.png` y reemplaza este bloque con `![Detalle del evento](images/event-detail.png)`.
+> <img src="images/event-detail.png" alt="Detalle de evento" width="500">
 
 ## Detalle del evento, vista de gestión
 
@@ -78,7 +58,7 @@ Información del evento, insignia de estado, cupos disponibles, el botón de ins
 
 La misma página para el organizador del evento o un administrador: enlace de edición, cambio de estado, descarga del CSV de participantes, eliminación y los controles para agregar, editar y eliminar sesiones.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/event-detail-manage.png` y reemplaza este bloque con `![Detalle del evento, vista de gestión](images/event-detail-manage.png)`.
+> <img src="images/event-detail-manage.png" alt="admin de evento" width="500">
 
 ## Formulario de evento
 
@@ -86,7 +66,7 @@ La misma página para el organizador del evento o un administrador: enlace de ed
 
 Crear o editar un evento (nombre, descripción, lugar, fechas, capacidad). Organizadores y administradores; la edición se limita al organizador del evento o a un administrador, y solo mientras el evento no esté cancelado ni finalizado.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/event-form.png` y reemplaza este bloque con `![Formulario de evento](images/event-form.png)`.
+> <img src="images/event-form.png" alt="crear evento" width="500">
 
 ## Formulario de ponente
 
@@ -94,7 +74,7 @@ Crear o editar un evento (nombre, descripción, lugar, fechas, capacidad). Organ
 
 Agregar un ponente (nombre, biografía, correo opcional) al directorio compartido. Organizadores y administradores.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/speaker-form.png` y reemplaza este bloque con `![Formulario de ponente](images/speaker-form.png)`.
+> <img src="images/speaker-form.png" alt="crear ponente" width="500">
 
 ## Mis eventos
 
@@ -102,7 +82,7 @@ Agregar un ponente (nombre, biografía, correo opcional) al directorio compartid
 
 El resumen del perfil del usuario con sesión iniciada y los eventos a los que está inscrito, con una acción para cancelar. Cualquier usuario con sesión iniciada.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/profile.png` y reemplaza este bloque con `![Mis eventos](images/profile.png)`.
+> <img src="images/profile.png" alt="perfil de mis eventos" width="500">
 
 ## Reportes
 
@@ -110,7 +90,7 @@ El resumen del perfil del usuario con sesión iniciada y los eventos a los que e
 
 Vista previa de participantes por evento o por sesión, con búsqueda, filtros de estado y de fecha, paginación y descarga en CSV. Organizadores (sus propios eventos) y administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/reports.png` y reemplaza este bloque con `![Reportes](images/reports.png)`.
+> <img src="images/reports.png" alt="Reporte de participantes a evento" width="500">
 
 ## Administración de usuarios
 
@@ -118,7 +98,7 @@ Vista previa de participantes por evento o por sesión, con búsqueda, filtros d
 
 Búsqueda por prefijo de correo sobre las cuentas de usuario, con edición en línea de nombre, correo, rol e indicador de activo. Solo administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/admin-users.png` y reemplaza este bloque con `![Administración de usuarios](images/admin-users.png)`.
+> <img src="images/admin-users.png" alt="Admin usuarios" width="500">
 
 ## Página no encontrada
 
@@ -126,7 +106,7 @@ Búsqueda por prefijo de correo sobre las cuentas de usuario, con edición en l�
 
 Mensaje y enlace de regreso a la página de inicio. Público.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/not-found.png` y reemplaza este bloque con `![Página no encontrada](images/not-found.png)`.
+> <img src="images/page-not-found.png" alt="pagina no encontrada" width="500">
 
 ## Barra de navegación, anónimo
 
@@ -134,7 +114,7 @@ Mensaje y enlace de regreso a la página de inicio. Público.
 
 Enlace de la marca más los enlaces de inicio de sesión y registro. Se muestra a los visitantes sin sesión.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/navbar-anonymous.png` y reemplaza este bloque con `![Barra de navegación, anónimo](images/navbar-anonymous.png)`.
+> <img src="images/navbar-without-sesion.png" alt="barra sin sesion" width="500">
 
 ## Barra de navegación, organizador
 
@@ -142,7 +122,7 @@ Enlace de la marca más los enlaces de inicio de sesión y registro. Se muestra 
 
 Muestra Nuevo evento, Nuevo ponente, Reportes y Mis eventos, el nombre del usuario y Cerrar sesión. Los administradores también ven Administración.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/navbar-organizer.png` y reemplaza este bloque con `![Barra de navegación, organizador](images/navbar-organizer.png)`.
+> <img src="images/navbar-with-sesion-org.png" alt="barra con sesion organizador" width="500">
 
 ## Móvil: listado de eventos
 
@@ -150,7 +130,7 @@ Muestra Nuevo evento, Nuevo ponente, Reportes y Mis eventos, el nombre del usuar
 
 El listado de eventos por debajo del punto de corte de 640 px, donde la barra de navegación se apila verticalmente y la cuadrícula pasa a una sola columna.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/mobile-event-list.png` y reemplaza este bloque con `![Móvil: listado de eventos](images/mobile-event-list.png)`.
+> <img src="images/event-list-mb.png" alt="lista de eventos movil" width="500">
 
 ## Móvil: detalle del evento
 
@@ -158,4 +138,4 @@ El listado de eventos por debajo del punto de corte de 640 px, donde la barra de
 
 El detalle del evento y la lista de sesiones en ancho de teléfono.
 
-> **Captura pendiente:** guarda la imagen como `docs/images/mobile-event-detail.png` y reemplaza este bloque con `![Móvil: detalle del evento](images/mobile-event-detail.png)`.
+> <img src="images/event-detail-mb.png" alt="detalle de eventos movil" width="500">
