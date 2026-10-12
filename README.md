@@ -19,9 +19,9 @@ exportan reportes de participantes en CSV. La interfaz está en español.
 Requiere Docker con Compose.
 
 ```bash
-cp backend/.env.example backend/.env    # then set your own JWT_SECRET (32+ characters)
+cp backend/.env.example backend/.env    # luego define tu propio JWT_SECRET (32+ caracteres)
 docker compose up -d --build
-docker compose ps                        # wait until backend is "healthy"
+docker compose ps                        # espera a que el backend esté "healthy"
 ```
 
 Crea el administrador una sola vez, cuando el backend esté saludable (`healthy`). Si se
@@ -42,6 +42,20 @@ docker compose exec \
 
 Datos de demostración opcionales: `docker compose exec -e ADMIN_EMAIL=admin@example.com backend python -m scripts.seed_demo`.
 
+### Frontend sin Docker
+
+Requiere Node.js y el backend en ejecución (`http://localhost:8000/api/v1`):
+
+```bash
+cd frontend
+npm install
+npm run dev     # servidor de desarrollo de Vite en http://localhost:5173
+npm test        # pruebas con Vitest
+```
+
+Scripts, variables de entorno y cobertura en
+[docs/frontend-operations.md](docs/frontend-operations.md).
+
 ## Documentación
 
 - [docs/README.md](docs/README.md): índice de todos los documentos.
@@ -49,6 +63,12 @@ Datos de demostración opcionales: `docker compose exec -e ADMIN_EMAIL=admin@exa
 - [docs/backend-architecture.md](docs/backend-architecture.md): cómo está construido el backend.
 - [docs/backend-operations.md](docs/backend-operations.md): configuración, migraciones, carga inicial de datos (seed).
 - [docs/backend-testing.md](docs/backend-testing.md): ejecución de pruebas y verificaciones.
+- [docs/frontend-architecture.md](docs/frontend-architecture.md): cómo está construido el frontend.
+- [docs/frontend-conventions.md](docs/frontend-conventions.md): textos, validaciones, estilos y cómo agregar una pantalla.
+- [docs/frontend-operations.md](docs/frontend-operations.md): scripts, Docker, pruebas y cobertura.
+
+Qué leer a continuación: [docs/README.md](docs/README.md) ordena todos los documentos por
+pregunta y por tema.
 
 ## Estructura del repositorio
 

@@ -1,7 +1,24 @@
 # Documentación
 
-Índice de la documentación del proyecto, en el orden de lectura sugerido. Los documentos
-del backend describen el código tal como está hoy y referencian los archivos reales.
+**Mis Eventos** es una aplicación web para gestionar eventos de principio a fin: desde
+que un organizador los crea hasta que los asistentes se inscriben. Nace para resolver
+cuatro problemas: la desorganización, los procesos manuales (inscripciones y reportes),
+las decisiones tomadas sin información y una experiencia de usuario deficiente.
+
+Qué permite hacer cada rol dentro de **Mis Eventos**:
+
+- **Asistente:** buscar eventos por nombre, ver el detalle con sus sesiones, inscribirse
+  al evento y a sesiones concretas mientras haya cupo, y consultar sus inscripciones.
+- **Organizador:** crear y administrar eventos con estados, capacidad, sesiones y
+  ponentes, y exportar reportes de participantes en CSV.
+- **Administrador:** gestionar usuarios y roles.
+
+Las cuentas creadas desde el formulario de registro siempre son de organizador
+(`POST /auth/register`, rol por defecto en `backend/app/application/auth_service.py`). El
+rol de asistente se obtiene de dos formas: un administrador cambia el rol en la pantalla
+de administración de usuarios (`/admin/users`), o se usan los usuarios de demostración que
+crea `backend/scripts/seed_demo.py` (`attendee@example.com` y `attendee1@example.com` a
+`attendee4@example.com`, con la contraseña `attendee123`).
 
 ## Empieza aquí
 
@@ -35,10 +52,3 @@ del backend describen el código tal como está hoy y referencian los archivos r
 | [frontend-architecture.md](frontend-architecture.md) | Mapa de `frontend/src`, una pantalla de extremo a extremo, rutas y protección por rol, sesión, cliente HTTP y traducción de errores |
 | [frontend-conventions.md](frontend-conventions.md) | Textos en español con i18n, validaciones frente al backend, estilos y componentes compartidos, cómo agregar una pantalla |
 | [frontend-operations.md](frontend-operations.md) | Scripts npm, Docker y nginx, conexión con el backend, pruebas, cobertura, lint y formato |
-
-## Qué documento para qué pregunta
-
-- "¿Cómo está construido y por qué?" -> architecture, luego domain rules.
-- "¿Qué puede hacer este endpoint y quién puede llamarlo?" -> API, luego domain rules.
-- "¿Cómo lo ejecuto o lo despliego?" -> operations, luego scripts.
-- "¿Cómo agrego una funcionalidad de forma segura?" -> architecture (capas y puertos), testing.
