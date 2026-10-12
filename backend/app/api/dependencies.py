@@ -17,6 +17,7 @@ from app.application.ports import (
     NullCache,
     PasswordHasher,
     RegistrationRepository,
+    SessionRegistrationRepository,
     SessionRepository,
     SpeakerRepository,
     TokenService,
@@ -25,6 +26,7 @@ from app.application.ports import (
 )
 from app.application.registration_service import RegistrationService
 from app.application.report_service import ReportService
+from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
@@ -34,6 +36,9 @@ from app.infrastructure.cache.redis_cache import RedisCache
 from app.infrastructure.db.event_repository import SqlEventRepository
 from app.infrastructure.db.registration_repository import SqlRegistrationRepository
 from app.infrastructure.db.session import get_session
+from app.infrastructure.db.session_registration_repository import (
+    SqlSessionRegistrationRepository,
+)
 from app.infrastructure.db.session_repository import SqlSessionRepository
 from app.infrastructure.db.speaker_repository import SqlSpeakerRepository
 from app.infrastructure.db.unit_of_work import SqlUnitOfWork
@@ -171,6 +176,21 @@ def get_registration_service(
     uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> RegistrationService:
     return RegistrationService(events, registrations, uow)
+
+
+def get_session_registration_repository(
+    session: Session = Depends(get_session),
+) -> SessionRegistrationRepository:
+    return SqlSessionRegistrationRepository(session)
+
+
+def get_session_registration_service(
+    events: EventRepository = Depends(get_event_repository),
+    sessions: SessionRepository = Depends(get_session_repository),
+    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+    uow: UnitOfWork = Depends(get_unit_of_work),
+) -> SessionRegistrationService:
+    return SessionRegistrationService(events, sessions, enrollments, uow)
 
 
 def get_report_service(

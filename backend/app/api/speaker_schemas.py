@@ -1,10 +1,12 @@
 """Speaker and session DTOs."""
 
+from dataclasses import asdict
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.domain.session import SessionWithSpeaker
+from app.domain.session_registration import SessionAvailability
 
 
 class SpeakerRequest(BaseModel):
@@ -99,8 +101,8 @@ class SessionRequest(BaseModel):
     )
 
 
-class SessionResponse(BaseModel):
-    """A session of an event."""
+class ScheduledSession(BaseModel):
+    """A session of an event: the part that is the same for every viewer (cacheable)."""
 
     id: int = Field(description="Session identifier.", examples=[1])
     event_id: int = Field(description="Event the session belongs to.", examples=[1])
@@ -111,7 +113,7 @@ class SessionResponse(BaseModel):
     speaker: SpeakerRef = Field(description="Speaker giving the session.")
 
     @classmethod
-    def from_domain(cls, item: SessionWithSpeaker) -> "SessionResponse":
+    def from_domain(cls, item: SessionWithSpeaker) -> "ScheduledSession":
         s = item.session
         assert s.id is not None
         return cls(
@@ -123,3 +125,27 @@ class SessionResponse(BaseModel):
             capacity=s.capacity,
             speaker=SpeakerRef(id=s.speaker_id, name=item.speaker_name),
         )
+
+
+class SessionResponse(ScheduledSession):
+    """A session of an event with its enrollment availability for the caller."""
+
+    enrolled_count: int = Field(
+        default=0, description="Attendees currently enrolled in the session.", examples=[12]
+    )
+    available_spots: int = Field(
+        default=0,
+        description="Remaining seats: session capacity minus enrollments (never negative).",
+        examples=[88],
+    )
+    is_enrolled: bool = Field(
+        default=False,
+        description="Whether the authenticated caller is enrolled (always false if anonymous).",
+        examples=[False],
+    )
+
+    @classmethod
+    def from_scheduled(
+        cls, session: ScheduledSession, availability: SessionAvailability
+    ) -> "SessionResponse":
+        return cls(**session.model_dump(), **asdict(availability))

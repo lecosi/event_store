@@ -181,6 +181,14 @@ def test_delete_permissions(client: TestClient, session: Session) -> None:
     assert session.exec(select(Event)).all() == []
 
 
+def test_event_without_sessions_can_be_published(client: TestClient, session: Session) -> None:
+    owner = organizer(client, session)
+    event = create(client, owner)
+    publish(client, owner, event["id"])
+    detail = client.get(f"{EVENTS}/{event['id']}").json()
+    assert (detail["status"], detail["sessions"]) == ("published", [])
+
+
 def test_delete_removes_sessions(client: TestClient, session: Session) -> None:
     owner = organizer(client, session)
     event = create(client, owner)

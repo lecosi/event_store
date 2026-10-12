@@ -18,6 +18,7 @@ from app.application.errors import (
 from app.domain.event import EventStateError, EventValidationError
 from app.domain.registration import NotRegisteredError, RegistrationConflictError
 from app.domain.session import SessionConflictError, SessionValidationError
+from app.domain.session_registration import EnrollmentConflictError, NotEnrolledError
 from app.domain.user import InvalidFullNameError
 
 EMAIL_TAKEN_DETAIL = "Email already registered"
@@ -39,6 +40,9 @@ ERROR_RESPONSES: dict[type[Exception], ErrorResponse] = {
     SpeakerNotFoundError: ErrorResponse(status.HTTP_404_NOT_FOUND, "Speaker not found"),
     UserNotFoundError: ErrorResponse(status.HTTP_404_NOT_FOUND, "User not found"),
     NotRegisteredError: ErrorResponse(status.HTTP_404_NOT_FOUND, "You are not registered"),
+    NotEnrolledError: ErrorResponse(
+        status.HTTP_404_NOT_FOUND, "You are not enrolled in this session"
+    ),
     PermissionDeniedError: ErrorResponse(status.HTTP_403_FORBIDDEN, "Insufficient permissions"),
     EventValidationError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
     SessionValidationError: ErrorResponse(status.HTTP_422_UNPROCESSABLE_ENTITY),
@@ -46,6 +50,7 @@ ERROR_RESPONSES: dict[type[Exception], ErrorResponse] = {
     EventStateError: ErrorResponse(status.HTTP_409_CONFLICT),
     SessionConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     RegistrationConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
+    EnrollmentConflictError: ErrorResponse(status.HTTP_409_CONFLICT),
     EmailAlreadyRegisteredError: ErrorResponse(status.HTTP_409_CONFLICT, EMAIL_TAKEN_DETAIL),
     SpeakerEmailTakenError: ErrorResponse(status.HTTP_409_CONFLICT, "Speaker email already in use"),
     SpeakerInUseError: ErrorResponse(

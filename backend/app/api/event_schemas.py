@@ -125,6 +125,16 @@ class RegistrationResponse(BaseModel):
     )
 
 
+class SessionRegistrationResponse(BaseModel):
+    """An enrollment of a user in a session."""
+
+    user_id: int = Field(description="Enrolled user.", examples=[2])
+    session_id: int = Field(description="Session the user enrolled in.", examples=[1])
+    created_at: datetime = Field(
+        description="When the enrollment was made (ISO 8601).", examples=["2030-01-10T15:30:00Z"]
+    )
+
+
 class RegisteredEventResponse(EventResponse):
     """An event the caller is registered to."""
 

@@ -12,6 +12,7 @@ from typing import Protocol
 from app.domain.event import Event, EventFilters, ParticipantFilters
 from app.domain.registration import ParticipantRow, RegisteredEvent, Registration
 from app.domain.session import Session
+from app.domain.session_registration import EnrollmentContext, SessionRegistration
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 
@@ -192,6 +193,37 @@ class RegistrationRepository(Protocol):
 
     def iter_participants(self, filters: ParticipantFilters) -> Iterator[ParticipantRow]:
         """Yield every matching participant in the same order, reading in bounded chunks."""
+        ...
+
+
+EnrollmentRule = Callable[[EnrollmentContext], None]
+"""Domain rule evaluated with the locked session and the user's enrollment state."""
+
+
+class SessionRegistrationRepository(Protocol):
+    def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
+        """Check ``rule`` against the locked session and stage the enrollment.
+
+        Implementations must serialize concurrent calls for the same session, holding
+        the lock until the unit of work ends, so the count seen by ``rule`` cannot
+        change before the enrollment is durable. Raise SessionNotFoundError for a
+        missing session and AlreadyEnrolledError on a duplicate (checked before
+        ``rule``); propagate whatever ``rule`` raises.
+        """
+        ...
+
+    def is_enrolled(self, user_id: int, session_id: int) -> bool: ...
+
+    def cancel(self, user_id: int, session_id: int) -> bool:
+        """Delete the enrollment; return False when there was none."""
+        ...
+
+    def counts_for_event(self, event_id: int) -> dict[int, int]:
+        """Enrollments per session id for the event's sessions (absent ids have none)."""
+        ...
+
+    def enrolled_session_ids(self, user_id: int, event_id: int) -> set[int]:
+        """Ids of the event's sessions the user is enrolled in."""
         ...
 
 

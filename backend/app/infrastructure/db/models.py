@@ -74,3 +74,15 @@ class Registration(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", index=True)
     event_id: int = Field(foreign_key="event.id", ondelete="CASCADE", index=True)
     created_at: datetime = Field(default_factory=utc_now, sa_type=_TZ_DATETIME)
+
+
+class SessionRegistration(SQLModel, table=True):
+    __tablename__ = "session_registration"
+    __table_args__ = (
+        UniqueConstraint("user_id", "session_id", name="uq_session_registration_user_session"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    session_id: int = Field(foreign_key="session.id", ondelete="CASCADE", index=True)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=_TZ_DATETIME)

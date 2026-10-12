@@ -10,6 +10,7 @@ from app.api.dependencies import (
     get_event_service,
     get_optional_user,
     get_registration_service,
+    get_session_registration_service,
     get_session_service,
     require_role,
 )
@@ -27,10 +28,11 @@ from app.api.openapi_responses import (
     combine,
     conflict,
 )
-from app.api.speaker_schemas import SessionResponse
+from app.api.speaker_schemas import ScheduledSession, SessionResponse
 from app.application.event_service import EventService, is_public_view
 from app.application.ports import EVENTS_NAMESPACE, Cache
 from app.application.registration_service import RegistrationService
+from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.core.config import Settings, get_settings
 from app.domain.enums import EventStatus, Role
@@ -52,11 +54,14 @@ def _detail(
     event: Event,
     sessions: SessionService,
     registrations: RegistrationService,
+    enrollments: SessionRegistrationService,
     viewer: UserAccount | None,
 ) -> EventDetailResponse:
     assert event.id is not None
     base = EventResponse.model_validate(event, from_attributes=True)
-    items = [SessionResponse.from_domain(s) for s in sessions.list_for_event(event.id)]
+    scheduled = [ScheduledSession.from_domain(s) for s in sessions.list_for_event(event.id)]
+    seats = enrollments.availability(event.id, {s.id: s.capacity for s in scheduled}, viewer)
+    items = [SessionResponse.from_scheduled(s, seats[s.id]) for s in scheduled]
     availability = registrations.availability(event, viewer)
     return EventDetailResponse(**base.model_dump(), sessions=items, **asdict(availability))
 
@@ -74,13 +79,14 @@ def create_event(
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
     registrations: RegistrationService = Depends(get_registration_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
 ) -> EventDetailResponse:
     """Create an event owned by the caller. Requires the `organizer` or `admin` role.
 
     The event starts in `draft` status (not public until published). Business rules (422):
     `start_at` must be in the future, `end_at` after `start_at`, and `capacity` at least 1.
     """
-    return _detail(service.create(user, _details(body)), sessions, registrations, user)
+    return _detail(service.create(user, _details(body)), sessions, registrations, enrollments, user)
 
 
 @router.get("", response_model=EventPageResponse, summary="Search and list events")
@@ -151,6 +157,7 @@ def get_event(
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
     registrations: RegistrationService = Depends(get_registration_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
 ) -> EventDetailResponse:
     """Event detail with its sessions, registered count and available spots. Public.
 
@@ -158,7 +165,7 @@ def get_event(
     answer 404, exactly as if they did not exist. With a token, `is_registered` tells whether
     the caller is registered.
     """
-    return _detail(service.get(event_id, viewer), sessions, registrations, viewer)
+    return _detail(service.get(event_id, viewer), sessions, registrations, enrollments, viewer)
 
 
 @router.put(
@@ -181,6 +188,7 @@ def update_event(
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
     registrations: RegistrationService = Depends(get_registration_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
 ) -> EventDetailResponse:
     """Replace the editable fields of an event. Only its organizer or an admin.
 
@@ -188,7 +196,9 @@ def update_event(
     lower than the current registrations or than the largest session; the new dates must still
     contain every existing session. Invalid dates or capacity answer 422.
     """
-    return _detail(service.update(user, event_id, _details(body)), sessions, registrations, user)
+    return _detail(
+        service.update(user, event_id, _details(body)), sessions, registrations, enrollments, user
+    )
 
 
 @router.patch(
@@ -211,6 +221,7 @@ def change_event_status(
     service: EventService = Depends(get_event_service),
     sessions: SessionService = Depends(get_session_service),
     registrations: RegistrationService = Depends(get_registration_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
 ) -> EventDetailResponse:
     """Move an event through its lifecycle. Only its organizer or an admin.
 
@@ -226,7 +237,11 @@ def change_event_status(
     Any other transition answers 409.
     """
     return _detail(
-        service.change_status(user, event_id, body.status), sessions, registrations, user
+        service.change_status(user, event_id, body.status),
+        sessions,
+        registrations,
+        enrollments,
+        user,
     )
 
 

@@ -3,11 +3,13 @@
 from app.domain.event import Event, ensure_utc
 from app.domain.registration import Registration
 from app.domain.session import Session as SessionEntity
+from app.domain.session_registration import SessionRegistration
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration as RegistrationRow
 from app.infrastructure.db.models import Session as SessionRow
+from app.infrastructure.db.models import SessionRegistration as SessionRegistrationRow
 from app.infrastructure.db.models import Speaker as SpeakerRow
 from app.infrastructure.db.models import User as UserRow
 
@@ -47,6 +49,15 @@ def registration_to_domain(row: RegistrationRow) -> Registration:
         id=row.id,
         user_id=row.user_id,
         event_id=row.event_id,
+        created_at=ensure_utc(row.created_at),
+    )
+
+
+def session_registration_to_domain(row: SessionRegistrationRow) -> SessionRegistration:
+    return SessionRegistration(
+        id=row.id,
+        user_id=row.user_id,
+        session_id=row.session_id,
         created_at=ensure_utc(row.created_at),
     )
 

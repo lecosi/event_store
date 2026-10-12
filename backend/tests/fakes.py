@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -8,8 +8,9 @@ from app.application.errors import (
     EmailAlreadyRegisteredError,
     EventNotFoundError,
     InvalidTokenError,
+    SessionNotFoundError,
 )
-from app.application.ports import RegistrationRule
+from app.application.ports import EnrollmentRule, RegistrationRule
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ParticipantFilters, ensure_utc
 from app.domain.registration import (
@@ -19,6 +20,11 @@ from app.domain.registration import (
     Registration,
 )
 from app.domain.session import Session
+from app.domain.session_registration import (
+    AlreadyEnrolledError,
+    EnrollmentContext,
+    SessionRegistration,
+)
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 
@@ -155,6 +161,7 @@ class FakeRegistrationRepository:
         self._events = events
         self._users = users or FakeUserRepository()
         self._rows: dict[tuple[int, int], datetime] = {}
+        self.cancel_hooks: list[Callable[[int, int], None]] = []
 
     def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
         event = self._events.get(event_id)
@@ -175,6 +182,8 @@ class FakeRegistrationRepository:
         if self._rows.pop((user_id, event_id), None) is None:
             return False
         self._events.registrations[event_id] -= 1
+        for hook in self.cancel_hooks:
+            hook(user_id, event_id)
         return True
 
     def list_for_user(
@@ -226,6 +235,70 @@ class FakeRegistrationRepository:
         if filters.date_from is not None and start < filters.date_from:
             return False
         return filters.date_to is None or start <= filters.date_to
+
+
+class FakeSessionRegistrationRepository:
+    def __init__(
+        self,
+        events: FakeEventRepository,
+        sessions: FakeSessionRepository,
+        registrations: FakeRegistrationRepository,
+    ) -> None:
+        self._events = events
+        self._sessions = sessions
+        self._registrations = registrations
+        self._rows: dict[tuple[int, int], datetime] = {}
+        registrations.cancel_hooks.append(self._drop_event_enrollments)
+
+    def _drop_event_enrollments(self, user_id: int, event_id: int) -> None:
+        for session in self._sessions.list_for_event(event_id):
+            self._rows.pop((user_id, session.id or 0), None)
+
+    def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
+        session = self._sessions.get(session_id)
+        if session is None:
+            raise SessionNotFoundError(session_id)
+        event = self._events.get(session.event_id)
+        assert event is not None
+        if (user_id, session_id) in self._rows:
+            raise AlreadyEnrolledError("Already enrolled")
+        mine = [
+            other
+            for (uid, sid) in self._rows
+            if uid == user_id and (other := self._sessions.get(sid)) is not None
+        ]
+        rule(
+            EnrollmentContext(
+                event=event,
+                session=session,
+                event_registered=self._registrations.is_registered(user_id, event.id or 0),
+                enrolled_sessions=mine,
+                enrolled_count=self._count(session_id),
+            )
+        )
+        created_at = datetime.now(UTC)
+        self._rows[(user_id, session_id)] = created_at
+        return SessionRegistration(user_id=user_id, session_id=session_id, created_at=created_at)
+
+    def _count(self, session_id: int) -> int:
+        return sum(1 for (_, sid) in self._rows if sid == session_id)
+
+    def is_enrolled(self, user_id: int, session_id: int) -> bool:
+        return (user_id, session_id) in self._rows
+
+    def cancel(self, user_id: int, session_id: int) -> bool:
+        return self._rows.pop((user_id, session_id), None) is not None
+
+    def counts_for_event(self, event_id: int) -> dict[int, int]:
+        return {
+            s.id: self._count(s.id)
+            for s in self._sessions.list_for_event(event_id)
+            if s.id is not None and self._count(s.id)
+        }
+
+    def enrolled_session_ids(self, user_id: int, event_id: int) -> set[int]:
+        in_event = {s.id for s in self._sessions.list_for_event(event_id)}
+        return {sid for (uid, sid) in self._rows if uid == user_id and sid in in_event}
 
 
 class FakeSpeakerRepository:

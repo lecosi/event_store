@@ -6,6 +6,7 @@ from app.api.dependencies import (
     get_cache,
     get_event_service,
     get_optional_user,
+    get_session_registration_service,
     get_session_service,
     require_role,
 )
@@ -17,20 +18,22 @@ from app.api.openapi_responses import (
     combine,
     conflict,
 )
-from app.api.speaker_schemas import SessionRequest, SessionResponse
+from app.api.speaker_schemas import ScheduledSession, SessionRequest, SessionResponse
 from app.application.event_service import EventService
 from app.application.ports import SESSIONS_NAMESPACE, Cache
+from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.session import SessionDetails
+from app.domain.session_registration import SessionAvailability
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
 
 organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
-SESSION_LIST = TypeAdapter(list[SessionResponse])
+SCHEDULE = TypeAdapter(list[ScheduledSession])
 
 SESSION_CONFLICT = conflict(
     "The speaker has an overlapping session, or the event is cancelled or finished.",
@@ -53,6 +56,7 @@ def list_sessions(
     viewer: UserAccount | None = Depends(get_optional_user),
     events: EventService = Depends(get_event_service),
     service: SessionService = Depends(get_session_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
     cache: Cache = Depends(get_cache),
     settings: Settings = Depends(get_settings),
 ) -> list[SessionResponse]:
@@ -60,14 +64,20 @@ def list_sessions(
 
     Follows the event visibility: sessions of a non-published event are only listed to its
     organizer and admins, anyone else gets 404.
+
+    `enrolled_count`, `available_spots` and `is_enrolled` are computed per request, outside
+    the cached schedule; `is_enrolled` is always false for anonymous callers.
     """
     events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
 
-    def build() -> list[SessionResponse]:
-        return [SessionResponse.from_domain(s) for s in service.list_for_event(event_id)]
+    def build() -> list[ScheduledSession]:
+        return [ScheduledSession.from_domain(s) for s in service.list_for_event(event_id)]
 
     ttl = settings.cache_ttl_sessions_seconds
-    return read_through(cache, SESSIONS_NAMESPACE, f"event:{event_id}", ttl, SESSION_LIST, build)
+    schedule = read_through(cache, SESSIONS_NAMESPACE, f"event:{event_id}", ttl, SCHEDULE, build)
+    capacities = {item.id: item.capacity for item in schedule}
+    availability = enrollments.availability(event_id, capacities, viewer)
+    return [SessionResponse.from_scheduled(item, availability[item.id]) for item in schedule]
 
 
 @router.post(
@@ -91,7 +101,9 @@ def create_session(
     touch, one ending when the next starts, do not overlap).
     """
     created = service.create(user, event_id, _details(body))
-    return SessionResponse.from_domain(service.get_with_speaker(created))
+    scheduled = ScheduledSession.from_domain(service.get_with_speaker(created))
+    empty = SessionAvailability(0, created.capacity, False)
+    return SessionResponse.from_scheduled(scheduled, empty)
 
 
 @router.put(
@@ -106,6 +118,7 @@ def update_session(
     body: SessionRequest,
     user: UserAccount = Depends(organizer_or_admin),
     service: SessionService = Depends(get_session_service),
+    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
 ) -> SessionResponse:
     """Replace a session. Only the event's organizer or an admin.
 
@@ -113,7 +126,9 @@ def update_session(
     speaker overlaps. 404 when the session does not belong to the event.
     """
     updated = service.update(user, event_id, session_id, _details(body))
-    return SessionResponse.from_domain(service.get_with_speaker(updated))
+    scheduled = ScheduledSession.from_domain(service.get_with_speaker(updated))
+    seats = enrollments.availability(event_id, {session_id: updated.capacity}, user)
+    return SessionResponse.from_scheduled(scheduled, seats[session_id])
 
 
 @router.delete(

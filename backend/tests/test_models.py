@@ -3,7 +3,14 @@ from sqlalchemy import Engine, inspect
 
 def test_migrations_create_all_tables(postgres_engine: Engine):
     tables = set(inspect(postgres_engine).get_table_names())
-    assert {"users", "event", "speaker", "session", "registration"} <= tables
+    assert {
+        "users",
+        "event",
+        "speaker",
+        "session",
+        "registration",
+        "session_registration",
+    } <= tables
 
 
 def test_registration_has_unique_user_event_constraint(postgres_engine: Engine):
@@ -21,3 +28,14 @@ def test_event_and_session_have_capacity_and_date_check_constraints(postgres_eng
     for table in ("event", "session"):
         names = {check["name"] for check in inspector.get_check_constraints(table)}
         assert {f"ck_{table}_capacity_positive", f"ck_{table}_dates_order"} <= names
+
+
+def test_session_registration_has_unique_user_session_constraint(postgres_engine: Engine):
+    uniques = inspect(postgres_engine).get_unique_constraints("session_registration")
+    assert any(set(u["column_names"]) == {"user_id", "session_id"} for u in uniques)
+
+
+def test_session_registration_is_deleted_with_its_session(postgres_engine: Engine):
+    foreign_keys = inspect(postgres_engine).get_foreign_keys("session_registration")
+    by_table = {fk["referred_table"]: fk for fk in foreign_keys}
+    assert by_table["session"]["options"].get("ondelete") == "CASCADE"
