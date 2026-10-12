@@ -5,7 +5,7 @@ Each port is small and focused (interface segregation): a use case depends only 
 ports for the roles it actually plays, even when one adapter implements several of them.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Protocol
@@ -14,7 +14,6 @@ from app.domain.event import Event, EventFilters, ParticipantFilters
 from app.domain.registration import ParticipantRow, RegisteredEvent, Registration
 from app.domain.session import Session
 from app.domain.session_registration import (
-    EnrollmentContext,
     SessionParticipantFilters,
     SessionParticipantRow,
     SessionRegistration,
@@ -177,19 +176,22 @@ class SessionEnrollmentLock(Protocol):
         ...
 
 
-RegistrationRule = Callable[[Event, int], None]
-"""Domain rule evaluated with the (locked) event and its current registration count."""
-
-
 class RegistrationRepository(Protocol):
-    def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
-        """Check ``rule`` against the locked event and stage the registration.
+    def lock_event(self, event_id: int) -> Event:
+        """Lock the event row until the unit of work ends and return it.
 
-        Implementations must serialize concurrent calls for the same event, holding
-        the lock until the unit of work ends, so the count seen by ``rule`` cannot
-        change before the registration is durable. Raise EventNotFoundError for a
-        missing event and AlreadyRegisteredError on a duplicate (checked before
-        ``rule``); propagate whatever ``rule`` raises.
+        Concurrent registrations to the same event are serialized behind the lock, so the
+        count read afterwards cannot change before the registration is durable. Raise
+        EventNotFoundError for a missing event.
+        """
+        ...
+
+    def count_for_event(self, event_id: int) -> int: ...
+
+    def add(self, user_id: int, event_id: int) -> Registration:
+        """Stage the registration; raise DuplicateEntryError when the unique key rejects it.
+
+        The unit of work must roll back after that error.
         """
         ...
 
@@ -223,21 +225,35 @@ class RegistrationRepository(Protocol):
         ...
 
 
-EnrollmentRule = Callable[[EnrollmentContext], None]
-"""Domain rule evaluated with the locked session and the user's enrollment state."""
-
-
 class SessionEnrollmentWriter(Protocol):
-    """Stages enrollment changes and answers the checks that guard them."""
+    """Locks and loads what the enrollment rule decides on, stages changes and guards them."""
 
-    def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
-        """Check ``rule`` against the locked session and stage the enrollment.
+    def lock_session(self, session_id: int) -> Session:
+        """Lock the session row until the unit of work ends and return it.
 
-        Implementations must serialize concurrent calls for the same session, holding
-        the lock until the unit of work ends, so the count seen by ``rule`` cannot
-        change before the enrollment is durable. Raise SessionNotFoundError for a
-        missing session and AlreadyEnrolledError on a duplicate (checked before
-        ``rule``); propagate whatever ``rule`` raises.
+        Concurrent enrollments to the session are serialized behind the lock, so the count
+        read afterwards cannot change before the enrollment is durable. Raise
+        SessionNotFoundError for a missing session.
+        """
+        ...
+
+    def lock_event_registration(self, user_id: int, event_id: int) -> bool:
+        """Lock the user's event registration row and tell whether it exists.
+
+        The lock keeps a concurrent event cancellation from leaving an orphan enrollment.
+        """
+        ...
+
+    def count_enrollments(self, session_id: int) -> int: ...
+
+    def list_enrolled_sessions(self, user_id: int) -> list[Session]:
+        """Return every session the user is enrolled in, across all events."""
+        ...
+
+    def add(self, user_id: int, session_id: int) -> SessionRegistration:
+        """Stage the enrollment; raise DuplicateEntryError when the unique key rejects it.
+
+        The unit of work must roll back after that error.
         """
         ...
 

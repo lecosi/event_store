@@ -95,7 +95,7 @@ class Scenario:
             )
         )
         assert user.id is not None and session.id is not None
-        self.enrollments.enroll(user.id, session.id, lambda *_: None)
+        self.enrollments.add(user.id, session.id)
 
 
 @pytest.fixture

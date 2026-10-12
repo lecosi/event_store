@@ -143,8 +143,8 @@ def test_registrations_and_session_enrollments_are_kept(env: Env) -> None:
             capacity=5,
         )
     )
-    registrations.register(7, event.id or 0, lambda *_: None)
-    enrollments.enroll(7, session.id or 0, lambda *_: None)
+    registrations.add(7, event.id or 0)
+    enrollments.add(7, session.id or 0)
 
     env.close()
 

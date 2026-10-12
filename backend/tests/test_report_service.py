@@ -71,7 +71,7 @@ class Scenario:
             )
         )
         assert user.id is not None and event.id is not None
-        self.registrations.register(user.id, event.id, lambda *_: None)
+        self.registrations.add(user.id, event.id)
 
 
 @pytest.fixture

@@ -5,11 +5,9 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
 
-from app.application.errors import EventNotFoundError
-from app.application.ports import RegistrationRule
-from app.domain.event import ParticipantFilters, ensure_utc
+from app.application.errors import DuplicateEntryError, EventNotFoundError
+from app.domain.event import Event, ParticipantFilters, ensure_utc
 from app.domain.registration import (
-    AlreadyRegisteredError,
     ParticipantRow,
     RegisteredEvent,
     Registration,
@@ -55,7 +53,7 @@ class SqlRegistrationRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
+    def lock_event(self, event_id: int) -> Event:
         # FOR UPDATE serializes concurrent registrations to the same event. The lock lasts
         # until the unit of work commits, so each one counts the rows committed by the
         # previous one and the last spot is never oversold.
@@ -64,21 +62,22 @@ class SqlRegistrationRepository:
         ).first()
         if event_row is None:
             raise EventNotFoundError(event_id)
-        if self.is_registered(user_id, event_id):
-            raise AlreadyRegisteredError("You are already registered to this event")
-        registered = self._session.exec(
+        return event_to_domain(event_row)
+
+    def count_for_event(self, event_id: int) -> int:
+        return self._session.exec(
             select(func.count())
             .select_from(RegistrationRow)
             .where(col(RegistrationRow.event_id) == event_id)
         ).one()
-        rule(event_to_domain(event_row), registered)
+
+    def add(self, user_id: int, event_id: int) -> Registration:
         row = RegistrationRow(user_id=user_id, event_id=event_id)
         self._session.add(row)
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
-            raise AlreadyRegisteredError("You are already registered to this event") from exc
+            raise DuplicateEntryError from exc
         self._session.refresh(row)
         return registration_to_domain(row)
 

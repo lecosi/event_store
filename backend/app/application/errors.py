@@ -5,6 +5,14 @@ class EmailAlreadyRegisteredError(Exception):
     pass
 
 
+class DuplicateEntryError(Exception):
+    """A unique constraint rejected a staged row: a concurrent write won the race.
+
+    The surrounding unit of work must roll back; the use case translates this into the
+    domain conflict that fits its context.
+    """
+
+
 class InvalidCredentialsError(Exception):
     """Unknown email, wrong password or disabled account (deliberately indistinguishable)."""
 

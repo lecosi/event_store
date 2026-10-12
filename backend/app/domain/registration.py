@@ -12,6 +12,9 @@ class RegistrationConflictError(Exception):
     """The registration conflicts with the current state (maps to HTTP 409)."""
 
 
+ALREADY_REGISTERED = "You are already registered to this event"
+
+
 class AlreadyRegisteredError(RegistrationConflictError):
     pass
 

@@ -1,8 +1,7 @@
 """Registration use cases. Depend only on ports and pure domain rules."""
 
-from functools import partial
-
 from app.application.clock import Clock, utc_now
+from app.application.errors import DuplicateEntryError
 from app.application.guards import EventAccessPolicy, get_event
 from app.application.ports import (
     EventRepository,
@@ -14,6 +13,8 @@ from app.application.ports import (
 )
 from app.domain.event import Event
 from app.domain.registration import (
+    ALREADY_REGISTERED,
+    AlreadyRegisteredError,
     Availability,
     NotRegisteredError,
     RegisteredEventPage,
@@ -47,8 +48,15 @@ class RegistrationService:
         assert user.id is not None
         with transaction(self._uow):
             self._access.get_visible(user, event_id)
-            rule = partial(ensure_can_register, now=self._clock())
-            return self._registrations.register(user.id, event_id, rule)
+            event = self._registrations.lock_event(event_id)
+            if self._registrations.is_registered(user.id, event_id):
+                raise AlreadyRegisteredError(ALREADY_REGISTERED)
+            registered = self._registrations.count_for_event(event_id)
+            ensure_can_register(event, registered, self._clock())
+            try:
+                return self._registrations.add(user.id, event_id)
+            except DuplicateEntryError as exc:
+                raise AlreadyRegisteredError(ALREADY_REGISTERED) from exc
 
     def cancel(self, user: UserAccount, event_id: int) -> None:
         """Cancel the registration and the user's enrollments in the event's sessions.

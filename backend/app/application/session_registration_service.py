@@ -1,9 +1,9 @@
 """Session enrollment use cases. Depend only on ports and pure domain rules."""
 
 from collections.abc import Mapping
-from functools import partial
 
 from app.application.clock import Clock, utc_now
+from app.application.errors import DuplicateEntryError
 from app.application.guards import EventAccessPolicy, get_event, get_session_in_event
 from app.application.ports import (
     EventRepository,
@@ -15,6 +15,9 @@ from app.application.ports import (
 )
 from app.domain.registration import available_spots
 from app.domain.session_registration import (
+    ALREADY_ENROLLED,
+    AlreadyEnrolledError,
+    EnrollmentContext,
     NotEnrolledError,
     SessionAvailability,
     SessionRegistration,
@@ -45,10 +48,23 @@ class SessionRegistrationService:
     def enroll(self, user: UserAccount, event_id: int, session_id: int) -> SessionRegistration:
         assert user.id is not None
         with transaction(self._uow):
-            self._access.get_visible(user, event_id)
+            event = self._access.get_visible(user, event_id)
             get_session_in_event(self._sessions, event_id, session_id)
-            rule = partial(ensure_can_enroll, now=self._clock())
-            return self._enrollments.enroll(user.id, session_id, rule)
+            session = self._enrollments.lock_session(session_id)
+            if self._enrollments.is_enrolled(user.id, session_id):
+                raise AlreadyEnrolledError(ALREADY_ENROLLED)
+            context = EnrollmentContext(
+                event=event,
+                session=session,
+                event_registered=self._enrollments.lock_event_registration(user.id, event_id),
+                enrolled_count=self._enrollments.count_enrollments(session_id),
+                enrolled_sessions=self._enrollments.list_enrolled_sessions(user.id),
+            )
+            ensure_can_enroll(context, self._clock())
+            try:
+                return self._enrollments.add(user.id, session_id)
+            except DuplicateEntryError as exc:
+                raise AlreadyEnrolledError(ALREADY_ENROLLED) from exc
 
     def cancel(self, user: UserAccount, event_id: int, session_id: int) -> None:
         assert user.id is not None

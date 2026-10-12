@@ -5,24 +5,21 @@ from datetime import UTC, datetime
 import redis
 
 from app.application.errors import (
+    DuplicateEntryError,
     EmailAlreadyRegisteredError,
     EventNotFoundError,
     InvalidTokenError,
     SessionNotFoundError,
 )
-from app.application.ports import EnrollmentRule, RegistrationRule
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ParticipantFilters, ensure_utc
 from app.domain.registration import (
-    AlreadyRegisteredError,
     ParticipantRow,
     RegisteredEvent,
     Registration,
 )
 from app.domain.session import Session
 from app.domain.session_registration import (
-    AlreadyEnrolledError,
-    EnrollmentContext,
     SessionParticipantFilters,
     SessionParticipantRow,
     SessionRegistration,
@@ -185,13 +182,18 @@ class FakeRegistrationRepository:
         self._users = users or FakeUserRepository()
         self._rows: dict[tuple[int, int], datetime] = {}
 
-    def register(self, user_id: int, event_id: int, rule: RegistrationRule) -> Registration:
+    def lock_event(self, event_id: int) -> Event:
         event = self._events.get(event_id)
         if event is None:
             raise EventNotFoundError(event_id)
+        return event
+
+    def count_for_event(self, event_id: int) -> int:
+        return self._events.registrations.get(event_id, 0)
+
+    def add(self, user_id: int, event_id: int) -> Registration:
         if (user_id, event_id) in self._rows:
-            raise AlreadyRegisteredError("Already registered")
-        rule(event, self._events.registrations.get(event_id, 0))
+            raise DuplicateEntryError
         created_at = datetime.now(UTC)
         self._rows[(user_id, event_id)] = created_at
         self._events.registrations[event_id] = self._events.registrations.get(event_id, 0) + 1
@@ -278,28 +280,28 @@ class FakeSessionRegistrationRepository:
                 removed += 1
         return removed
 
-    def enroll(self, user_id: int, session_id: int, rule: EnrollmentRule) -> SessionRegistration:
+    def lock_session(self, session_id: int) -> Session:
         session = self._sessions.get(session_id)
         if session is None:
             raise SessionNotFoundError(session_id)
-        event = self._events.get(session.event_id)
-        assert event is not None
-        if (user_id, session_id) in self._rows:
-            raise AlreadyEnrolledError("Already enrolled")
-        mine = [
+        return session
+
+    def lock_event_registration(self, user_id: int, event_id: int) -> bool:
+        return self._registrations.is_registered(user_id, event_id)
+
+    def count_enrollments(self, session_id: int) -> int:
+        return self._count(session_id)
+
+    def list_enrolled_sessions(self, user_id: int) -> list[Session]:
+        return [
             other
             for (uid, sid) in self._rows
             if uid == user_id and (other := self._sessions.get(sid)) is not None
         ]
-        rule(
-            EnrollmentContext(
-                event=event,
-                session=session,
-                event_registered=self._registrations.is_registered(user_id, event.id or 0),
-                enrolled_sessions=mine,
-                enrolled_count=self._count(session_id),
-            )
-        )
+
+    def add(self, user_id: int, session_id: int) -> SessionRegistration:
+        if (user_id, session_id) in self._rows:
+            raise DuplicateEntryError
         created_at = datetime.now(UTC)
         self._rows[(user_id, session_id)] = created_at
         return SessionRegistration(user_id=user_id, session_id=session_id, created_at=created_at)

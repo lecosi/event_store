@@ -19,6 +19,9 @@ class SessionFullError(EnrollmentConflictError):
     pass
 
 
+ALREADY_ENROLLED = "You are already enrolled in this session"
+
+
 class AlreadyEnrolledError(EnrollmentConflictError):
     pass
 
