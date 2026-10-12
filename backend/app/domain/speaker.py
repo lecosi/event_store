@@ -1,7 +1,8 @@
 """Speaker entity (pure domain, no framework imports)."""
 
 from dataclasses import dataclass, replace
-from math import ceil
+
+from app.domain.pagination import Page
 
 
 @dataclass(frozen=True)
@@ -24,13 +25,4 @@ class Speaker:
         return replace(self, name=details.name, bio=details.bio, email=details.email)
 
 
-@dataclass(frozen=True)
-class SpeakerPage:
-    items: list[Speaker]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return ceil(self.total / self.size) if self.total else 0
+SpeakerPage = Page[Speaker]

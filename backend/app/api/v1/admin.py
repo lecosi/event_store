@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.api.dependencies import get_user_admin_service, require_role
+from app.api.dependencies import get_user_admin_service, require_admin
 from app.api.error_handlers import EMAIL_TAKEN_DETAIL, SELF_LOCKOUT_DETAIL
 from app.api.openapi_params import PageNumber, PageSize, UserId
 from app.api.openapi_responses import (
@@ -15,8 +15,6 @@ from app.api.schemas import FullName, UserResponse
 from app.application.auth_service import UserAdminService
 from app.domain.enums import Role
 from app.domain.user import MAX_FULL_NAME_LENGTH, UserAccount
-
-require_admin = require_role(Role.ADMIN)
 
 
 class UserPageResponse(BaseModel):

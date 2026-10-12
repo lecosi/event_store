@@ -1,5 +1,7 @@
 """Row -> domain entity mappings shared by the SQL repositories."""
 
+from typing import Any
+
 from app.domain.event import Event, ensure_utc
 from app.domain.registration import Registration
 from app.domain.session import Session as SessionEntity
@@ -71,3 +73,32 @@ def user_to_domain(row: UserRow) -> UserAccount:
         role=row.role,
         is_active=row.is_active,
     )
+
+
+def event_to_fields(event: Event) -> dict[str, Any]:
+    """The editable columns of an event row; the organizer is fixed at creation."""
+    return {
+        "name": event.name,
+        "description": event.description,
+        "location": event.location,
+        "start_at": ensure_utc(event.start_at),
+        "end_at": ensure_utc(event.end_at),
+        "capacity": event.capacity,
+        "status": event.status,
+    }
+
+
+def session_to_fields(session: SessionEntity) -> dict[str, Any]:
+    """The editable columns of a session row; the event is fixed at creation."""
+    return {
+        "speaker_id": session.speaker_id,
+        "title": session.title,
+        "start_at": ensure_utc(session.start_at),
+        "end_at": ensure_utc(session.end_at),
+        "capacity": session.capacity,
+    }
+
+
+def apply_fields(row: object, fields: dict[str, Any]) -> None:
+    for name, value in fields.items():
+        setattr(row, name, value)

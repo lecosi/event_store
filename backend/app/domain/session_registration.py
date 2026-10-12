@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app.domain.enums import EventStatus
 from app.domain.event import Event, ensure_utc
+from app.domain.pagination import Page
 from app.domain.registration import RegistrationConflictError
 from app.domain.session import Session, overlaps
 
@@ -75,16 +76,7 @@ class SessionParticipantRow:
     session_start: datetime
 
 
-@dataclass(frozen=True)
-class SessionParticipantPage:
-    items: list[SessionParticipantRow]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return -(-self.total // self.size) if self.total else 0
+SessionParticipantPage = Page[SessionParticipantRow]
 
 
 @dataclass(frozen=True)

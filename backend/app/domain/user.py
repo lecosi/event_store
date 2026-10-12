@@ -1,9 +1,9 @@
 """User aggregate and password policy (pure domain, no framework imports)."""
 
 from dataclasses import dataclass
-from math import ceil
 
 from app.domain.enums import Role
+from app.domain.pagination import Page
 
 MIN_PASSWORD_LENGTH = 8
 MAX_FULL_NAME_LENGTH = 200
@@ -44,13 +44,4 @@ class UserAccount:
     id: int | None = None
 
 
-@dataclass(frozen=True)
-class UserPage:
-    items: list[UserAccount]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return ceil(self.total / self.size) if self.total else 0
+UserPage = Page[UserAccount]

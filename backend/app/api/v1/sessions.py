@@ -8,7 +8,7 @@ from app.api.dependencies import (
     get_optional_user,
     get_session_registration_service,
     get_session_service,
-    require_role,
+    organizer_or_admin,
 )
 from app.api.openapi_params import EventId, SessionId
 from app.api.openapi_responses import (
@@ -25,14 +25,12 @@ from app.application.ports import SESSIONS_NAMESPACE, Cache
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.core.config import Settings, get_settings
-from app.domain.enums import Role
 from app.domain.session import SessionDetails
 from app.domain.session_registration import SessionAvailability
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
 
-organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
 SCHEDULE = TypeAdapter(list[ScheduledSession])
 

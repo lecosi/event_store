@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from math import ceil
 
 from app.domain.enums import EventStatus
+from app.domain.pagination import Page
 
 
 class EventValidationError(ValueError):
@@ -90,16 +90,7 @@ class ParticipantFilters:
     date_to: datetime | None = None
 
 
-@dataclass(frozen=True)
-class EventPage:
-    items: list[Event]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return ceil(self.total / self.size) if self.total else 0
+EventPage = Page[Event]
 
 
 def ensure_utc(value: datetime) -> datetime:

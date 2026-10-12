@@ -5,6 +5,7 @@ from datetime import datetime
 
 from app.domain.enums import EventStatus
 from app.domain.event import Event, ensure_utc
+from app.domain.pagination import Page
 
 
 class RegistrationConflictError(Exception):
@@ -43,16 +44,7 @@ class RegisteredEvent:
     registered_at: datetime
 
 
-@dataclass(frozen=True)
-class RegisteredEventPage:
-    items: list[RegisteredEvent]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return -(-self.total // self.size) if self.total else 0
+RegisteredEventPage = Page[RegisteredEvent]
 
 
 @dataclass(frozen=True)
@@ -64,16 +56,7 @@ class ParticipantRow:
     event_name: str
 
 
-@dataclass(frozen=True)
-class ParticipantPage:
-    items: list[ParticipantRow]
-    total: int
-    page: int
-    size: int
-
-    @property
-    def pages(self) -> int:
-        return -(-self.total // self.size) if self.total else 0
+ParticipantPage = Page[ParticipantRow]
 
 
 @dataclass(frozen=True)

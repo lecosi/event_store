@@ -12,7 +12,7 @@ from app.api.dependencies import (
     get_registration_service,
     get_session_registration_service,
     get_session_service,
-    require_role,
+    organizer_or_admin,
 )
 from app.api.event_schemas import (
     EventDetailResponse,
@@ -35,13 +35,12 @@ from app.application.registration_service import RegistrationService
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.core.config import Settings, get_settings
-from app.domain.enums import EventStatus, Role
+from app.domain.enums import EventStatus
 from app.domain.event import Event, EventDetails
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events", tags=["events"])
 
-organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
 EVENT_PAGE = TypeAdapter(EventPageResponse)
 

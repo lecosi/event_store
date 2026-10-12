@@ -1,17 +1,8 @@
 from sqlmodel import Session, col, select
 
-from app.domain.event import ensure_utc
 from app.domain.session import Session as SessionEntity
-from app.infrastructure.db.mappers import session_to_domain
+from app.infrastructure.db.mappers import apply_fields, session_to_domain, session_to_fields
 from app.infrastructure.db.models import Session as SessionRow
-
-
-def _apply(row: SessionRow, session: SessionEntity) -> None:
-    row.speaker_id = session.speaker_id
-    row.title = session.title
-    row.start_at = ensure_utc(session.start_at)
-    row.end_at = ensure_utc(session.end_at)
-    row.capacity = session.capacity
 
 
 class SqlSessionRepository:
@@ -21,14 +12,7 @@ class SqlSessionRepository:
         self._session = session
 
     def add(self, session: SessionEntity) -> SessionEntity:
-        row = SessionRow(
-            event_id=session.event_id,
-            speaker_id=session.speaker_id,
-            title=session.title,
-            start_at=ensure_utc(session.start_at),
-            end_at=ensure_utc(session.end_at),
-            capacity=session.capacity,
-        )
+        row = SessionRow(event_id=session.event_id, **session_to_fields(session))
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)
@@ -56,7 +40,7 @@ class SqlSessionRepository:
         row = self._session.get(SessionRow, session.id)
         if row is None:
             raise LookupError(f"Session {session.id} does not exist")
-        _apply(row, session)
+        apply_fields(row, session_to_fields(session))
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)

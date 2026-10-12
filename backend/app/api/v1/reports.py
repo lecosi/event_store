@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from app.api.csv_export import participants_csv, session_participants_csv
-from app.api.dependencies import get_report_service, get_session_report_service, require_role
+from app.api.dependencies import get_report_service, get_session_report_service, organizer_or_admin
 from app.api.openapi_params import PageNumber, PageSize
 from app.api.openapi_responses import (
     EVENT_NOT_FOUND,
@@ -27,12 +27,11 @@ from app.application.report_service import (
     SessionParticipantParams,
     SessionReportService,
 )
-from app.domain.enums import EventStatus, Role
+from app.domain.enums import EventStatus
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
-organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
 CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
 CSV_EXAMPLE = (

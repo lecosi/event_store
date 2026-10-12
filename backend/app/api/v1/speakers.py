@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import TypeAdapter
 
 from app.api.cached_reads import read_through, text_digest
-from app.api.dependencies import get_cache, get_speaker_service, require_role
+from app.api.dependencies import get_cache, get_speaker_service, organizer_or_admin
 from app.api.openapi_params import PageNumber, PageSize, SpeakerId
 from app.api.openapi_responses import (
     ORGANIZER_OR_ADMIN,
@@ -16,13 +16,11 @@ from app.api.speaker_schemas import SpeakerPageResponse, SpeakerRequest, Speaker
 from app.application.ports import SPEAKERS_NAMESPACE, Cache
 from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
-from app.domain.enums import Role
 from app.domain.speaker import Speaker, SpeakerDetails
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/speakers", tags=["speakers"])
 
-organizer_or_admin = require_role(Role.ORGANIZER, Role.ADMIN)
 
 SPEAKER_PAGE = TypeAdapter(SpeakerPageResponse)
 SPEAKER = TypeAdapter(SpeakerResponse)

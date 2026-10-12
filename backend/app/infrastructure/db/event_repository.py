@@ -6,18 +6,8 @@ from sqlmodel import Session, col, delete, select
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventFilters, ensure_utc
 from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
-from app.infrastructure.db.mappers import event_to_domain
+from app.infrastructure.db.mappers import apply_fields, event_to_domain, event_to_fields
 from app.infrastructure.db.models import Event as EventRow
-
-
-def _apply(row: EventRow, event: Event) -> None:
-    row.name = event.name
-    row.description = event.description
-    row.location = event.location
-    row.start_at = ensure_utc(event.start_at)
-    row.end_at = ensure_utc(event.end_at)
-    row.capacity = event.capacity
-    row.status = event.status
 
 
 class SqlEventRepository:
@@ -27,7 +17,7 @@ class SqlEventRepository:
         self._session = session
 
     def add(self, event: Event) -> Event:
-        row = EventRow(organizer_id=event.organizer_id, **_fields(event))
+        row = EventRow(organizer_id=event.organizer_id, **event_to_fields(event))
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)
@@ -67,7 +57,7 @@ class SqlEventRepository:
         row = self._session.get(EventRow, event.id)
         if row is None:
             raise LookupError(f"Event {event.id} does not exist")
-        _apply(row, event)
+        apply_fields(row, event_to_fields(event))
         self._session.add(row)
         self._session.flush()
         self._session.refresh(row)
@@ -89,15 +79,3 @@ class SqlEventRepository:
         # Sessions and registrations go with the event through ON DELETE CASCADE.
         # sqlmodel types exec() for selects only; a Delete runs through the same path.
         self._session.exec(delete(EventRow).where(col(EventRow.id) == event_id))  # type: ignore[call-overload]
-
-
-def _fields(event: Event) -> dict[str, object]:
-    return {
-        "name": event.name,
-        "description": event.description,
-        "location": event.location,
-        "start_at": ensure_utc(event.start_at),
-        "end_at": ensure_utc(event.end_at),
-        "capacity": event.capacity,
-        "status": event.status,
-    }

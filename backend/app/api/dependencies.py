@@ -37,6 +37,7 @@ from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
 from app.core.config import Settings, get_settings
 from app.domain.enums import Role
+from app.domain.roles import ORGANIZING_ROLES
 from app.domain.user import UserAccount
 from app.infrastructure.cache.null_cache import NullCache
 from app.infrastructure.cache.redis_cache import RedisCache
@@ -267,3 +268,7 @@ def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:
         return user
 
     return checker
+
+
+organizer_or_admin = require_role(*ORGANIZING_ROLES)
+require_admin = require_role(Role.ADMIN)
