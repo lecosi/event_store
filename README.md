@@ -59,6 +59,8 @@ Scripts, variables de entorno y cobertura en
 ## Documentación
 
 - [docs/README.md](docs/README.md): índice de todos los documentos.
+- [backend/README.md](backend/README.md): configurar, ejecutar y probar el backend.
+- [frontend/README.md](frontend/README.md): configurar, ejecutar y probar el frontend.
 - [docs/screens.md](docs/screens.md): pantallas de la aplicación.
 - [docs/backend-architecture.md](docs/backend-architecture.md): cómo está construido el backend.
 - [docs/backend-operations.md](docs/backend-operations.md): configuración, migraciones, carga inicial de datos (seed).

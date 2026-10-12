@@ -26,6 +26,8 @@ crea `backend/scripts/seed_demo.py` (`attendee@example.com` y `attendee1@example
 | --- | --- |
 | [../README.md](../README.md) | Qué es el proyecto y cómo ejecutarlo con unos pocos comandos |
 | [screens.md](screens.md) | Pantallas de la aplicación, con capturas |
+| [../backend/README.md](../backend/README.md) | Cómo configurar, ejecutar y probar el backend |
+| [../frontend/README.md](../frontend/README.md) | Cómo configurar, ejecutar y probar el frontend |
 
 ## Backend: para entenderlo
 
