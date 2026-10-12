@@ -113,7 +113,19 @@ export const es = {
   sessions: {
     heading: 'Sesiones',
     empty: 'Aún no hay sesiones programadas.',
-    seats: (n: number) => `${n} ${n === 1 ? 'cupo' : 'cupos'}`,
+    spotsAvailable: (available: number, capacity: number) =>
+      `Cupos disponibles: ${available} de ${capacity}`,
+    enrolled: 'Estás inscrito',
+    enroll: 'Inscribirme',
+    cancelEnrollment: 'Cancelar inscripción',
+    enrollAria: (title: string) => `Inscribirme en la sesión ${title}`,
+    cancelEnrollmentAria: (title: string) => `Cancelar inscripción en la sesión ${title}`,
+    enrolledOk: 'Inscripción a la sesión realizada',
+    enrollmentCancelled: 'Inscripción a la sesión cancelada',
+    registerToEventFirst: 'Inscríbete al evento para poder inscribirte en sus sesiones.',
+    eventNotPublished: 'El evento no está publicado: las inscripciones a sesiones están cerradas.',
+    full: 'Esta sesión está llena.',
+    cancelClosed: 'El evento finalizó: ya no se puede cancelar la inscripción.',
     add: 'Agregar sesión',
     save: 'Guardar sesión',
     formLabel: 'Formulario de sesión',
@@ -181,6 +193,14 @@ export const es = {
 
   reports: {
     title: 'Reporte de participantes',
+    view: 'Vista',
+    byEvent: 'Por evento',
+    bySession: 'Por sesión',
+    sessionId: 'ID de sesión',
+    sessionFilter: (id: number) => `Solo participantes de la sesión ${id}`,
+    clearSessionFilter: 'Quitar filtro de sesión',
+    session: 'Sesión',
+    sessionStart: 'Inicio',
     notAllowed:
       'No tienes permiso para ver los reportes. Solo los organizadores y administradores pueden.',
     loadFailed: 'No se pudo cargar el reporte',
@@ -289,6 +309,16 @@ export const es = {
       'A finished event does not allow cancelling':
         'Un evento finalizado no permite cancelar la inscripción.',
       'You are already registered to this event': 'Ya estás inscrito en este evento.',
+      'The session is full': 'La sesión está llena.',
+      'You are already enrolled in this session': 'Ya estás inscrito en esta sesión.',
+      'Register to the event before enrolling in a session':
+        'Inscríbete al evento antes de inscribirte en una de sus sesiones.',
+      'The session overlaps another session you are enrolled in':
+        'La sesión se cruza con otra sesión en la que ya estás inscrito.',
+      'The session has already ended': 'La sesión ya terminó.',
+      'Only sessions of published events accept enrollments':
+        'Solo las sesiones de eventos publicados aceptan inscripciones.',
+      'You are not enrolled in this session': 'No estás inscrito en esta sesión.',
       'date_to must not be before date_from':
         'La fecha final no puede ser anterior a la fecha inicial.',
     } as Record<string, string>,

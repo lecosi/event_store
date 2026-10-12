@@ -23,6 +23,9 @@ const session = (id: number, title: string, start_at: string): Session => ({
   end_at: '2030-05-20T18:00:00Z',
   capacity: 20,
   speaker: { id: 1, name: 'Ada Lovelace' },
+  enrolled_count: 0,
+  available_spots: 20,
+  is_enrolled: false,
 })
 
 const detail = (overrides: Partial<EventDetail> = {}): EventDetail => ({
@@ -380,6 +383,76 @@ describe('EventDetailPage management', () => {
     await waitFor(() => expect(toastMessages()).toContain('Sin permisos.'))
     expect(router.state.location.pathname).toBe('/events/5')
     expect(screen.getByRole('button', { name: 'Eliminar evento' })).toBeEnabled()
+  })
+})
+
+describe('EventDetailPage session enrollment', () => {
+  const registeredEvent = (sessionOverrides: Partial<Session> = {}) =>
+    detail({
+      is_registered: true,
+      sessions: [{ ...session(1, 'Apertura', '2030-05-20T10:00:00Z'), ...sessionOverrides }],
+    })
+
+  it('does not offer session enrollment to an anonymous visitor', async () => {
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(registeredEvent())
+    renderAt()
+    await screen.findByText('Apertura')
+    expect(screen.queryByRole('button', { name: /sesión Apertura/ })).not.toBeInTheDocument()
+  })
+
+  it('enrolls the user in the session, confirms with a toast and reloads the event', async () => {
+    loginAs('attendee', 7)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(registeredEvent())
+    vi.mocked(registrationsApi.enrollInSession).mockResolvedValue({
+      user_id: 7,
+      session_id: 1,
+      created_at: '2030-01-01T00:00:00Z',
+    })
+    renderAt()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Inscribirme en la sesión Apertura' }),
+    )
+    await waitFor(() => expect(toastMessages()).toContain('Inscripción a la sesión realizada'))
+    expect(registrationsApi.enrollInSession).toHaveBeenCalledWith(5, 1)
+    expect(eventsApi.getEvent).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels the enrollment of an enrolled user', async () => {
+    loginAs('attendee', 7)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(registeredEvent({ is_enrolled: true }))
+    vi.mocked(registrationsApi.cancelSessionEnrollment).mockResolvedValue()
+    renderAt()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cancelar inscripción en la sesión Apertura' }),
+    )
+    await waitFor(() => expect(toastMessages()).toContain('Inscripción a la sesión cancelada'))
+    expect(registrationsApi.cancelSessionEnrollment).toHaveBeenCalledWith(5, 1)
+  })
+
+  it('shows the backend message in an error toast when enrolling fails', async () => {
+    loginAs('attendee', 7)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue(registeredEvent())
+    vi.mocked(registrationsApi.enrollInSession).mockRejectedValue(
+      new ApiError('La sesión está llena.', 409),
+    )
+    renderAt()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Inscribirme en la sesión Apertura' }),
+    )
+    await waitFor(() => expect(toastMessages()).toContain('La sesión está llena.'))
+    expect(screen.getByRole('button', { name: 'Inscribirme en la sesión Apertura' })).toBeEnabled()
+  })
+
+  it('asks a user who is not registered to the event to register first', async () => {
+    loginAs('attendee', 7)
+    vi.mocked(eventsApi.getEvent).mockResolvedValue({ ...registeredEvent(), is_registered: false })
+    renderAt()
+    expect(
+      await screen.findByRole('button', { name: 'Inscribirme en la sesión Apertura' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText('Inscríbete al evento para poder inscribirte en sus sesiones.'),
+    ).toBeInTheDocument()
   })
 })
 

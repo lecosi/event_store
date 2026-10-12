@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { deleteEvent, updateStatus } from '../api/events'
-import { register, unregister } from '../api/registrations'
+import {
+  cancelSessionEnrollment,
+  enrollInSession,
+  register,
+  unregister,
+} from '../api/registrations'
 import { downloadParticipantsCsv } from '../api/reports'
 import { createSession, deleteSession, updateSession } from '../api/sessions'
 import { Button } from '../components/Button'
@@ -79,6 +84,14 @@ export default function EventDetailPage() {
     }
     if (event.is_registered) void run(() => unregister(id), es.events.registrationCancelled)
     else void run(() => register(id), es.events.registered)
+  }
+
+  function handleEnroll(session: Session) {
+    void run(() => enrollInSession(id, session.id), es.sessions.enrolledOk)
+  }
+
+  function handleCancelEnrollment(session: Session) {
+    void run(() => cancelSessionEnrollment(id, session.id), es.sessions.enrollmentCancelled)
   }
 
   async function handleApplyStatus() {
@@ -243,6 +256,16 @@ export default function EventDetailPage() {
         <SessionList
           sessions={event.sessions}
           busy={busy}
+          enrollment={
+            token
+              ? {
+                  eventStatus: event.status,
+                  isRegisteredToEvent: event.is_registered,
+                  onEnroll: handleEnroll,
+                  onCancel: handleCancelEnrollment,
+                }
+              : undefined
+          }
           onEdit={canEditSessions ? setEditing : undefined}
           onDelete={canEditSessions ? handleDeleteSession : undefined}
         />

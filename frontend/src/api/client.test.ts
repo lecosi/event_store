@@ -155,6 +155,22 @@ describe('known backend details', () => {
       'Un evento finalizado no permite cancelar la inscripción.',
     ],
     ['You are already registered to this event', 'Ya estás inscrito en este evento.'],
+    ['The session is full', 'La sesión está llena.'],
+    ['You are already enrolled in this session', 'Ya estás inscrito en esta sesión.'],
+    [
+      'Register to the event before enrolling in a session',
+      'Inscríbete al evento antes de inscribirte en una de sus sesiones.',
+    ],
+    [
+      'The session overlaps another session you are enrolled in',
+      'La sesión se cruza con otra sesión en la que ya estás inscrito.',
+    ],
+    ['The session has already ended', 'La sesión ya terminó.'],
+    [
+      'Only sessions of published events accept enrollments',
+      'Solo las sesiones de eventos publicados aceptan inscripciones.',
+    ],
+    ['You are not enrolled in this session', 'No estás inscrito en esta sesión.'],
     [
       'date_to must not be before date_from',
       'La fecha final no puede ser anterior a la fecha inicial.',

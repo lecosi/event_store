@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { downloadParticipantsCsv, listParticipants } from '../api/reports'
+import {
+  downloadParticipantsCsv,
+  downloadSessionParticipantsCsv,
+  listParticipants,
+  listSessionParticipants,
+} from '../api/reports'
 import { Button } from '../components/Button'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Select } from '../components/Fields'
@@ -11,7 +16,14 @@ import { Spinner } from '../components/Spinner'
 import { es, statusLabel } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import { toast } from '../store/toastStore'
-import type { EventStatus, Page, Participant, ParticipantFilters } from '../types'
+import type {
+  EventStatus,
+  Page,
+  Participant,
+  SessionParticipant,
+  SessionParticipantFilters,
+} from '../types'
+import { formatDateTime } from '../utils/format'
 import { canViewReports } from '../utils/permissions'
 import styles from './ReportsPage.module.css'
 import pageStyles from './Pages.module.css'
@@ -22,7 +34,7 @@ const STATUSES = Object.keys(es.labels.status) as EventStatus[]
 /** What came back for one request; `key` says which filters and page it answers. */
 interface Outcome {
   key: string
-  data: Page<Participant> | null
+  data: Page<Participant | SessionParticipant> | null
   error: string | null
 }
 
@@ -44,18 +56,21 @@ function Report() {
   const dateFrom = searchParams.get('date_from') ?? ''
   const dateTo = searchParams.get('date_to') ?? ''
   const eventId = Number(searchParams.get('event_id'))
+  const bySession = searchParams.get('mode') === 'session'
+  const sessionId = Number(searchParams.get('session_id'))
   const requestedPage = Number(searchParams.get('page'))
   const page = Number.isInteger(requestedPage) && requestedPage >= 1 ? requestedPage : 1
 
-  const filters = useMemo<ParticipantFilters>(
+  const filters = useMemo<SessionParticipantFilters>(
     () => ({
       q: q || undefined,
       status,
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
       event_id: Number.isInteger(eventId) && eventId > 0 ? eventId : undefined,
+      session_id: bySession && Number.isInteger(sessionId) && sessionId > 0 ? sessionId : undefined,
     }),
-    [q, status, dateFrom, dateTo, eventId],
+    [q, status, dateFrom, dateTo, eventId, bySession, sessionId],
   )
   const invalidRange = dateFrom !== '' && dateTo !== '' && dateTo < dateFrom
 
@@ -63,14 +78,15 @@ function Report() {
   const [downloading, setDownloading] = useState(false)
 
   // The outcome is current only when it answers the filters and page being shown.
-  const key = JSON.stringify([filters, page])
+  const key = JSON.stringify([bySession, filters, page])
   const current = outcome?.key === key ? outcome : null
   const items = current?.data?.items ?? []
 
   useEffect(() => {
     if (invalidRange) return
     let active = true
-    listParticipants({ ...filters, page, size: PAGE_SIZE })
+    const load = bySession ? listSessionParticipants : listParticipants
+    load({ ...filters, page, size: PAGE_SIZE })
       .then((data) => active && setOutcome({ key, data, error: null }))
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : es.reports.loadFailed
@@ -80,7 +96,7 @@ function Report() {
     return () => {
       active = false
     }
-  }, [filters, page, key, invalidRange])
+  }, [filters, page, key, invalidRange, bySession])
 
   /** Sets (or clears, when empty) one filter; changing a filter goes back to the first page. */
   const setFilter = useCallback(
@@ -95,6 +111,18 @@ function Report() {
     [setSearchParams],
   )
 
+  /** Switches between the event and the session report; the session filter only exists in the latter. */
+  function changeMode(mode: string) {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      if (mode === 'session') next.set('mode', 'session')
+      else next.delete('mode')
+      next.delete('session_id')
+      next.delete('page')
+      return next
+    })
+  }
+
   const handleSearch = useCallback((text: string) => setFilter('q', text), [setFilter])
 
   function changePage(next: number) {
@@ -108,7 +136,7 @@ function Report() {
   async function handleDownload() {
     setDownloading(true)
     try {
-      await downloadParticipantsCsv(filters)
+      await (bySession ? downloadSessionParticipantsCsv : downloadParticipantsCsv)(filters)
       toast.success(es.reports.downloaded)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : es.reports.downloadFailed)
@@ -129,6 +157,23 @@ function Report() {
       <div className={pageStyles.panel}>
         <SearchBar value={q} onSearch={handleSearch} />
         <div className={styles.filters}>
+          <Select
+            label={es.reports.view}
+            value={bySession ? 'session' : 'event'}
+            onChange={(e) => changeMode(e.target.value)}
+          >
+            <option value="event">{es.reports.byEvent}</option>
+            <option value="session">{es.reports.bySession}</option>
+          </Select>
+          {bySession && (
+            <Input
+              label={es.reports.sessionId}
+              type="number"
+              min={1}
+              value={filters.session_id ?? ''}
+              onChange={(e) => setFilter('session_id', e.target.value)}
+            />
+          )}
           <Select
             label={es.reports.status}
             value={status ?? ''}
@@ -177,6 +222,8 @@ function Report() {
                 <th scope="col">{es.reports.fullName}</th>
                 <th scope="col">{es.reports.email}</th>
                 <th scope="col">{es.reports.event}</th>
+                {bySession && <th scope="col">{es.reports.session}</th>}
+                {bySession && <th scope="col">{es.reports.sessionStart}</th>}
               </tr>
             </thead>
             <tbody>
@@ -185,6 +232,14 @@ function Report() {
                   <td data-label={es.reports.fullName}>{item.full_name}</td>
                   <td data-label={es.reports.email}>{item.email}</td>
                   <td data-label={es.reports.event}>{item.event_name}</td>
+                  {'session_title' in item && (
+                    <>
+                      <td data-label={es.reports.session}>{item.session_title}</td>
+                      <td data-label={es.reports.sessionStart}>
+                        {formatDateTime(item.session_start)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

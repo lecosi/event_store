@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Page, RegisteredEvent, Registration } from '../types'
+import type { Page, RegisteredEvent, Registration, SessionRegistration } from '../types'
 
 export async function register(eventId: number): Promise<Registration> {
   const { data } = await apiClient.post<Registration>(`/events/${eventId}/register`)
@@ -8,6 +8,20 @@ export async function register(eventId: number): Promise<Registration> {
 
 export async function unregister(eventId: number): Promise<void> {
   await apiClient.delete(`/events/${eventId}/register`)
+}
+
+export async function enrollInSession(
+  eventId: number,
+  sessionId: number,
+): Promise<SessionRegistration> {
+  const { data } = await apiClient.post<SessionRegistration>(
+    `/events/${eventId}/sessions/${sessionId}/register`,
+  )
+  return data
+}
+
+export async function cancelSessionEnrollment(eventId: number, sessionId: number): Promise<void> {
+  await apiClient.delete(`/events/${eventId}/sessions/${sessionId}/register`)
 }
 
 /** Events the logged-in user is registered to, newest registrations included. */

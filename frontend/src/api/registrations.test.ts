@@ -1,7 +1,13 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { apiClient } from './client'
-import { listMyEvents, register, unregister } from './registrations'
+import {
+  cancelSessionEnrollment,
+  enrollInSession,
+  listMyEvents,
+  register,
+  unregister,
+} from './registrations'
 
 let sent: InternalAxiosRequestConfig | undefined
 
@@ -24,6 +30,18 @@ describe('registrations api', () => {
     await unregister(4)
     expect(sent?.method).toBe('delete')
     expect(sent?.url).toBe('/events/4/register')
+  })
+
+  it('enrollInSession posts to /events/{id}/sessions/{id}/register', async () => {
+    await enrollInSession(4, 9)
+    expect(sent?.method).toBe('post')
+    expect(sent?.url).toBe('/events/4/sessions/9/register')
+  })
+
+  it('cancelSessionEnrollment deletes /events/{id}/sessions/{id}/register', async () => {
+    await cancelSessionEnrollment(4, 9)
+    expect(sent?.method).toBe('delete')
+    expect(sent?.url).toBe('/events/4/sessions/9/register')
   })
 
   it('listMyEvents gets /users/me/events with the pagination params', async () => {

@@ -1,7 +1,12 @@
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { apiClient } from './client'
-import { downloadParticipantsCsv, listParticipants } from './reports'
+import {
+  downloadParticipantsCsv,
+  downloadSessionParticipantsCsv,
+  listParticipants,
+  listSessionParticipants,
+} from './reports'
 
 let sent: InternalAxiosRequestConfig | undefined
 let click: MockInstance<() => void>
@@ -41,6 +46,32 @@ describe('listParticipants', () => {
     expect(sent?.url).toBe('/reports/participants')
     expect(sent?.params).toEqual({ q: 'pycon', status: 'published', page: 2, size: 10 })
     expect(page.page).toBe(2)
+  })
+})
+
+describe('listSessionParticipants', () => {
+  it('gets /reports/sessions/participants with the session filter and the pagination', async () => {
+    answerWith(200, { items: [], total: 0, page: 1, size: 10, pages: 0 })
+    await listSessionParticipants({ session_id: 7, event_id: 5, page: 1, size: 10 })
+    expect(sent?.method).toBe('get')
+    expect(sent?.url).toBe('/reports/sessions/participants')
+    expect(sent?.params).toEqual({ session_id: 7, event_id: 5, page: 1, size: 10 })
+  })
+})
+
+describe('downloadSessionParticipantsCsv', () => {
+  it('requests the session csv as a blob with the same filters and no pagination', async () => {
+    answerWith(200, csvBlob())
+    await downloadSessionParticipantsCsv({ session_id: 7 })
+    expect(sent?.url).toBe('/reports/sessions/participants.csv')
+    expect(sent?.responseType).toBe('blob')
+    expect(sent?.params).toEqual({ session_id: 7 })
+  })
+
+  it('falls back to a session specific file name when the header is missing', async () => {
+    answerWith(200, csvBlob())
+    await downloadSessionParticipantsCsv()
+    expect(clicked().download).toBe('participantes_sesiones.csv')
   })
 })
 

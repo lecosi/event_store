@@ -25,6 +25,9 @@ const opening: Session = {
   end_at: '2030-05-20T11:00:00Z',
   capacity: 20,
   speaker: { id: 3, name: 'Ada Lovelace' },
+  enrolled_count: 0,
+  available_spots: 20,
+  is_enrolled: false,
 }
 
 const detail = (overrides: Partial<EventDetail> = {}): EventDetail => ({

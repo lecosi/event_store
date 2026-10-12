@@ -43,6 +43,10 @@ export interface Session {
   end_at: string
   capacity: number
   speaker: SpeakerRef
+  enrolled_count: number
+  available_spots: number
+  /** Whether the logged-in user is enrolled in this session. */
+  is_enrolled: boolean
 }
 
 /** GET /events/{id}: the event plus sessions and registration info for the viewer. */
@@ -82,6 +86,12 @@ export interface EventListParams {
 export interface Registration {
   user_id: number
   event_id: number
+  created_at: string
+}
+
+export interface SessionRegistration {
+  user_id: number
+  session_id: number
   created_at: string
 }
 
@@ -142,6 +152,23 @@ export interface ParticipantFilters {
   status?: EventStatus
   date_from?: string
   date_to?: string
+}
+
+/** One row of the session participants report. */
+export interface SessionParticipant extends Participant {
+  session_title: string
+  session_start: string
+}
+
+/** Filters of the session report: the participants filters plus one session. */
+export interface SessionParticipantFilters extends ParticipantFilters {
+  session_id?: number
+}
+
+/** Query of GET /reports/sessions/participants. */
+export interface SessionParticipantListParams extends SessionParticipantFilters {
+  page?: number
+  size?: number
 }
 
 /** Query of GET /reports/participants. */

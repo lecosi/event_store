@@ -6,7 +6,8 @@ import * as reportsApi from '../api/reports'
 import { routes } from '../routes'
 import { useAuthStore } from '../store/authStore'
 import { useToastStore } from '../store/toastStore'
-import type { Page, Participant, Role } from '../types'
+import type { Page, Participant, Role, SessionParticipant } from '../types'
+import { formatDateTime } from '../utils/format'
 
 vi.mock('../api/reports')
 vi.mock('../api/events')
@@ -14,7 +15,13 @@ vi.mock('../api/events')
 const ana: Participant = { full_name: 'Ana Pérez', email: 'ana@example.com', event_name: 'PyCon' }
 const beto: Participant = { full_name: 'Beto Gómez', email: 'beto@example.com', event_name: 'Rust' }
 
-const pageOf = (items: Participant[], page = 1, pages = 1): Page<Participant> => ({
+const anaInSession: SessionParticipant = {
+  ...ana,
+  session_title: 'Apertura',
+  session_start: '2030-05-20T10:00:00Z',
+}
+
+const pageOf = <T extends Participant>(items: T[], page = 1, pages = 1): Page<T> => ({
   items,
   total: items.length,
   page,
@@ -250,5 +257,92 @@ describe('ReportsPage download', () => {
     renderAt()
     fireEvent.click(await screen.findByRole('button', { name: 'Descargar CSV' }))
     await waitFor(() => expect(toastMessages()).toContain('Evento no encontrado.'))
+  })
+})
+
+describe('ReportsPage by session', () => {
+  beforeEach(() => {
+    vi.mocked(reportsApi.listSessionParticipants).mockResolvedValue(pageOf([anaInSession]))
+  })
+
+  it('loads the event report by default and offers both views', async () => {
+    renderAt()
+    await screen.findByText('Ana Pérez')
+    expect(screen.getByLabelText('Vista')).toHaveValue('event')
+    expect(reportsApi.listSessionParticipants).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('ID de sesión')).not.toBeInTheDocument()
+  })
+
+  it('switches to the session report and keeps the other filters', async () => {
+    const router = renderAt('/reports?status=published&page=2')
+    fireEvent.change(await screen.findByLabelText('Vista'), { target: { value: 'session' } })
+    await waitFor(() =>
+      expect(reportsApi.listSessionParticipants).toHaveBeenLastCalledWith({
+        status: 'published',
+        page: 1,
+        size: 10,
+      }),
+    )
+    expect(searchOf(router).get('mode')).toBe('session')
+    expect(searchOf(router).get('status')).toBe('published')
+    expect(searchOf(router).has('page')).toBe(false)
+  })
+
+  it('shows the session and its start next to each participant', async () => {
+    renderAt('/reports?mode=session')
+    const table = await screen.findByRole('table', { name: 'Participantes' })
+    const row = within(table).getByText('Ana Pérez').closest('tr') as HTMLElement
+    expect(within(row).getByText('Apertura')).toBeInTheDocument()
+    expect(within(row).getByText(formatDateTime(anaInSession.session_start))).toBeInTheDocument()
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(5)
+  })
+
+  it('filters by the session id and puts it in the URL', async () => {
+    const router = renderAt('/reports?mode=session')
+    fireEvent.change(await screen.findByLabelText('ID de sesión'), { target: { value: '7' } })
+    await waitFor(() =>
+      expect(reportsApi.listSessionParticipants).toHaveBeenLastCalledWith({
+        session_id: 7,
+        page: 1,
+        size: 10,
+      }),
+    )
+    expect(searchOf(router).get('session_id')).toBe('7')
+  })
+
+  it('drops the session id when going back to the event report', async () => {
+    const router = renderAt('/reports?mode=session&session_id=7')
+    fireEvent.change(await screen.findByLabelText('Vista'), { target: { value: 'event' } })
+    await waitFor(() => expect(searchOf(router).has('mode')).toBe(false))
+    expect(searchOf(router).has('session_id')).toBe(false)
+    await waitFor(() =>
+      expect(reportsApi.listParticipants).toHaveBeenLastCalledWith({ page: 1, size: 10 }),
+    )
+  })
+
+  it('ignores the session id in the event report', async () => {
+    renderAt('/reports?session_id=7')
+    await screen.findByText('Ana Pérez')
+    expect(reportsApi.listParticipants).toHaveBeenCalledWith({ page: 1, size: 10 })
+  })
+
+  it('downloads the session csv with the current filters', async () => {
+    vi.mocked(reportsApi.downloadSessionParticipantsCsv).mockResolvedValue()
+    renderAt('/reports?mode=session&session_id=7&event_id=5')
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar CSV' }))
+    await waitFor(() => expect(toastMessages()).toContain('Reporte descargado'))
+    expect(reportsApi.downloadSessionParticipantsCsv).toHaveBeenCalledWith({
+      session_id: 7,
+      event_id: 5,
+    })
+    expect(reportsApi.downloadParticipantsCsv).not.toHaveBeenCalled()
+  })
+
+  it('shows the backend message when the session report cannot be loaded', async () => {
+    vi.mocked(reportsApi.listSessionParticipants).mockRejectedValue(
+      new ApiError('Servidor caído.', 500),
+    )
+    renderAt('/reports?mode=session')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Servidor caído.')
   })
 })
