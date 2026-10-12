@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { listUsers } from '../api/admin'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Pagination } from '../components/Pagination'
@@ -15,9 +15,10 @@ import pageStyles from './Pages.module.css'
 
 const PAGE_SIZE = 10
 
-/** What came back for one request; `page` says which page it answers. */
+/** What came back for one request; `page` and `query` say which request it answers. */
 interface Outcome {
   page: number
+  query: string
   data: Page<User> | null
   error: string | null
 }
@@ -33,27 +34,37 @@ export default function AdminUsersPage() {
 
 function UserList({ admin }: { admin: User }) {
   const loadMe = useAuthStore((s) => s.loadMe)
+  const [text, setText] = useState('')
+  const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
 
-  // The outcome is current only when it answers the page being shown.
-  const current = outcome?.page === page ? outcome : null
+  // The outcome is current only when it answers the search and page being shown.
+  const current = outcome?.query === query && outcome.page === page ? outcome : null
   const items = current?.data?.items ?? []
 
   useEffect(() => {
+    if (query === '') return
     let active = true
-    listUsers({ page, size: PAGE_SIZE })
-      .then((data) => active && setOutcome({ page, data, error: null }))
+    listUsers({ email: query, page, size: PAGE_SIZE })
+      .then((data) => active && setOutcome({ page, query, data, error: null }))
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : es.admin.loadFailed
-        if (active) setOutcome({ page, data: null, error: message })
+        if (active) setOutcome({ page, query, data: null, error: message })
       })
     // A newer request makes this response stale: it must not overwrite the newer one.
     return () => {
       active = false
     }
-  }, [page])
+  }, [query, page])
+
+  function handleSearch(event: FormEvent) {
+    event.preventDefault()
+    setEditingId(null)
+    setPage(1)
+    setQuery(text.trim())
+  }
 
   function changePage(next: number) {
     setEditingId(null)
@@ -83,9 +94,23 @@ function UserList({ admin }: { admin: User }) {
       <div className={pageStyles.header}>
         <h1>{es.admin.title}</h1>
       </div>
-      {current === null && <Spinner />}
+      <form className={styles.search} role="search" onSubmit={handleSearch}>
+        <input
+          type="search"
+          className={styles.searchInput}
+          aria-label={es.admin.searchLabel}
+          placeholder={es.admin.searchPlaceholder}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <Button type="submit">{es.admin.searchButton}</Button>
+      </form>
+      {query === '' && <p className={pageStyles.muted}>{es.admin.searchPrompt}</p>}
+      {query !== '' && current === null && <Spinner />}
       <ErrorMessage message={current?.error} />
-      {current?.data && items.length === 0 && <p className={pageStyles.muted}>{es.admin.empty}</p>}
+      {current?.data && items.length === 0 && (
+        <p className={pageStyles.muted}>{es.admin.noResults(query)}</p>
+      )}
       {items.length > 0 && (
         <ul className={`${pageStyles.panel} ${pageStyles.list}`}>
           {items.map((item) => (
@@ -123,7 +148,9 @@ function UserList({ admin }: { admin: User }) {
         </ul>
       )}
       {/* Keeps the controls of the last loaded response while the next page is loading. */}
-      <Pagination page={page} pages={outcome?.data?.pages ?? 0} onPageChange={changePage} />
+      {query !== '' && (
+        <Pagination page={page} pages={outcome?.data?.pages ?? 0} onPageChange={changePage} />
+      )}
     </section>
   )
 }

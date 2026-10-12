@@ -25,6 +25,12 @@ describe('admin api', () => {
     expect(page.page).toBe(2)
   })
 
+  it('listUsers sends the email prefix as a query param', async () => {
+    answer = { items: [], total: 0, page: 1, size: 10, pages: 0 }
+    await listUsers({ email: 'ana', page: 1, size: 10 })
+    expect(sent?.params).toEqual({ email: 'ana', page: 1, size: 10 })
+  })
+
   it('updateUser patches /admin/users/{id} with only the given fields', async () => {
     const user = await updateUser(7, { email: 'nuevo@example.com' })
     expect(sent?.method).toBe('patch')

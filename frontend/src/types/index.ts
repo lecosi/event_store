@@ -133,6 +133,8 @@ export interface SessionPayload {
 export interface UserListParams {
   page?: number
   size?: number
+  /** Case-insensitive prefix of the email; blank or missing means no filter. */
+  email?: string
 }
 
 /** Body of PATCH /admin/users/{id}: only the fields to change, at least one. */

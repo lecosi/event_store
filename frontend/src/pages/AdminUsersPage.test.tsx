@@ -54,9 +54,17 @@ function renderPage() {
 }
 
 const toastMessages = () => useToastStore.getState().toasts.map((t) => t.message)
+async function searchFor(email: string) {
+  fireEvent.change(await screen.findByLabelText('Correo electrónico del usuario'), {
+    target: { value: email },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+}
+
 const rowOf = (name: string) => screen.getByText(name).closest('li') as HTMLElement
 
 async function openEditor(name: string) {
+  await searchFor('b')
   fireEvent.click(await screen.findByRole('button', { name: `Editar usuario ${name}` }))
   return screen.getByRole('form', { name: `Editar usuario ${name}` })
 }
@@ -88,61 +96,118 @@ describe('AdminUsersPage access', () => {
   })
 })
 
-describe('AdminUsersPage list', () => {
-  it('shows name, email, role and state of every user', async () => {
+describe('AdminUsersPage search', () => {
+  it('asks for an email search and loads nothing before the first search', async () => {
     renderPage()
+    expect(
+      await screen.findByText(
+        'Busca un usuario por su correo electrónico para ver y editar su cuenta.',
+      ),
+    ).toBeInTheDocument()
+    expect(adminApi.listUsers).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument()
+  })
+
+  it('searches by the trimmed email with the first page', async () => {
+    renderPage()
+    await searchFor('  be  ')
+    await screen.findByText('Beto Gómez')
+    expect(adminApi.listUsers).toHaveBeenCalledWith({ email: 'be', page: 1, size: 10 })
+  })
+
+  it('searches when the admin presses enter in the box', async () => {
+    renderPage()
+    const box = await screen.findByLabelText('Correo electrónico del usuario')
+    fireEvent.change(box, { target: { value: 'be' } })
+    fireEvent.submit(box.closest('form') as HTMLFormElement)
+    await screen.findByText('Beto Gómez')
+    expect(adminApi.listUsers).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows name, email, role and state of every match', async () => {
+    renderPage()
+    await searchFor('b')
     const row = (await screen.findByText('Beto Gómez')).closest('li') as HTMLElement
     expect(within(row).getByText('beto@example.com')).toBeInTheDocument()
     expect(within(row).getByText('Asistente')).toBeInTheDocument()
     expect(within(row).getByText('Activo')).toBeInTheDocument()
     expect(within(rowOf('Carla Ruiz')).getByText('Organizador')).toBeInTheDocument()
     expect(within(rowOf('Carla Ruiz')).getByText('Inactivo')).toBeInTheDocument()
-    expect(adminApi.listUsers).toHaveBeenCalledWith({ page: 1, size: 10 })
+  })
+
+  it('goes back to the prompt without calling the api when the search is blank', async () => {
+    renderPage()
+    await searchFor('b')
+    await screen.findByText('Beto Gómez')
+    await searchFor('   ')
+    expect(screen.queryByText('Beto Gómez')).not.toBeInTheDocument()
+    expect(screen.getByText(/Busca un usuario por su correo/)).toBeInTheDocument()
+    expect(adminApi.listUsers).toHaveBeenCalledTimes(1)
   })
 
   it('shows a spinner while the users load', async () => {
     vi.mocked(adminApi.listUsers).mockReturnValue(new Promise(() => {}))
     renderPage()
+    await searchFor('b')
     expect(await screen.findByRole('status', { name: 'Cargando...' })).toBeInTheDocument()
   })
 
-  it('shows the backend message when the users cannot be loaded', async () => {
+  it('shows the backend message when the search fails', async () => {
     vi.mocked(adminApi.listUsers).mockRejectedValue(new ApiError('Servidor caído.', 500))
     renderPage()
+    await searchFor('b')
     expect(await screen.findByRole('alert')).toHaveTextContent('Servidor caído.')
   })
 
-  it('shows an empty state when there are no users', async () => {
+  it('says nothing matched when the search has no results', async () => {
     vi.mocked(adminApi.listUsers).mockResolvedValue(pageOf([], 1, 0))
     renderPage()
-    expect(await screen.findByText('Aún no hay usuarios.')).toBeInTheDocument()
+    await searchFor('zzz')
+    expect(
+      await screen.findByText('No hay usuarios cuyo correo empiece con "zzz".'),
+    ).toBeInTheDocument()
   })
 
-  it('loads the requested page with the pagination controls', async () => {
+  it('loads the requested page of the same search with the pagination controls', async () => {
     vi.mocked(adminApi.listUsers).mockImplementation(async (params) =>
       params?.page === 2 ? pageOf([carla], 2, 2) : pageOf([beto], 1, 2),
     )
     renderPage()
+    await searchFor('b')
     await screen.findByText('Beto Gómez')
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
     expect(await screen.findByText('Carla Ruiz')).toBeInTheDocument()
-    expect(adminApi.listUsers).toHaveBeenLastCalledWith({ page: 2, size: 10 })
+    expect(adminApi.listUsers).toHaveBeenLastCalledWith({ email: 'b', page: 2, size: 10 })
     expect(screen.getByText('Página 2 de 2')).toBeInTheDocument()
   })
 
-  it('ignores the response of a page the admin has already left', async () => {
-    let resolveFirst: (page: Page<User>) => void = () => {}
-    vi.mocked(adminApi.listUsers)
-      .mockResolvedValueOnce(pageOf([beto], 1, 3))
-      .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
-      .mockResolvedValueOnce(pageOf([carla], 3, 3))
+  it('returns to the first page when the admin starts a new search', async () => {
+    vi.mocked(adminApi.listUsers).mockImplementation(async (params) =>
+      params?.page === 2 ? pageOf([carla], 2, 2) : pageOf([beto], 1, 2),
+    )
     renderPage()
+    await searchFor('b')
     await screen.findByText('Beto Gómez')
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
-    await waitFor(() => expect(adminApi.listUsers).toHaveBeenCalledTimes(2))
-    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText('Carla Ruiz')
+    await searchFor('c')
+    await waitFor(() =>
+      expect(adminApi.listUsers).toHaveBeenLastCalledWith({ email: 'c', page: 1, size: 10 }),
+    )
+    expect(await screen.findByText('Beto Gómez')).toBeInTheDocument()
+  })
+
+  it('ignores the response of a search the admin has already replaced', async () => {
+    let resolveFirst: (page: Page<User>) => void = () => {}
+    vi.mocked(adminApi.listUsers)
+      .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(pageOf([carla]))
+    renderPage()
+    await searchFor('b')
+    await waitFor(() => expect(adminApi.listUsers).toHaveBeenCalledTimes(1))
+    await searchFor('c')
     expect(await screen.findByText('Carla Ruiz')).toBeInTheDocument()
-    await act(async () => resolveFirst(pageOf([{ ...beto, full_name: 'Usuario viejo' }], 2, 3)))
+    await act(async () => resolveFirst(pageOf([{ ...beto, full_name: 'Usuario viejo' }])))
     expect(screen.queryByText('Usuario viejo')).not.toBeInTheDocument()
   })
 })
