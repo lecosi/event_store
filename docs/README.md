@@ -14,7 +14,7 @@ del backend describen el código tal como está hoy y referencian los archivos r
 
 | Documento | Qué cubre |
 | --- | --- |
-| [backend-architecture.md](backend-architecture.md) | Capas hexagonales, puertos y adaptadores, unidad de trabajo, raíz de composición, mapeo de errores, una petición de extremo a extremo, ejemplos de SOLID |
+| [backend-architecture.md](backend-architecture.md) | Capas hexagonales, puertos y adaptadores, unidad de trabajo, dónde se ensamblan las dependencias, mapeo de errores, una petición de extremo a extremo, ejemplos de SOLID |
 | [backend-domain-rules.md](backend-domain-rules.md) | Reglas de negocio: roles, ciclo de vida del evento, inscripciones, inscripciones a sesiones, ponentes, reportes y CSV, administración de usuarios |
 | [backend-api.md](backend-api.md) | Resumen de endpoints por tag, autenticación, formato de errores, paginación |
 | [backend-cache.md](backend-cache.md) | Qué se cachea, claves, TTL, invalidación, comportamiento sin Redis |

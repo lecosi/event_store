@@ -1,10 +1,9 @@
 # Arquitectura del backend
 
 El backend (`backend/app`) es un servicio FastAPI organizado con una arquitectura
-hexagonal (puertos y adaptadores). Las reglas de negocio viven en Python puro y no saben
-nada de HTTP, SQL ni Redis; esos son adaptadores que se conectan en un único lugar.
+hexagonal (puertos y adaptadores). Las reglas de negocio estan centralizadas y descopladas, por lo cual, no conocen nada de HTTP, DB(relacionales, no relacionales, Caché, etc); estos son adaptadores que se conectan en un único lugar.
 
-Stack: FastAPI, SQLModel/SQLAlchemy, Alembic, PostgreSQL 16, Redis 7 (cache opcional),
+Stack: FastAPI, SQLModel/SQLAlchemy, Alembic, PostgreSQL 16, Redis,
 hash de contraseñas con Argon2 y tokens de acceso JWT.
 
 ## Capas
@@ -24,8 +23,7 @@ hash de contraseñas con Argon2 y tokens de acceso JWT.
 Las dependencias apuntan hacia adentro: `api -> infrastructure -> application -> domain`.
 
 - `app/domain` y `app/application` no importan `fastapi`, `sqlmodel`, `sqlalchemy`
-  ni `redis` (verificado por búsqueda al momento de escribir esto; no hay una prueba
-  automatizada de imports).
+  ni `redis`.
 - Los casos de uso reciben los puertos por el constructor, por lo que se ejecutan en las
   pruebas con fakes en memoria (`backend/tests/fakes.py`).
 - Solo `app/api/dependencies.py` importa adaptadores concretos.
@@ -42,7 +40,7 @@ flowchart LR
     Service -- "ports" --> Adapter["infrastructure adapters<br/>SQL / Redis / JWT / Argon2"]
     Adapter --> DB[(PostgreSQL)]
     Adapter --> Cache[(Redis)]
-    Deps["api/dependencies.py<br/>composition root"] -. wires .-> Service
+    Deps["api/dependencies.py<br/>composition root (ensamblaje)"] -. wires .-> Service
     Deps -. wires .-> Adapter
 ```
 
@@ -59,7 +57,7 @@ que usa la API están en `app/application/readers.py`.
 | `SpeakerRepository` | `SqlSpeakerRepository` | `app/infrastructure/db/speaker_repository.py` |
 | `SessionRepository` | `SqlSessionRepository` | `app/infrastructure/db/session_repository.py` |
 | `RegistrationRepository` | `SqlRegistrationRepository` | `app/infrastructure/db/registration_repository.py` |
-| `SessionEnrollmentWriter`, `SessionEnrollmentLock`, `SessionAvailabilityReader`, `SessionParticipantQueries` | `SqlSessionRegistrationRepository` (una clase, cuatro puertos) | `app/infrastructure/db/session_registration_repository.py` |
+| `SessionEnrollmentWriter`, `SessionEnrollmentLock`, `SessionAvailabilityReader`, `SessionParticipantQueries` | `SqlSessionRegistrationRepository`| `app/infrastructure/db/session_registration_repository.py` |
 | `EventUsageQueries`, `SpeakerUsageQueries` | `SqlEventUsageQueries`, `SqlSpeakerUsageQueries` | `app/infrastructure/db/usage_queries.py` |
 | `EventAccess` | `EventAccessPolicy` (política a nivel de aplicación sobre `EventRepository`) | `app/application/guards.py` |
 | `Cache` | `RedisCache`, `NullCache` | `app/infrastructure/cache/` |
@@ -96,7 +94,7 @@ dentro de la transacción: `RegistrationRepository.lock_event`,
 última línea de defensa: su `IntegrityError` se convierte en `DuplicateEntryError`, que el
 caso de uso transforma en el conflicto de dominio correspondiente.
 
-## Raíz de composición
+## Dónde se ensamblan las dependencias
 
 `app/api/dependencies.py` es el único lugar donde los adaptadores concretos se encuentran
 con los casos de uso. Cada función `get_*` es una dependencia de FastAPI:
@@ -117,8 +115,8 @@ Las pruebas reemplazan cualquiera de estas con `app.dependency_overrides` (ver
 
 Los casos de uso y el dominio lanzan sus propias excepciones. `app/api/error_handlers.py`
 mantiene una única tabla, `ERROR_RESPONSES`, del tipo de excepción al estado HTTP y al
-mensaje, y registra un solo manejador para todas ellas. Las subclases se resuelven por el
-MRO.
+mensaje, y registra un solo manejador para todas ellas. Si una excepción no figura en la tabla, se usa la entrada de su clase padre
+más cercana.
 
 | Familia | Estado | Ejemplos |
 | --- | --- | --- |
@@ -175,7 +173,7 @@ Las reglas en sí están listadas en [backend-domain-rules.md](backend-domain-ru
 | --- | --- |
 | Responsabilidad única | `EventAccessPolicy` solo responde quién puede ver o gestionar un evento; `cache_policy.py` solo conoce claves, namespaces y TTL; `report_filenames.py` solo construye nombres de descarga. |
 | Abierto/cerrado | Las nuevas lecturas con cache se agregan como decoradores (`CachedEventSchedule`) sin tocar los servicios; los nuevos tipos de error son una línea en `ERROR_RESPONSES`. |
-| Liskov | `NullCache` y `RedisCache` son intercambiables detrás de `Cache`; los lectores con cache reemplazan directamente a los servicios simples detrás de `EventCatalogue`, `SpeakerDirectory`, `EventSchedule`. |
+| Liskov Substitution | `NullCache` y `RedisCache` son intercambiables detrás de `Cache`; los lectores con cache reemplazan directamente a los servicios simples detrás de `EventCatalogue`, `SpeakerDirectory`, `EventSchedule`. |
 | Segregación de interfaces | El adaptador de inscripciones es una clase pero cuatro puertos estrechos: `SessionRegistrationService` necesita `SessionEnrollmentWriter`, `SessionService` solo `SessionEnrollmentLock`, `SessionCatalogue` solo `SessionAvailabilityReader`, y los reportes solo `SessionParticipantQueries`. |
 | Inversión de dependencias | Los servicios importan `ports.py`, nunca `infrastructure`; `dependencies.py` inyecta los adaptadores. |
 

@@ -1,8 +1,6 @@
 # Cache del backend
 
-Un cache de lectura Redis opcional acelera los endpoints de lectura públicos. Nunca guarda
-la fuente de verdad, nunca almacena datos específicos de cada usuario y la API se comporta
-igual sin él.
+En el proyecto existen endpoints de lectura públicos, los cuales tienen uso constante y por definicion no es necesario tener real time la informacion que entregan. Por ello, se implementa un sistema de caché con `Redis`.
 
 Mapa del código:
 
@@ -14,7 +12,7 @@ Mapa del código:
 | Helper de read-through | `backend/app/infrastructure/cache/read_through.py` |
 | Adaptador Redis | `backend/app/infrastructure/cache/redis_cache.py` |
 | Adaptador sin efecto (no-op) | `backend/app/infrastructure/cache/null_cache.py` |
-| Cableado | `get_cache`, `get_*_cache` en `backend/app/api/dependencies.py` |
+| Conexion | `get_cache`, `get_*_cache` en `backend/app/api/dependencies.py` |
 
 ## Qué se cachea
 
@@ -25,11 +23,7 @@ Mapa del código:
 | `speakers` | Página del directorio | `list:<sha256(q)\|->:<page>:<size>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
 | `speakers` | Un ponente | `detail:<speaker_id>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
 
-El texto de búsqueda entra en las claves solo como un resumen SHA-256 (`text_digest`), de
-modo que la entrada del usuario nunca se convierte en una clave en crudo. Los TTL deben ser
-mayores que cero (validación de `Settings`).
-
-### Qué deliberadamente no se cachea
+### Qué no se cachea
 
 - El listado de eventos para organizadores y administradores: ven eventos no publicados,
   por lo que solo los usuarios anónimos y los asistentes (`is_public_view`) comparten la
@@ -65,7 +59,6 @@ módulo conoce la forma de una clave, un namespace ni un TTL.
 - `invalidate(namespace)` es un único `INCR` de la clave de versión. Las entradas antiguas
   quedan inalcanzables y expiran por su propio TTL; no hace falta recorrer claves ni
   borrar en bloque.
-- Los valores son cadenas JSON escritas con `SETEX`.
 
 El Redis de `docker-compose.yml` corre sin persistencia y con
 `--maxmemory 64mb --maxmemory-policy volatile-lru`.
@@ -73,7 +66,7 @@ El Redis de `docker-compose.yml` corre sin persistencia y con
 La política `volatile-lru` es intencional. Las entradas se escriben con TTL, pero las
 claves `<namespace>:version` no tienen ninguno. Con `volatile-lru` solo las claves que
 tienen TTL son candidatas a ser desalojadas, por lo que una clave de versión nunca puede
-ser desalojada bajo presión de memoria. Con `allkeys-lru`, una clave de versión desalojada
+ser desalojada por desborde de memoria. Con `allkeys-lru`, una clave de versión desalojada
 volvería a `0`, y las entradas escritas antes bajo una versión reutilizada (por ejemplo
 `speakers:v1:list`) podrían volver a ser alcanzables y servir datos obsoletos hasta que
 expire su TTL (300 s como máximo). El resto del cache se comporta como antes: cuando la
