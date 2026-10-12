@@ -1,4 +1,4 @@
-# Documentación de módulos en la plataforma
+# Pantallas de la aplicación
 
 ## Índice
 
@@ -26,7 +26,7 @@
 
 Formulario de creación de cuenta (nombre, correo, contraseña y confirmación). Público. Las cuentas nuevas reciben el rol de organizador.
 
-> <img src="images/register.png" alt="Registro de Usuario" width="500">
+> <img src="images/register.png" alt="Formulario de registro de cuenta" width="500">
 
 ## Inicio de sesión
 
@@ -34,7 +34,7 @@ Formulario de creación de cuenta (nombre, correo, contraseña y confirmación).
 
 Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al usuario a la página de la que venía.
 
-> <img src="images/login.png" alt="Inicio de sesión" width="500">
+> <img src="images/login.png" alt="Formulario de inicio de sesión" width="500">
 
 ## Listado de eventos
 
@@ -42,7 +42,7 @@ Formulario de correo y contraseña. Público. Tras iniciar sesión devuelve al u
 
 Cuadrícula de tarjetas de eventos con búsqueda y paginación (9 por página) y una insignia de estado. Público; los organizadores y administradores también ven los eventos no publicados según su rol.
 
-> <img src="images/event-list.png" alt="Lista de eventos publicados" width="500">
+> <img src="images/event-list.png" alt="Listado de eventos publicados" width="500">
 
 ## Detalle del evento
 
@@ -50,7 +50,7 @@ Cuadrícula de tarjetas de eventos con búsqueda y paginación (9 por página) y
 
 Información del evento, insignia de estado, cupos disponibles, el botón de inscribirse/cancelar y la lista de sesiones con la inscripción a cada sesión. La lectura es pública; inscribirse requiere iniciar sesión.
 
-> <img src="images/event-detail.png" alt="Detalle de evento" width="500">
+> <img src="images/event-detail.png" alt="Detalle del evento" width="500">
 
 ## Detalle del evento, vista de gestión
 
@@ -58,7 +58,7 @@ Información del evento, insignia de estado, cupos disponibles, el botón de ins
 
 La misma página para el organizador del evento o un administrador: enlace de edición, cambio de estado, descarga del CSV de participantes, eliminación y los controles para agregar, editar y eliminar sesiones.
 
-> <img src="images/event-detail-manage.png" alt="admin de evento" width="500">
+> <img src="images/event-detail-manage.png" alt="Administración de un evento" width="500">
 
 ## Formulario de evento
 
@@ -66,7 +66,7 @@ La misma página para el organizador del evento o un administrador: enlace de ed
 
 Crear o editar un evento (nombre, descripción, lugar, fechas, capacidad). Organizadores y administradores; la edición se limita al organizador del evento o a un administrador, y solo mientras el evento no esté cancelado ni finalizado.
 
-> <img src="images/event-form.png" alt="crear evento" width="500">
+> <img src="images/event-form.png" alt="Formulario para crear un evento" width="500">
 
 ## Formulario de ponente
 
@@ -74,7 +74,7 @@ Crear o editar un evento (nombre, descripción, lugar, fechas, capacidad). Organ
 
 Agregar un ponente (nombre, biografía, correo opcional) al directorio compartido. Organizadores y administradores.
 
-> <img src="images/speaker-form.png" alt="crear ponente" width="500">
+> <img src="images/speaker-form.png" alt="Formulario para crear un ponente" width="500">
 
 ## Mis eventos
 
@@ -82,7 +82,7 @@ Agregar un ponente (nombre, biografía, correo opcional) al directorio compartid
 
 El resumen del perfil del usuario con sesión iniciada y los eventos a los que está inscrito, con una acción para cancelar. Cualquier usuario con sesión iniciada.
 
-> <img src="images/profile.png" alt="perfil de mis eventos" width="500">
+> <img src="images/profile.png" alt="Página Mis eventos" width="500">
 
 ## Reportes
 
@@ -90,7 +90,7 @@ El resumen del perfil del usuario con sesión iniciada y los eventos a los que e
 
 Vista previa de participantes por evento o por sesión, con búsqueda, filtros de estado y de fecha, paginación y descarga en CSV. Organizadores (sus propios eventos) y administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> <img src="images/reports.png" alt="Reporte de participantes a evento" width="500">
+> <img src="images/reports.png" alt="Reporte de participantes de un evento" width="500">
 
 ## Administración de usuarios
 
@@ -98,7 +98,7 @@ Vista previa de participantes por evento o por sesión, con búsqueda, filtros d
 
 Búsqueda por prefijo de correo sobre las cuentas de usuario, con edición en línea de nombre, correo, rol e indicador de activo. Solo administradores; los demás roles ven un mensaje de acceso no permitido.
 
-> <img src="images/admin-users.png" alt="Admin usuarios" width="500">
+> <img src="images/admin-users.png" alt="Administración de usuarios" width="500">
 
 ## Página no encontrada
 
@@ -106,7 +106,7 @@ Búsqueda por prefijo de correo sobre las cuentas de usuario, con edición en l�
 
 Mensaje y enlace de regreso a la página de inicio. Público.
 
-> <img src="images/page-not-found.png" alt="pagina no encontrada" width="500">
+> <img src="images/page-not-found.png" alt="Página no encontrada" width="500">
 
 ## Barra de navegación, anónimo
 
@@ -114,7 +114,7 @@ Mensaje y enlace de regreso a la página de inicio. Público.
 
 Enlace de la marca más los enlaces de inicio de sesión y registro. Se muestra a los visitantes sin sesión.
 
-> <img src="images/navbar-without-sesion.png" alt="barra sin sesion" width="500">
+> <img src="images/navbar-without-sesion.png" alt="Barra de navegación sin sesión" width="500">
 
 ## Barra de navegación, organizador
 
@@ -122,7 +122,7 @@ Enlace de la marca más los enlaces de inicio de sesión y registro. Se muestra 
 
 Muestra Nuevo evento, Nuevo ponente, Reportes y Mis eventos, el nombre del usuario y Cerrar sesión. Los administradores también ven Administración.
 
-> <img src="images/navbar-with-sesion-org.png" alt="barra con sesion organizador" width="500">
+> <img src="images/navbar-with-sesion-org.png" alt="Barra de navegación con sesión de organizador" width="500">
 
 ## Móvil: listado de eventos
 
@@ -130,7 +130,7 @@ Muestra Nuevo evento, Nuevo ponente, Reportes y Mis eventos, el nombre del usuar
 
 El listado de eventos por debajo del punto de corte de 640 px, donde la barra de navegación se apila verticalmente y la cuadrícula pasa a una sola columna.
 
-> <img src="images/event-list-mb.png" alt="lista de eventos movil" width="500">
+> <img src="images/event-list-mb.png" alt="Listado de eventos en móvil" width="500">
 
 ## Móvil: detalle del evento
 
@@ -138,4 +138,4 @@ El listado de eventos por debajo del punto de corte de 640 px, donde la barra de
 
 El detalle del evento y la lista de sesiones en ancho de teléfono.
 
-> <img src="images/event-detail-mb.png" alt="detalle de eventos movil" width="500">
+> <img src="images/event-detail-mb.png" alt="Detalle del evento en móvil" width="500">

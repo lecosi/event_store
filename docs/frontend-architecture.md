@@ -135,6 +135,9 @@ El backend responde los errores en inglés (`{"detail": "..."}`, ver
 | Sin respuesta del servidor | Mensaje de red | `messages.common.networkError` |
 | Cualquier otro caso | Mensaje genérico | `messages.common.genericError` |
 
+`messages` es el diccionario activo, el mismo objeto que `es` (`messages = locales['es']`
+en `i18n/index.ts`).
+
 Para que un error nuevo del backend se vea en español, agrega su texto exacto a
 `errors.known` en `i18n/es.ts`. Si no está, el usuario ve el mensaje genérico.
 

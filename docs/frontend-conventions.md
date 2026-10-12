@@ -12,7 +12,7 @@ Para el mapa general de carpetas ver [frontend-architecture.md](frontend-archite
 | Estilos | Un CSS Module por componente o página, con las variables de `styles/tokens.css` |
 | Componentes compartidos | Se reutilizan `Button`, `Input`, `Fields`, `Toast`, ... antes de crear uno nuevo |
 | Permisos | Se decide con funciones de `utils/permissions.ts`, no con comparaciones de rol sueltas |
-| Pruebas | Un `*.test.ts(x)` junto a cada archivo |
+| Pruebas | Cada `*.test.ts(x)` vive junto al archivo que cubre |
 
 ## Textos e i18n
 
@@ -29,6 +29,8 @@ import { es } from '../i18n'
 - Las etiquetas de estado y rol se obtienen con `statusLabel(status)` y `roleLabel(role)`
   de `i18n/index.ts`.
 - Los nombres de campo mostrados en errores del backend están en `es.fields`.
+- `es.*` y `messages.*` son el mismo objeto: `messages = locales['es']` en
+  `i18n/index.ts`. Los componentes importan `es`; el cliente HTTP importa `messages`.
 - Para agregar un idioma habría que crear otro archivo con la forma del tipo `Messages` y
   registrarlo en `locales` (`i18n/index.ts`). Hoy solo existe `es`.
 
