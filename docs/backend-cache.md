@@ -1,110 +1,118 @@
-# Backend cache
+# Cache del backend
 
-An optional Redis read cache accelerates the public read endpoints. It never holds the
-source of truth, never stores viewer-specific data and the API behaves the same without it.
+Un cache de lectura Redis opcional acelera los endpoints de lectura públicos. Nunca guarda
+la fuente de verdad, nunca almacena datos específicos de cada usuario y la API se comporta
+igual sin él.
 
-Code map:
+Mapa del código:
 
-| Concern | File |
+| Aspecto | Archivo |
 | --- | --- |
-| `Cache` port, namespace names | `backend/app/application/ports.py` |
-| Keys, TTLs and invalidation per aggregate | `backend/app/application/cache_policy.py` |
-| Cached decorators of the read use cases | `backend/app/infrastructure/cache/cached_readers.py` |
-| Read-through helper | `backend/app/infrastructure/cache/read_through.py` |
-| Redis adapter | `backend/app/infrastructure/cache/redis_cache.py` |
-| No-op adapter | `backend/app/infrastructure/cache/null_cache.py` |
-| Wiring | `get_cache`, `get_*_cache` in `backend/app/api/dependencies.py` |
+| Puerto `Cache`, nombres de namespace | `backend/app/application/ports.py` |
+| Claves, TTL e invalidación por agregado | `backend/app/application/cache_policy.py` |
+| Decoradores con cache de los casos de uso de lectura | `backend/app/infrastructure/cache/cached_readers.py` |
+| Helper de read-through | `backend/app/infrastructure/cache/read_through.py` |
+| Adaptador Redis | `backend/app/infrastructure/cache/redis_cache.py` |
+| Adaptador sin efecto (no-op) | `backend/app/infrastructure/cache/null_cache.py` |
+| Cableado | `get_cache`, `get_*_cache` en `backend/app/api/dependencies.py` |
 
-## What is cached
+## Qué se cachea
 
-| Namespace | Cached read | Key (inside the namespace) | TTL setting (default) |
+| Namespace | Lectura cacheada | Clave (dentro del namespace) | Variable de TTL (por defecto) |
 | --- | --- | --- | --- |
-| `events` | Public event list pages | `list:<sha256(q)\|->:<status\|any>:<page>:<size>` | `CACHE_TTL_EVENTS_SECONDS` (60) |
-| `sessions` | Schedule of one event (sessions with speaker name) | `event:<event_id>` | `CACHE_TTL_SESSIONS_SECONDS` (120) |
-| `speakers` | Directory page | `list:<sha256(q)\|->:<page>:<size>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
-| `speakers` | One speaker | `detail:<speaker_id>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
+| `events` | Páginas del listado público de eventos | `list:<sha256(q)\|->:<status\|any>:<page>:<size>` | `CACHE_TTL_EVENTS_SECONDS` (60) |
+| `sessions` | Horario de un evento (sesiones con nombre del ponente) | `event:<event_id>` | `CACHE_TTL_SESSIONS_SECONDS` (120) |
+| `speakers` | Página del directorio | `list:<sha256(q)\|->:<page>:<size>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
+| `speakers` | Un ponente | `detail:<speaker_id>` | `CACHE_TTL_SPEAKERS_SECONDS` (300) |
 
-Search text enters keys only as a SHA-256 digest (`text_digest`), so user input never
-becomes a raw key. TTLs must be greater than zero (`Settings` validation).
+El texto de búsqueda entra en las claves solo como un resumen SHA-256 (`text_digest`), de
+modo que la entrada del usuario nunca se convierte en una clave en crudo. Los TTL deben ser
+mayores que cero (validación de `Settings`).
 
-### What is deliberately not cached
+### Qué deliberadamente no se cachea
 
-- The event list for organizers and admins: they see non-published events, so only
-  anonymous users and attendees (`is_public_view`) share the cached public view.
-- Event detail (`GET /events/{id}`), "my events" and the reports.
-- Per-viewer availability of sessions (`enrolled_count`, `available_spots`, `is_enrolled`):
-  `SessionCatalogue` merges the cached schedule with live counts on every request, so
-  registering or enrolling never needs to invalidate anything.
+- El listado de eventos para organizadores y administradores: ven eventos no publicados,
+  por lo que solo los usuarios anónimos y los asistentes (`is_public_view`) comparten la
+  vista pública cacheada.
+- El detalle del evento (`GET /events/{id}`), "mis eventos" y los reportes.
+- La disponibilidad de sesiones por usuario (`enrolled_count`, `available_spots`,
+  `is_enrolled`): `SessionCatalogue` combina el horario cacheado con conteos en vivo en cada
+  petición, por lo que inscribirse nunca requiere invalidar nada.
 
-## Invalidation
+## Invalidación
 
-Invalidation is explicit and always runs after the transaction commits, so a rollback
-leaves the cache untouched.
+La invalidación es explícita y siempre se ejecuta después de confirmar la transacción, de
+modo que una reversión deja el cache intacto.
 
-| Operation | Namespaces dropped |
+| Operación | Namespaces descartados |
 | --- | --- |
-| Create, update or change status of an event | `events` |
-| Delete an event | `events`, `sessions` (`invalidate_with_sessions`) |
-| Create, update or delete a session | `sessions` |
-| Create a speaker | `speakers` |
-| Update or delete a speaker | `speakers`, `sessions` (schedules embed the speaker name) |
-| `close_past_events` script that finishes at least one event | `events`, `sessions` |
+| Crear, actualizar o cambiar el estado de un evento | `events` |
+| Eliminar un evento | `events`, `sessions` (`invalidate_with_sessions`) |
+| Crear, actualizar o eliminar una sesión | `sessions` |
+| Crear un ponente | `speakers` |
+| Actualizar o eliminar un ponente | `speakers`, `sessions` (los horarios incluyen el nombre del ponente) |
+| Script `close_past_events` que finaliza al menos un evento | `events`, `sessions` |
 
-Use cases only talk to `EventCache`, `SessionCache` and `SpeakerCache`; no other module
-knows a key shape, a namespace or a TTL.
+Los casos de uso solo hablan con `EventCache`, `SessionCache` y `SpeakerCache`; ningún otro
+módulo conoce la forma de una clave, un namespace ni un TTL.
 
-## How it works in Redis
+## Cómo funciona en Redis
 
-`RedisCache` uses per-namespace versioning:
+`RedisCache` usa versionado por namespace:
 
-- An entry lives at `<namespace>:v<version>:<key>`, where the version is read from
-  `<namespace>:version` (missing means `0`).
-- `invalidate(namespace)` is a single `INCR` of the version key. Older entries become
-  unreachable and expire on their own TTL; no key scan or bulk delete is needed.
-- Values are JSON strings with `SETEX`.
+- Una entrada vive en `<namespace>:v<version>:<key>`, donde la versión se lee de
+  `<namespace>:version` (si falta, es `0`).
+- `invalidate(namespace)` es un único `INCR` de la clave de versión. Las entradas antiguas
+  quedan inalcanzables y expiran por su propio TTL; no hace falta recorrer claves ni
+  borrar en bloque.
+- Los valores son cadenas JSON escritas con `SETEX`.
 
-The `docker-compose.yml` Redis runs with persistence off and
+El Redis de `docker-compose.yml` corre sin persistencia y con
 `--maxmemory 64mb --maxmemory-policy volatile-lru`.
 
-The policy is `volatile-lru` on purpose. Entries are written with a TTL, but the
-`<namespace>:version` keys have none. With `volatile-lru` only keys that carry a TTL are
-candidates for eviction, so a version key can never be evicted under memory pressure. With
-`allkeys-lru` an evicted version key would fall back to `0`, and entries written earlier
-under a reused version (for example `speakers:v1:list`) could become reachable again and
-serve stale data until their TTL expires (at most 300 s). The rest of the cache behaves as
-before: when memory is full, the least recently used entries are dropped first.
+La política `volatile-lru` es intencional. Las entradas se escriben con TTL, pero las
+claves `<namespace>:version` no tienen ninguno. Con `volatile-lru` solo las claves que
+tienen TTL son candidatas a ser desalojadas, por lo que una clave de versión nunca puede
+ser desalojada bajo presión de memoria. Con `allkeys-lru`, una clave de versión desalojada
+volvería a `0`, y las entradas escritas antes bajo una versión reutilizada (por ejemplo
+`speakers:v1:list`) podrían volver a ser alcanzables y servir datos obsoletos hasta que
+expire su TTL (300 s como máximo). El resto del cache se comporta como antes: cuando la
+memoria está llena, se descartan primero las entradas menos recientemente usadas.
 
-## Payload format
+## Formato del payload
 
-Payloads are the domain objects serialized as JSON with Pydantic `TypeAdapter`
-(`EventPage`, `SpeakerPage`, `Speaker`, `list[SessionWithSpeaker]`), not HTTP response
-models. The router builds its response from the decoded domain object exactly as it does
-on a miss. A stored value that no longer validates (for example after a schema change) is
-treated as a miss and rebuilt (`read_through`).
+Los payloads son los objetos de dominio serializados como JSON con `TypeAdapter` de
+Pydantic (`EventPage`, `SpeakerPage`, `Speaker`, `list[SessionWithSpeaker]`), no modelos de
+respuesta HTTP. El router construye su respuesta a partir del objeto de dominio
+decodificado exactamente igual que ante un fallo de cache (miss). Un valor almacenado que
+ya no valida (por ejemplo tras un cambio de esquema) se trata como un miss y se reconstruye
+(`read_through`).
 
-## When Redis is unavailable
+## Cuando Redis no está disponible
 
-- Without `REDIS_URL`, `get_cache` returns `NullCache`: every read is a miss, writes and
-  invalidations do nothing. The application is fully functional, just uncached.
-- With `REDIS_URL` set and Redis down or slow, `RedisCache` catches Redis and OS errors,
-  logs a warning and behaves like `NullCache` for that call. Connect and command timeouts
-  are 0.5 s each, so an outage costs at most a short delay per cache call, not an error.
-- Errors raised while building the value (for example a not-found) propagate and are never
-  cached.
+- Sin `REDIS_URL`, `get_cache` devuelve `NullCache`: toda lectura es un miss, y las
+  escrituras e invalidaciones no hacen nada. La aplicación es totalmente funcional, solo
+  que sin cache.
+- Con `REDIS_URL` definida y Redis caído o lento, `RedisCache` captura los errores de Redis
+  y del sistema operativo, registra una advertencia y se comporta como `NullCache` para esa
+  llamada. Los tiempos de espera de conexión y de comando son de 0,5 s cada uno, por lo que
+  una caída cuesta como máximo una demora breve por llamada al cache, no un error.
+- Los errores lanzados al construir el valor (por ejemplo un not-found) se propagan y nunca
+  se cachean.
 
-Scripts (`close_past_events`, `seed_demo`) build their own cache the same way: Redis when
-`REDIS_URL` is set, `NullCache` otherwise.
+Los scripts (`close_past_events`, `seed_demo`) construyen su propio cache de la misma
+forma: Redis cuando `REDIS_URL` está definida, `NullCache` en caso contrario.
 
-## Tests
+## Pruebas
 
-| Test file | Covers |
+| Archivo de pruebas | Cubre |
 | --- | --- |
-| `test_cache_policy.py` | Keys, digests, namespaces |
-| `test_cached_reads.py` | Read-through and decorators |
-| `test_cached_events_api.py`, `test_cached_sessions_api.py`, `test_cached_speakers_api.py` | Endpoint behavior with a `FakeCache` |
-| `test_cache_invalidation.py` | Which operations drop which namespaces |
-| `test_redis_cache.py` | Versioning and failure handling with fake clients |
-| `test_cache_wiring.py`, `test_cache_settings.py` | Adapter selection and TTL settings |
+| `test_cache_policy.py` | Claves, resúmenes (digests), namespaces |
+| `test_cached_reads.py` | Read-through y decoradores |
+| `test_cached_events_api.py`, `test_cached_sessions_api.py`, `test_cached_speakers_api.py` | Comportamiento de los endpoints con un `FakeCache` |
+| `test_cache_invalidation.py` | Qué operaciones descartan qué namespaces |
+| `test_redis_cache.py` | Versionado y manejo de fallos con clientes fake |
+| `test_cache_wiring.py`, `test_cache_settings.py` | Selección del adaptador y configuración de TTL |
 
-No test needs a running Redis: `FakeCache` and `UnreachableRedis` live in
+Ninguna prueba necesita un Redis en ejecución: `FakeCache` y `UnreachableRedis` viven en
 `backend/tests/fakes.py`.

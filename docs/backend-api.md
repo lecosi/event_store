@@ -1,163 +1,166 @@
-# Backend API
+# API del backend
 
-REST API under the prefix `/api/v1`, JSON in and out. The router modules are in
-`backend/app/api/v1`; request and response schemas are in `backend/app/api`.
+API REST bajo el prefijo `/api/v1`, con JSON de entrada y salida. Los módulos de routers
+están en `backend/app/api/v1`; los esquemas de petición y respuesta están en
+`backend/app/api`.
 
-## Interactive documentation
+## Documentación interactiva
 
-FastAPI serves the generated OpenAPI with the default paths:
+FastAPI sirve el OpenAPI generado en las rutas por defecto:
 
-| Path | What |
+| Ruta | Qué es |
 | --- | --- |
-| `/docs` | Swagger UI (use **Authorize** with a token from `/api/v1/auth/login`) |
+| `/docs` | Swagger UI (usa **Authorize** con un token de `/api/v1/auth/login`) |
 | `/redoc` | ReDoc |
-| `/openapi.json` | OpenAPI document |
+| `/openapi.json` | Documento OpenAPI |
 
-With the docker compose setup these are at `http://localhost:8000/docs` and so on.
-Every operation has a summary, a description and documented error responses, so this page
-is only an overview.
+Con la configuración de docker compose estas están en `http://localhost:8000/docs` y
+similares. Cada operación tiene un resumen (summary), una descripción y respuestas de error
+documentadas, por lo que esta página es solo una visión general.
 
-## Authentication
+## Autenticación
 
-1. `POST /api/v1/auth/login` with email and password returns `{"access_token": "<jwt>"}`.
-2. Send `Authorization: Bearer <token>` on protected endpoints.
+1. `POST /api/v1/auth/login` con correo y contraseña devuelve `{"access_token": "<jwt>"}`.
+2. Envía `Authorization: Bearer <token>` en los endpoints protegidos.
 
-Tokens are JWT (`HS256` by default) and expire after `ACCESS_TOKEN_EXPIRE_MINUTES`
-(default 60). Endpoints marked "optional" accept a token but also work anonymously; an
-invalid token there is treated as anonymous, never as an error.
+Los tokens son JWT (`HS256` por defecto) y expiran tras `ACCESS_TOKEN_EXPIRE_MINUTES`
+(60 por defecto). Los endpoints marcados como "opcional" aceptan un token pero también
+funcionan de forma anónima; un token inválido allí se trata como anónimo, nunca como un
+error.
 
-## Conventions
+## Convenciones
 
-### Errors
+### Errores
 
-Every error body has the same shape:
+Todo cuerpo de error tiene la misma forma:
 
 ```json
 { "detail": "Event not found" }
 ```
 
-| Status | Meaning |
+| Estado | Significado |
 | --- | --- |
-| 401 | Missing or invalid token, or wrong credentials |
-| 403 | Authenticated but not allowed (role or ownership) |
-| 404 | Resource missing, or not visible to the caller (draft events look missing) |
-| 409 | Conflict with the current state: full, duplicate, overlap, invalid transition |
-| 422 | Invalid input |
+| 401 | Token ausente o inválido, o credenciales incorrectas |
+| 403 | Autenticado pero sin permiso (rol o propiedad) |
+| 404 | Recurso inexistente, o no visible para quien llama (los eventos en borrador parecen inexistentes) |
+| 409 | Conflicto con el estado actual: lleno, duplicado, solapamiento, transición inválida |
+| 422 | Entrada inválida |
 
-Domain errors are mapped in `app/api/error_handlers.py` (see
-[backend-architecture.md](backend-architecture.md)). Request-shape validation errors from
-FastAPI/Pydantic also answer 422, but `detail` is then a list of objects
-(`loc`, `msg`, `type`) instead of a string.
+Los errores de dominio se mapean en `app/api/error_handlers.py` (ver
+[backend-architecture.md](backend-architecture.md)). Los errores de validación de la forma
+de la petición de FastAPI/Pydantic también responden 422, pero entonces `detail` es una
+lista de objetos (`loc`, `msg`, `type`) en lugar de una cadena.
 
-### Pagination
+### Paginación
 
-List endpoints take `page` (1-based, default 1) and `size` (1 to 100, default 10) and
-return:
+Los endpoints de listado reciben `page` (base 1, por defecto 1) y `size` (de 1 a 100, por
+defecto 10) y devuelven:
 
 ```json
 { "items": [], "total": 25, "page": 1, "size": 10, "pages": 3 }
 ```
 
-`pages` is `0` when there are no results. Out-of-range `page` or `size` answers 422.
+`pages` es `0` cuando no hay resultados. Un `page` o `size` fuera de rango responde 422.
 
-### Dates and CORS
+### Fechas y CORS
 
-Datetimes are ISO 8601; naive values are treated as UTC. Report date filters are plain
-`YYYY-MM-DD` UTC days. Allowed browser origins come from `CORS_ORIGINS`; the
-`Content-Disposition` header is exposed so the frontend can name CSV downloads.
+Las fechas y horas son ISO 8601; los valores sin zona horaria se tratan como UTC. Los
+filtros de fecha de los reportes son días UTC simples con formato `YYYY-MM-DD`. Los
+orígenes de navegador permitidos provienen de `CORS_ORIGINS`; la cabecera
+`Content-Disposition` se expone para que el frontend pueda nombrar las descargas de CSV.
 
 ## Endpoints
 
-Role legend: **public** (no token), **optional** (token changes the result), **any**
-(any authenticated user), **organizer** (organizer or admin, plus ownership where noted),
-**admin**.
+Leyenda de roles: **público** (sin token), **opcional** (el token cambia el resultado),
+**cualquiera** (cualquier usuario autenticado), **organizer** (organizer o admin, más la
+propiedad donde se indique), **admin**.
 
 ### health
 
-| Method | Path | Role | Purpose |
+| Método | Ruta | Rol | Propósito |
 | --- | --- | --- | --- |
-| GET | `/api/v1/health` | public | Liveness check, returns `{"status": "ok"}` |
+| GET | `/api/v1/health` | público | Verificación de vida (liveness), devuelve `{"status": "ok"}` |
 
 ### auth
 
-| Method | Path | Role | Purpose |
+| Método | Ruta | Rol | Propósito |
 | --- | --- | --- | --- |
-| POST | `/api/v1/auth/register` | public | Create an account (always `organizer`) |
-| POST | `/api/v1/auth/login` | public | Exchange credentials for an access token |
-| GET | `/api/v1/users/me` | any | Profile of the authenticated user |
+| POST | `/api/v1/auth/register` | público | Crear una cuenta (siempre `organizer`) |
+| POST | `/api/v1/auth/login` | público | Intercambiar credenciales por un token de acceso |
+| GET | `/api/v1/users/me` | cualquiera | Perfil del usuario autenticado |
 
 ### events
 
-| Method | Path | Role | Purpose |
+| Método | Ruta | Rol | Propósito |
 | --- | --- | --- | --- |
-| POST | `/api/v1/events` | organizer | Create an event (starts as `draft`) |
-| GET | `/api/v1/events` | optional | Search and paginate events (`q`, `status`, `page`, `size`) |
-| GET | `/api/v1/events/{event_id}` | optional | Event detail with sessions, registered count and availability |
-| PUT | `/api/v1/events/{event_id}` | organizer, owner | Replace the editable fields |
-| PATCH | `/api/v1/events/{event_id}/status` | organizer, owner | Change status along the allowed transitions |
-| DELETE | `/api/v1/events/{event_id}` | organizer, owner | Delete the event and its dependents |
+| POST | `/api/v1/events` | organizer | Crear un evento (empieza como `draft`) |
+| GET | `/api/v1/events` | opcional | Buscar y paginar eventos (`q`, `status`, `page`, `size`) |
+| GET | `/api/v1/events/{event_id}` | opcional | Detalle del evento con sesiones, cantidad de inscritos y disponibilidad |
+| PUT | `/api/v1/events/{event_id}` | organizer, propietario | Reemplazar los campos editables |
+| PATCH | `/api/v1/events/{event_id}/status` | organizer, propietario | Cambiar el estado siguiendo las transiciones permitidas |
+| DELETE | `/api/v1/events/{event_id}` | organizer, propietario | Eliminar el evento y sus dependientes |
 
-"Owner" means the event's organizer; admins can manage any event.
+"Propietario" es el organizador del evento; los admins pueden gestionar cualquier evento.
 
 ### sessions
 
-| Method | Path | Role | Purpose |
+| Método | Ruta | Rol | Propósito |
 | --- | --- | --- | --- |
-| GET | `/api/v1/events/{event_id}/sessions` | optional | Sessions with speaker, seats left and the caller's enrollment |
-| POST | `/api/v1/events/{event_id}/sessions` | organizer, owner | Schedule a session |
-| PUT | `/api/v1/events/{event_id}/sessions/{session_id}` | organizer, owner | Replace a session |
-| DELETE | `/api/v1/events/{event_id}/sessions/{session_id}` | organizer, owner | Remove a session (409 if it has enrollments) |
+| GET | `/api/v1/events/{event_id}/sessions` | opcional | Sesiones con ponente, cupos disponibles y la inscripción de quien llama |
+| POST | `/api/v1/events/{event_id}/sessions` | organizer, propietario | Programar una sesión |
+| PUT | `/api/v1/events/{event_id}/sessions/{session_id}` | organizer, propietario | Reemplazar una sesión |
+| DELETE | `/api/v1/events/{event_id}/sessions/{session_id}` | organizer, propietario | Eliminar una sesión (409 si tiene inscripciones) |
 
 ### speakers
 
-| Method | Path | Role | Purpose |
+| Método | Ruta | Rol | Propósito |
 | --- | --- | --- | --- |
-| POST | `/api/v1/speakers` | organizer | Add a speaker to the shared directory |
-| GET | `/api/v1/speakers` | public | Paginated directory, optional `q` on the name |
-| GET | `/api/v1/speakers/{speaker_id}` | public | One speaker |
-| PUT | `/api/v1/speakers/{speaker_id}` | organizer | Replace a speaker |
-| DELETE | `/api/v1/speakers/{speaker_id}` | organizer | Delete (409 if it has sessions) |
+| POST | `/api/v1/speakers` | organizer | Agregar un ponente al directorio compartido |
+| GET | `/api/v1/speakers` | público | Directorio paginado, `q` opcional sobre el nombre |
+| GET | `/api/v1/speakers/{speaker_id}` | público | Un ponente |
+| PUT | `/api/v1/speakers/{speaker_id}` | organizer | Reemplazar un ponente |
+| DELETE | `/api/v1/speakers/{speaker_id}` | organizer | Eliminar (409 si tiene sesiones) |
 
 ### registrations
 
-Registration to an event and enrollment in a session. All require a token (any role).
+Inscripción a un evento e inscripción a una sesión. Todos requieren un token (cualquier rol).
 
-| Method | Path | Purpose |
+| Método | Ruta | Propósito |
 | --- | --- | --- |
-| POST | `/api/v1/events/{event_id}/register` | Register to an event |
-| DELETE | `/api/v1/events/{event_id}/register` | Cancel the registration (also cancels its session enrollments) |
-| GET | `/api/v1/users/me/events` | Paginated events the caller is registered to |
-| POST | `/api/v1/events/{event_id}/sessions/{session_id}/register` | Enroll in a session |
-| DELETE | `/api/v1/events/{event_id}/sessions/{session_id}/register` | Cancel the enrollment |
+| POST | `/api/v1/events/{event_id}/register` | Inscribirse a un evento |
+| DELETE | `/api/v1/events/{event_id}/register` | Cancelar la inscripción (también cancela sus inscripciones a sesiones) |
+| GET | `/api/v1/users/me/events` | Eventos paginados a los que está inscrito quien llama |
+| POST | `/api/v1/events/{event_id}/sessions/{session_id}/register` | Inscribirse a una sesión |
+| DELETE | `/api/v1/events/{event_id}/sessions/{session_id}/register` | Cancelar la inscripción a la sesión |
 
 ### reports
 
-Role: organizer or admin. Organizers only see their own events. Filters: `event_id`, `q`,
-`status`, `date_from`, `date_to` (and `session_id` for the session reports).
+Rol: organizer o admin. Los organizadores solo ven sus propios eventos. Filtros: `event_id`,
+`q`, `status`, `date_from`, `date_to` (y `session_id` para los reportes de sesiones).
 
-| Method | Path | Purpose |
+| Método | Ruta | Propósito |
 | --- | --- | --- |
-| GET | `/api/v1/reports/participants` | Paginated preview of registered people |
-| GET | `/api/v1/reports/participants.csv` | Same filters, whole result as a CSV download |
-| GET | `/api/v1/reports/sessions/participants` | Paginated preview of enrolled people |
-| GET | `/api/v1/reports/sessions/participants.csv` | Same filters, whole result as a CSV download |
+| GET | `/api/v1/reports/participants` | Vista previa paginada de las personas inscritas |
+| GET | `/api/v1/reports/participants.csv` | Mismos filtros, todo el resultado como descarga CSV |
+| GET | `/api/v1/reports/sessions/participants` | Vista previa paginada de las personas inscritas a sesiones |
+| GET | `/api/v1/reports/sessions/participants.csv` | Mismos filtros, todo el resultado como descarga CSV |
 
-CSV format and file names are described in
-[backend-domain-rules.md](backend-domain-rules.md#reports-and-csv).
+El formato del CSV y los nombres de archivo se describen en
+[backend-domain-rules.md](backend-domain-rules.md#reportes-y-csv).
 
 ### admin
 
-Role: admin.
+Rol: admin.
 
-| Method | Path | Purpose |
+| Método | Ruta | Propósito |
 | --- | --- | --- |
-| GET | `/api/v1/admin/users` | Paginated users, optional `email` prefix search |
-| PATCH | `/api/v1/admin/users/{user_id}` | Partial update of name, email, role or active flag |
+| GET | `/api/v1/admin/users` | Usuarios paginados, búsqueda opcional por prefijo de `email` |
+| PATCH | `/api/v1/admin/users/{user_id}` | Actualización parcial de nombre, correo, rol o indicador de activo |
 
-## Keeping this page accurate
+## Mantener esta página al día
 
-The tables above were checked against the generated OpenAPI. To list the real endpoints
-again:
+Las tablas de arriba se verificaron contra el OpenAPI generado. Para volver a listar los
+endpoints reales:
 
 ```bash
 cd backend   # JWT_SECRET must be set, see backend-operations.md
@@ -165,5 +168,5 @@ poetry run python -c "from app.main import app; \
 [print(m.upper(), p) for p, ms in app.openapi()['paths'].items() for m in ms]"
 ```
 
-`backend/tests/test_router_structure.py` and the `test_*_api.py` files document the
-behavior of each endpoint through tests.
+`backend/tests/test_router_structure.py` y los archivos `test_*_api.py` documentan mediante
+pruebas el comportamiento de cada endpoint.
