@@ -9,7 +9,7 @@ from sqlmodel import Session
 
 from app.application.auth_service import AuthService, UserAdminService
 from app.application.cache_policy import EventCache, SessionCache, SpeakerCache
-from app.application.clock import utc_now
+from app.application.clock import Clock, utc_now
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
 from app.application.guards import EventAccessPolicy
@@ -64,6 +64,10 @@ from app.infrastructure.security.jwt_tokens import JwtTokenService
 from app.infrastructure.security.password_hasher import Argon2PasswordHasher
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_clock() -> Clock:
+    return utc_now
 
 
 def get_unit_of_work(session: Session = Depends(get_session)) -> UnitOfWork:

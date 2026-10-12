@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api.v1 import admin, auth, events, health, registrations, reports, sessions, speakers
+from app.api.v1 import (
+    admin,
+    auth,
+    events,
+    health,
+    participant_reports,
+    registrations,
+    session_reports,
+    sessions,
+    speakers,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router)
@@ -10,4 +20,5 @@ api_router.include_router(events.router)
 api_router.include_router(sessions.router)
 api_router.include_router(speakers.router)
 api_router.include_router(registrations.router)
-api_router.include_router(reports.router)
+api_router.include_router(participant_reports.router)
+api_router.include_router(session_reports.router)

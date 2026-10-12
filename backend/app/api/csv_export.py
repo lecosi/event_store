@@ -8,6 +8,7 @@ from app.domain.event import ensure_utc
 from app.domain.registration import ParticipantRow
 from app.domain.session_registration import SessionParticipantRow
 
+CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
 BOM = "﻿"
 DELIMITER = ";"
 LINE_TERMINATOR = "\r\n"
