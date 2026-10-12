@@ -72,7 +72,6 @@ def test_only_one_enrollment_wins_a_capacity_one_session(
                 SqlEventRepository(session),
                 SqlSessionRepository(session),
                 enrollments,
-                enrollments,
                 SqlUnitOfWork(session),
             )
             user = UserAccount(

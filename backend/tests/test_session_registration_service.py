@@ -52,7 +52,6 @@ class World:
             self.events,
             self.sessions,
             self.enrollments,
-            self.enrollments,
             self.uow,
             clock=lambda: NOW,
         )
@@ -176,7 +175,6 @@ def test_enroll_rejects_when_the_session_has_ended(world: World) -> None:
         world.events,
         world.sessions,
         world.enrollments,
-        world.enrollments,
         world.uow,
         clock=lambda: session.end_at + timedelta(minutes=1),
     )
@@ -222,20 +220,6 @@ def test_cancelling_the_event_registration_drops_its_session_enrollments(world: 
     world.event_service.cancel(user(1), event.id or 0)
     assert not world.enrollments.is_enrolled(1, session.id or 0)
     assert world.enrollments.is_enrolled(1, other.id or 0)
-
-
-def test_availability_reports_counts_spots_and_viewer_enrollment(world: World) -> None:
-    event, session = registered_world(world, capacity=3)
-    world.service.enroll(user(1), event.id or 0, session.id or 0)
-    capacities = {session.id or 0: 3}
-    mine = world.service.availability(event.id or 0, capacities, user(1))[session.id or 0]
-    anonymous = world.service.availability(event.id or 0, capacities, None)[session.id or 0]
-    assert (mine.enrolled_count, mine.available_spots, mine.is_enrolled) == (1, 2, True)
-    assert (anonymous.enrolled_count, anonymous.available_spots, anonymous.is_enrolled) == (
-        1,
-        2,
-        False,
-    )
 
 
 def test_cancelling_the_event_registration_removes_the_users_session_enrollments(

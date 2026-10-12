@@ -34,6 +34,7 @@ from app.application.ports import (
 from app.application.readers import EventCatalogue, EventSchedule, SpeakerDirectory
 from app.application.registration_service import RegistrationService
 from app.application.report_service import ReportService, SessionReportService
+from app.application.session_catalogue import SessionCatalogue
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
@@ -280,10 +281,17 @@ def get_session_registration_service(
     events: EventRepository = Depends(get_event_repository),
     sessions: SessionRepository = Depends(get_session_repository),
     enrollments: SessionEnrollmentWriter = Depends(get_enrollment_writer),
-    availability: SessionAvailabilityReader = Depends(get_availability_reader),
     uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> SessionRegistrationService:
-    return SessionRegistrationService(events, sessions, enrollments, availability, uow)
+    return SessionRegistrationService(events, sessions, enrollments, uow)
+
+
+def get_session_catalogue(
+    events: EventService = Depends(get_event_service),
+    schedule: EventSchedule = Depends(get_event_schedule),
+    availability: SessionAvailabilityReader = Depends(get_availability_reader),
+) -> SessionCatalogue:
+    return SessionCatalogue(events, schedule, availability)
 
 
 def get_event_access(events: EventRepository = Depends(get_event_repository)) -> EventAccess:

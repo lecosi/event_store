@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, Response, status
 
 from app.api.dependencies import (
-    get_event_schedule,
-    get_event_service,
     get_optional_user,
-    get_session_registration_service,
+    get_session_catalogue,
     get_session_service,
     organizer_or_admin,
 )
@@ -17,13 +15,10 @@ from app.api.openapi_responses import (
     conflict,
     conflicts,
 )
-from app.api.speaker_schemas import ScheduledSession, SessionRequest, SessionResponse
-from app.application.event_service import EventService
-from app.application.readers import EventSchedule
-from app.application.session_registration_service import SessionRegistrationService
+from app.api.speaker_schemas import SessionRequest, SessionResponse
+from app.application.session_catalogue import SessionCatalogue, SessionView
 from app.application.session_service import SessionService
 from app.domain.session import SessionDetails
-from app.domain.session_registration import SessionAvailability
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
@@ -67,9 +62,7 @@ def _details(body: SessionRequest) -> SessionDetails:
 def list_sessions(
     event_id: EventId,
     viewer: UserAccount | None = Depends(get_optional_user),
-    events: EventService = Depends(get_event_service),
-    schedule_reader: EventSchedule = Depends(get_event_schedule),
-    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
+    catalogue: SessionCatalogue = Depends(get_session_catalogue),
 ) -> list[SessionResponse]:
     """Sessions of an event with their speaker. Public; a token is optional.
 
@@ -79,12 +72,7 @@ def list_sessions(
     `enrolled_count`, `available_spots` and `is_enrolled` are computed per request, outside
     the cached schedule; `is_enrolled` is always false for anonymous callers.
     """
-    events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
-
-    schedule = [ScheduledSession.from_domain(s) for s in schedule_reader.list_for_event(event_id)]
-    capacities = {item.id: item.capacity for item in schedule}
-    availability = enrollments.availability(event_id, capacities, viewer)
-    return [SessionResponse.from_scheduled(item, availability[item.id]) for item in schedule]
+    return [SessionResponse.from_view(view) for view in catalogue.list_for_event(event_id, viewer)]
 
 
 @router.post(
@@ -108,9 +96,7 @@ def create_session(
     touch, one ending when the next starts, do not overlap).
     """
     created = service.create(user, event_id, _details(body))
-    scheduled = ScheduledSession.from_domain(service.get_with_speaker(created))
-    empty = SessionAvailability(0, created.capacity, False)
-    return SessionResponse.from_scheduled(scheduled, empty)
+    return SessionResponse.from_view(SessionView.unenrolled(service.get_with_speaker(created)))
 
 
 @router.put(
@@ -125,7 +111,7 @@ def update_session(
     body: SessionRequest,
     user: UserAccount = Depends(organizer_or_admin),
     service: SessionService = Depends(get_session_service),
-    enrollments: SessionRegistrationService = Depends(get_session_registration_service),
+    catalogue: SessionCatalogue = Depends(get_session_catalogue),
 ) -> SessionResponse:
     """Replace a session. Only the event's organizer or an admin.
 
@@ -135,9 +121,9 @@ def update_session(
     (409); title and speaker stay editable.
     """
     updated = service.update(user, event_id, session_id, _details(body))
-    scheduled = ScheduledSession.from_domain(service.get_with_speaker(updated))
-    seats = enrollments.availability(event_id, {session_id: updated.capacity}, user)
-    return SessionResponse.from_scheduled(scheduled, seats[session_id])
+    item = service.get_with_speaker(updated)
+    (view,) = catalogue.with_availability(event_id, [item], user)
+    return SessionResponse.from_view(view)
 
 
 @router.delete(

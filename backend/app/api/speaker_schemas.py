@@ -5,6 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.application.session_catalogue import SessionView
 from app.domain.session import SessionWithSpeaker
 from app.domain.session_registration import SessionAvailability
 
@@ -149,3 +150,7 @@ class SessionResponse(ScheduledSession):
         cls, session: ScheduledSession, availability: SessionAvailability
     ) -> "SessionResponse":
         return cls(**session.model_dump(), **asdict(availability))
+
+    @classmethod
+    def from_view(cls, view: SessionView) -> "SessionResponse":
+        return cls.from_scheduled(ScheduledSession.from_domain(view.session), view.availability)
