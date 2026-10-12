@@ -90,12 +90,11 @@ class SessionService:
     def list_for_event(self, event_id: int) -> list[SessionWithSpeaker]:
         get_event(self._events, event_id)
         sessions = self._sessions.list_for_event(event_id)
-        names: dict[int, str] = {}
-        for session in sessions:
-            if session.speaker_id not in names:
-                speaker = self._speakers.get(session.speaker_id)
-                names[session.speaker_id] = speaker.name if speaker else ""
-        return [SessionWithSpeaker(s, names[s.speaker_id]) for s in sessions]
+        speakers = self._speakers.get_many({s.speaker_id for s in sessions})
+        return [
+            SessionWithSpeaker(s, speakers[s.speaker_id].name if s.speaker_id in speakers else "")
+            for s in sessions
+        ]
 
     def get_with_speaker(self, session: Session) -> SessionWithSpeaker:
         speaker = self._speakers.get(session.speaker_id)

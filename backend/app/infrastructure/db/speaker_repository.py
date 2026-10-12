@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
@@ -29,6 +31,14 @@ class SqlSpeakerRepository:
     def get_by_email(self, email: str) -> Speaker | None:
         row = self._session.exec(select(SpeakerRow).where(SpeakerRow.email == email)).first()
         return speaker_to_domain(row) if row else None
+
+    def get_many(self, speaker_ids: Collection[int]) -> dict[int, Speaker]:
+        if not speaker_ids:
+            return {}
+        rows = self._session.exec(
+            select(SpeakerRow).where(col(SpeakerRow.id).in_(speaker_ids))
+        ).all()
+        return {row.id: speaker_to_domain(row) for row in rows if row.id is not None}
 
     def list_page(self, q: str | None, page: int, size: int) -> tuple[list[Speaker], int]:
         query = select(SpeakerRow)

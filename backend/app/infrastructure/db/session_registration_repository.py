@@ -106,14 +106,23 @@ class SqlSessionRegistrationRepository:
             .where(col(SessionRegistrationRow.session_id) == session_id)
         ).one()
 
-    def list_enrolled_sessions(self, user_id: int) -> list[DomainSession]:
+    def find_overlapping_sessions(
+        self, user_id: int, session: DomainSession
+    ) -> list[DomainSession]:
+        # Half-open interval overlap, same predicate as the domain rule: touching sessions
+        # do not conflict.
         rows = self._session.exec(
             select(SessionRow)
             .join(
                 SessionRegistrationRow,
                 col(SessionRegistrationRow.session_id) == col(SessionRow.id),
             )
-            .where(col(SessionRegistrationRow.user_id) == user_id)
+            .where(
+                col(SessionRegistrationRow.user_id) == user_id,
+                col(SessionRow.id) != session.id,
+                col(SessionRow.start_at) < ensure_utc(session.end_at),
+                col(SessionRow.end_at) > ensure_utc(session.start_at),
+            )
         ).all()
         return [session_to_domain(row) for row in rows]
 

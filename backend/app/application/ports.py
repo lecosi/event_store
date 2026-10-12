@@ -5,7 +5,7 @@ Each port is small and focused (interface segregation): a use case depends only 
 ports for the roles it actually plays, even when one adapter implements several of them.
 """
 
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Protocol
@@ -109,6 +109,10 @@ class SpeakerRepository(Protocol):
     def get(self, speaker_id: int) -> Speaker | None: ...
 
     def get_by_email(self, email: str) -> Speaker | None: ...
+
+    def get_many(self, speaker_ids: Collection[int]) -> dict[int, Speaker]:
+        """Return the existing speakers among ``speaker_ids`` keyed by id, in one query."""
+        ...
 
     def list_page(self, q: str | None, page: int, size: int) -> tuple[list[Speaker], int]:
         """Return the requested page (ordered by name, id) and the total matching speakers.
@@ -246,8 +250,12 @@ class SessionEnrollmentWriter(Protocol):
 
     def count_enrollments(self, session_id: int) -> int: ...
 
-    def list_enrolled_sessions(self, user_id: int) -> list[Session]:
-        """Return every session the user is enrolled in, across all events."""
+    def find_overlapping_sessions(self, user_id: int, session: Session) -> list[Session]:
+        """Return the sessions the user is enrolled in that overlap ``session`` in time.
+
+        Intervals are half-open: sessions that merely touch do not overlap. ``session``
+        itself is never returned.
+        """
         ...
 
     def add(self, user_id: int, session_id: int) -> SessionRegistration:

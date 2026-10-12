@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -18,7 +18,7 @@ from app.domain.registration import (
     RegisteredEvent,
     Registration,
 )
-from app.domain.session import Session
+from app.domain.session import Session, overlaps
 from app.domain.session_registration import (
     SessionParticipantFilters,
     SessionParticipantRow,
@@ -292,11 +292,17 @@ class FakeSessionRegistrationRepository:
     def count_enrollments(self, session_id: int) -> int:
         return self._count(session_id)
 
-    def list_enrolled_sessions(self, user_id: int) -> list[Session]:
-        return [
+    def find_overlapping_sessions(self, user_id: int, session: Session) -> list[Session]:
+        mine = [
             other
             for (uid, sid) in self._rows
             if uid == user_id and (other := self._sessions.get(sid)) is not None
+        ]
+        return [
+            other
+            for other in mine
+            if other.id != session.id
+            and overlaps(session.start_at, session.end_at, other.start_at, other.end_at)
         ]
 
     def add(self, user_id: int, session_id: int) -> SessionRegistration:
@@ -391,6 +397,9 @@ class FakeSpeakerRepository:
 
     def get_by_email(self, email: str) -> Speaker | None:
         return next((s for s in self._speakers.values() if s.email == email), None)
+
+    def get_many(self, speaker_ids: Collection[int]) -> dict[int, Speaker]:
+        return {i: self._speakers[i] for i in speaker_ids if i in self._speakers}
 
     def list_page(self, q: str | None, page: int, size: int) -> tuple[list[Speaker], int]:
         term = q.lower() if q else None

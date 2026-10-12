@@ -58,7 +58,7 @@ class SessionRegistrationService:
                 session=session,
                 event_registered=self._enrollments.lock_event_registration(user.id, event_id),
                 enrolled_count=self._enrollments.count_enrollments(session_id),
-                enrolled_sessions=self._enrollments.list_enrolled_sessions(user.id),
+                enrolled_sessions=self._enrollments.find_overlapping_sessions(user.id, session),
             )
             ensure_can_enroll(context, self._clock())
             try:
