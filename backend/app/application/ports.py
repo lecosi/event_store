@@ -12,7 +12,12 @@ from typing import Protocol
 from app.domain.event import Event, EventFilters, ParticipantFilters
 from app.domain.registration import ParticipantRow, RegisteredEvent, Registration
 from app.domain.session import Session
-from app.domain.session_registration import EnrollmentContext, SessionRegistration
+from app.domain.session_registration import (
+    EnrollmentContext,
+    SessionParticipantFilters,
+    SessionParticipantRow,
+    SessionRegistration,
+)
 from app.domain.speaker import Speaker
 from app.domain.user import UserAccount
 
@@ -224,6 +229,21 @@ class SessionRegistrationRepository(Protocol):
 
     def enrolled_session_ids(self, user_id: int, event_id: int) -> set[int]:
         """Ids of the event's sessions the user is enrolled in."""
+        ...
+
+    def list_participants(
+        self, filters: SessionParticipantFilters, page: int, size: int
+    ) -> tuple[list[SessionParticipantRow], int]:
+        """Return the requested page of enrolled people and the total matching count.
+
+        Ordered by session start, session id, enrollment date and enrollment id.
+        """
+        ...
+
+    def iter_participants(
+        self, filters: SessionParticipantFilters
+    ) -> Iterator[SessionParticipantRow]:
+        """Yield every matching enrolled person in the same order, reading in bounded chunks."""
         ...
 
 

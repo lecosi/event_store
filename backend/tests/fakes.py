@@ -23,6 +23,8 @@ from app.domain.session import Session
 from app.domain.session_registration import (
     AlreadyEnrolledError,
     EnrollmentContext,
+    SessionParticipantFilters,
+    SessionParticipantRow,
     SessionRegistration,
 )
 from app.domain.speaker import Speaker
@@ -243,10 +245,12 @@ class FakeSessionRegistrationRepository:
         events: FakeEventRepository,
         sessions: FakeSessionRepository,
         registrations: FakeRegistrationRepository,
+        users: FakeUserRepository | None = None,
     ) -> None:
         self._events = events
         self._sessions = sessions
         self._registrations = registrations
+        self._users = users or FakeUserRepository()
         self._rows: dict[tuple[int, int], datetime] = {}
         registrations.cancel_hooks.append(self._drop_event_enrollments)
 
@@ -299,6 +303,54 @@ class FakeSessionRegistrationRepository:
     def enrolled_session_ids(self, user_id: int, event_id: int) -> set[int]:
         in_event = {s.id for s in self._sessions.list_for_event(event_id)}
         return {sid for (uid, sid) in self._rows if uid == user_id and sid in in_event}
+
+    def list_participants(
+        self, filters: SessionParticipantFilters, page: int, size: int
+    ) -> tuple[list[SessionParticipantRow], int]:
+        matching = list(self.iter_participants(filters))
+        start = (page - 1) * size
+        return matching[start : start + size], len(matching)
+
+    def iter_participants(
+        self, filters: SessionParticipantFilters
+    ) -> Iterator[SessionParticipantRow]:
+        ordered = sorted(
+            self._rows.items(),
+            key=lambda row: (
+                self._sessions.get(row[0][1]).start_at,  # type: ignore[union-attr]
+                row[0][1],
+                row[1],
+            ),
+        )
+        for (user_id, session_id), _ in ordered:
+            session = self._sessions.get(session_id)
+            assert session is not None
+            event = self._events.get(session.event_id)
+            user = self._users.get_by_id(user_id)
+            assert event is not None and user is not None
+            if self._matches(event, session, filters):
+                yield SessionParticipantRow(
+                    user.full_name, user.email, event.name, session.title, session.start_at
+                )
+
+    @staticmethod
+    def _matches(event: Event, session: Session, filters: SessionParticipantFilters) -> bool:
+        if filters.organizer_id is not None and event.organizer_id != filters.organizer_id:
+            return False
+        if filters.event_id is not None and event.id != filters.event_id:
+            return False
+        if filters.session_id is not None and session.id != filters.session_id:
+            return False
+        if filters.status is not None and event.status is not filters.status:
+            return False
+        if filters.q and not any(
+            filters.q.lower() in text.lower() for text in (session.title, event.name)
+        ):
+            return False
+        start = ensure_utc(session.start_at)
+        if filters.date_from is not None and start < filters.date_from:
+            return False
+        return filters.date_to is None or start <= filters.date_to
 
 
 class FakeSpeakerRepository:

@@ -25,7 +25,7 @@ from app.application.ports import (
     UserRepository,
 )
 from app.application.registration_service import RegistrationService
-from app.application.report_service import ReportService
+from app.application.report_service import ReportService, SessionReportService
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
 from app.application.speaker_service import SpeakerService
@@ -198,6 +198,14 @@ def get_report_service(
     registrations: RegistrationRepository = Depends(get_registration_repository),
 ) -> ReportService:
     return ReportService(events, registrations)
+
+
+def get_session_report_service(
+    events: EventService = Depends(get_event_service),
+    sessions: SessionRepository = Depends(get_session_repository),
+    enrollments: SessionRegistrationRepository = Depends(get_session_registration_repository),
+) -> SessionReportService:
+    return SessionReportService(events, sessions, enrollments)
 
 
 def require_role(*roles: Role) -> Callable[[UserAccount], UserAccount]:

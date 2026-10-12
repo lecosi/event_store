@@ -47,6 +47,47 @@ class SessionRegistration:
 
 
 @dataclass(frozen=True)
+class SessionParticipantFilters:
+    """Criteria for the session participants report.
+
+    ``date_from`` / ``date_to`` are inclusive bounds on the session start, already expressed
+    as UTC instants. ``organizer_id`` restricts the report to that organizer's events;
+    ``None`` means unrestricted (admin). ``status`` is the status of the session's event.
+    """
+
+    organizer_id: int | None = None
+    event_id: int | None = None
+    session_id: int | None = None
+    q: str | None = None
+    status: EventStatus | None = None
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+
+
+@dataclass(frozen=True)
+class SessionParticipantRow:
+    """One person enrolled in one session, as listed in the session participants report."""
+
+    full_name: str
+    email: str
+    event_name: str
+    session_title: str
+    session_start: datetime
+
+
+@dataclass(frozen=True)
+class SessionParticipantPage:
+    items: list[SessionParticipantRow]
+    total: int
+    page: int
+    size: int
+
+    @property
+    def pages(self) -> int:
+        return -(-self.total // self.size) if self.total else 0
+
+
+@dataclass(frozen=True)
 class SessionAvailability:
     enrolled_count: int
     available_spots: int

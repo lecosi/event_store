@@ -1,7 +1,10 @@
+from datetime import UTC, datetime, timedelta, timezone
+
 import pytest
 
-from app.api.csv_export import participants_csv
+from app.api.csv_export import participants_csv, session_participants_csv
 from app.domain.registration import ParticipantRow
+from app.domain.session_registration import SessionParticipantRow
 
 BOM = "﻿"
 HEADER = "Nombre completo;Correo electrónico;Evento\r\n"
@@ -62,3 +65,45 @@ def test_export_is_lazy() -> None:
     next(chunks)
 
     assert consumed == [0]
+
+
+def render_sessions(*rows: SessionParticipantRow) -> str:
+    return "".join(session_participants_csv(iter(rows)))
+
+
+SESSION_HEADER = "Nombre completo;Correo electrónico;Evento;Sesión;Inicio de la sesión\r\n"
+START = datetime(2030, 3, 10, 9, tzinfo=UTC)
+
+
+def test_empty_session_export_is_only_the_bom_and_the_header() -> None:
+    assert render_sessions() == BOM + SESSION_HEADER
+
+
+def test_session_rows_include_title_and_start_in_utc() -> None:
+    body = render_sessions(
+        SessionParticipantRow("Ana", "ana@example.com", "PyCon", "Keynote", START)
+    )
+
+    assert (
+        body == BOM + SESSION_HEADER + "Ana;ana@example.com;PyCon;Keynote;2030-03-10T09:00:00Z\r\n"
+    )
+
+
+def test_session_start_is_converted_to_utc() -> None:
+    lima = START.astimezone(timezone(timedelta(hours=-5)))
+
+    body = render_sessions(
+        SessionParticipantRow("Ana", "ana@example.com", "PyCon", "Keynote", lima)
+    )
+
+    assert body.endswith(";2030-03-10T09:00:00Z\r\n")
+
+
+@pytest.mark.parametrize("prefix", ["=", "+", "-", "@", "\t", "\r"])
+def test_session_title_starting_with_a_formula_character_is_neutralized(prefix: str) -> None:
+    dangerous = f"{prefix}HYPERLINK(1)"
+
+    body = render_sessions(SessionParticipantRow("Ana", "a@example.com", "PyCon", dangerous, START))
+
+    cells = body.removeprefix(BOM + SESSION_HEADER)
+    assert f"'{dangerous}" in cells

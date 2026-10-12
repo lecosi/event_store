@@ -1,14 +1,21 @@
-from sqlalchemy import func
+from collections.abc import Iterator
+from typing import Any
+
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, delete, select
 
 from app.application.errors import SessionNotFoundError
 from app.application.ports import EnrollmentRule
+from app.domain.event import ensure_utc
 from app.domain.session_registration import (
     AlreadyEnrolledError,
     EnrollmentContext,
+    SessionParticipantFilters,
+    SessionParticipantRow,
     SessionRegistration,
 )
+from app.infrastructure.db.like import LIKE_ESCAPE, escape_like
 from app.infrastructure.db.mappers import (
     event_to_domain,
     session_registration_to_domain,
@@ -18,8 +25,66 @@ from app.infrastructure.db.models import Event as EventRow
 from app.infrastructure.db.models import Registration as RegistrationRow
 from app.infrastructure.db.models import Session as SessionRow
 from app.infrastructure.db.models import SessionRegistration as SessionRegistrationRow
+from app.infrastructure.db.models import User as UserRow
 
 ALREADY_ENROLLED = "You are already enrolled in this session"
+PARTICIPANT_CHUNK_SIZE = 500
+
+
+def _participant_conditions(filters: SessionParticipantFilters) -> list[Any]:
+    conditions: list[Any] = []
+    if filters.organizer_id is not None:
+        conditions.append(col(EventRow.organizer_id) == filters.organizer_id)
+    if filters.event_id is not None:
+        conditions.append(col(EventRow.id) == filters.event_id)
+    if filters.session_id is not None:
+        conditions.append(col(SessionRow.id) == filters.session_id)
+    if filters.status is not None:
+        conditions.append(col(EventRow.status) == filters.status)
+    if filters.q:
+        pattern = f"%{escape_like(filters.q)}%"
+        conditions.append(
+            or_(
+                col(SessionRow.title).ilike(pattern, escape=LIKE_ESCAPE),
+                col(EventRow.name).ilike(pattern, escape=LIKE_ESCAPE),
+            )
+        )
+    if filters.date_from is not None:
+        conditions.append(col(SessionRow.start_at) >= filters.date_from)
+    if filters.date_to is not None:
+        conditions.append(col(SessionRow.start_at) <= filters.date_to)
+    return conditions
+
+
+def _participant_rows(filters: SessionParticipantFilters) -> Any:
+    return (
+        # sqlmodel's select() is typed up to four columns only.
+        select(  # type: ignore[call-overload]
+            col(UserRow.full_name),
+            col(UserRow.email),
+            col(EventRow.name),
+            col(SessionRow.title),
+            col(SessionRow.start_at),
+        )
+        .select_from(SessionRegistrationRow)
+        .join(SessionRow, col(SessionRow.id) == col(SessionRegistrationRow.session_id))
+        .join(EventRow, col(EventRow.id) == col(SessionRow.event_id))
+        .join(UserRow, col(UserRow.id) == col(SessionRegistrationRow.user_id))
+        .where(*_participant_conditions(filters))
+        .order_by(
+            col(SessionRow.start_at),
+            col(SessionRow.id),
+            col(SessionRegistrationRow.created_at),
+            col(SessionRegistrationRow.id),
+        )
+    )
+
+
+def _to_row(row: Any) -> SessionParticipantRow:
+    full_name, email, event_name, session_title, session_start = row
+    return SessionParticipantRow(
+        full_name, email, event_name, session_title, ensure_utc(session_start)
+    )
 
 
 class SqlSessionRegistrationRepository:
@@ -125,3 +190,30 @@ class SqlSessionRegistrationRepository:
             )
         ).all()
         return set(rows)
+
+    def list_participants(
+        self, filters: SessionParticipantFilters, page: int, size: int
+    ) -> tuple[list[SessionParticipantRow], int]:
+        total = self._session.exec(
+            select(func.count())
+            .select_from(SessionRegistrationRow)
+            .join(SessionRow, col(SessionRow.id) == col(SessionRegistrationRow.session_id))
+            .join(EventRow, col(EventRow.id) == col(SessionRow.event_id))
+            .where(*_participant_conditions(filters))
+        ).one()
+        rows = self._session.exec(
+            _participant_rows(filters).offset((page - 1) * size).limit(size)
+        ).all()
+        return [_to_row(row) for row in rows], total
+
+    def iter_participants(
+        self, filters: SessionParticipantFilters
+    ) -> Iterator[SessionParticipantRow]:
+        # A streamed response outlives the request-scoped session, so the stream reads through
+        # its own short-lived one; rows arrive in chunks and memory stays constant.
+        with Session(self._session.get_bind()) as session:
+            result = session.exec(
+                _participant_rows(filters).execution_options(yield_per=PARTICIPANT_CHUNK_SIZE)
+            )
+            for row in result:
+                yield _to_row(row)
