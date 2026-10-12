@@ -10,7 +10,7 @@ How to run, configure and maintain the backend. For scripts in detail see
 | Service | Image / build | Host port | Notes |
 | --- | --- | --- | --- |
 | `db` | `postgres:16-alpine` | `127.0.0.1:${DB_HOST_PORT:-5432}` | Volume `db_data`; healthcheck with `pg_isready` |
-| `redis` | `redis:7-alpine` | none | Cache only: no persistence, 64 MB, `allkeys-lru` |
+| `redis` | `redis:7-alpine` | none | Cache only: no persistence, 64 MB, `volatile-lru` |
 | `backend` | `./backend` | `8000` | Starts after `db` and `redis` are healthy |
 | `frontend` | `./frontend` | `5173` (container port 80) | Static build, calls the backend from the browser |
 

@@ -64,7 +64,15 @@ knows a key shape, a namespace or a TTL.
 - Values are JSON strings with `SETEX`.
 
 The `docker-compose.yml` Redis runs with persistence off and
-`--maxmemory 64mb --maxmemory-policy allkeys-lru`, which suits a pure cache.
+`--maxmemory 64mb --maxmemory-policy volatile-lru`.
+
+The policy is `volatile-lru` on purpose. Entries are written with a TTL, but the
+`<namespace>:version` keys have none. With `volatile-lru` only keys that carry a TTL are
+candidates for eviction, so a version key can never be evicted under memory pressure. With
+`allkeys-lru` an evicted version key would fall back to `0`, and entries written earlier
+under a reused version (for example `speakers:v1:list`) could become reachable again and
+serve stale data until their TTL expires (at most 300 s). The rest of the cache behaves as
+before: when memory is full, the least recently used entries are dropped first.
 
 ## Payload format
 
