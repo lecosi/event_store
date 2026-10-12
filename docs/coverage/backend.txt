@@ -1,24 +1,25 @@
-Backend test coverage summary (pytest-cov, line + branch)
-Date:      2026-10-11
-Command:   cd backend && poetry run pytest --cov=app --cov-report=term-missing
-Tests:     374 passed, 0 failed
-Total:     98.49% (threshold: fail_under = 90)
-Database:  PostgreSQL 16 (postgres:16-alpine) via docker compose
-Note:      files at 100% are omitted (skip_covered = true)
+Resumen de cobertura de pruebas del backend (pytest-cov, líneas y ramas)
+Fecha:      2026-10-12
+Comando:    cd backend && poetry run pytest --cov=app --cov-report=term-missing
+Pruebas:    697 aprobadas, 0 fallidas
+Total:      98.95% (umbral: fail_under = 90)
+Base de datos: PostgreSQL 16 (postgres:16-alpine) vía docker compose
+Nota:       los archivos al 100% se omiten (skip_covered = true)
 
-Name                                               Stmts   Miss Branch BrPart  Cover   Missing
-----------------------------------------------------------------------------------------------
-app/application/registration_service.py               44      1      6      1    96%   47
-app/application/session_service.py                    68      1     14      1    98%   80
-app/infrastructure/cache/redis_cache.py               40      1      4      1    95%   15
-app/infrastructure/db/event_repository.py             68      1     12      1    98%   71
-app/infrastructure/db/registration_repository.py      40      4      4      1    89%   28, 41-43
-app/infrastructure/db/session.py                      11      3      0      0    73%   12, 16-17
-app/infrastructure/db/session_repository.py           43      1      4      2    94%   58, 67->exit
-app/infrastructure/db/speaker_repository.py           58      1      6      2    95%   53, 71->exit
-app/infrastructure/db/user_repository.py              42      3      2      1    91%   25-26, 49
-----------------------------------------------------------------------------------------------
-TOTAL                                               1564     16    154     10    98%
+Name                                                       Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------------------------
+app/application/registration_service.py                       47      2      4      0    96%   58-59
+app/application/session_registration_service.py               37      2      4      0    95%   59-60
+app/infrastructure/cache/redis_cache.py                       40      1      4      1    95%   15
+app/infrastructure/db/event_repository.py                     49      1     10      1    97%   59
+app/infrastructure/db/registration_repository.py              53      3      2      1    93%   64, 79-80
+app/infrastructure/db/session.py                              11      3      0      0    73%   12, 16-17
+app/infrastructure/db/session_registration_repository.py      73      3      4      1    95%   84, 134-135
+app/infrastructure/db/session_repository.py                   36      1      4      2    92%   42, 51->exit
+app/infrastructure/db/speaker_repository.py                   60      1      8      2    96%   62, 79->exit
+app/infrastructure/db/user_repository.py                      48      1      4      1    96%   61
+------------------------------------------------------------------------------------------------------
+TOTAL                                                       2331     18    230      9    99%
 
-39 files skipped due to complete coverage.
-Required test coverage of 90.0% reached. Total coverage: 98.49%
+59 files skipped due to complete coverage.
+Required test coverage of 90.0% reached. Total coverage: 98.95%

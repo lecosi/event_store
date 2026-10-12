@@ -1,23 +1,25 @@
-Frontend test coverage summary (Vitest + v8)
-Date:      2026-10-11
-Command:   cd frontend && npm run test:coverage
-Tests:     395 passed, 0 failed (43 test files)
-Total:     99.84% statements, 96.79% branches, 100% functions, 99.84% lines
+Resumen de cobertura de pruebas del frontend (Vitest + v8)
+Fecha:     2026-10-12
+Comando:   cd frontend && npm run test:coverage
+Pruebas:   531 aprobadas, 0 fallidas (47 archivos de prueba)
+Total:     99.8% sentencias, 96.82% ramas, 99.14% funciones, 99.8% líneas
 
 -------------------|---------|----------|---------|---------|-------------------
 File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
 -------------------|---------|----------|---------|---------|-------------------
-All files          |   99.84 |    96.79 |     100 |   99.84 |                   
+All files          |    99.8 |    96.82 |   99.14 |    99.8 |                   
  src               |     100 |      100 |     100 |     100 |                   
   App.tsx          |     100 |      100 |     100 |     100 |                   
- src/api           |     100 |      100 |     100 |     100 |                   
+ src/api           |     100 |      100 |   97.36 |     100 |                   
+  admin.ts         |     100 |      100 |     100 |     100 |                   
   auth.ts          |     100 |      100 |     100 |     100 |                   
-  client.ts        |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |    90.9 |     100 |                   
   events.ts        |     100 |      100 |     100 |     100 |                   
   registrations.ts |     100 |      100 |     100 |     100 |                   
+  reports.ts       |     100 |      100 |     100 |     100 |                   
   sessions.ts      |     100 |      100 |     100 |     100 |                   
   speakers.ts      |     100 |      100 |     100 |     100 |                   
- src/components    |   99.82 |    98.77 |     100 |   99.82 |                   
+ src/components    |     100 |    99.08 |     100 |     100 |                   
   Button.tsx       |     100 |      100 |     100 |     100 |                   
   ErrorMessage.tsx |     100 |      100 |     100 |     100 |                   
   EventCard.tsx    |     100 |      100 |     100 |     100 |                   
@@ -28,24 +30,27 @@ All files          |   99.84 |    96.79 |     100 |   99.84 |
   Navbar.tsx       |     100 |      100 |     100 |     100 |                   
   Pagination.tsx   |     100 |      100 |     100 |     100 |                   
   SearchBar.tsx    |     100 |      100 |     100 |     100 |                   
-  SessionForm.tsx  |   98.78 |    96.55 |     100 |   98.78 | 1                 
+  SessionForm.tsx  |     100 |      100 |     100 |     100 |                   
   SessionList.tsx  |     100 |      100 |     100 |     100 |                   
   SpeakerForm.tsx  |     100 |      100 |     100 |     100 |                   
   ...kerPicker.tsx |     100 |      100 |     100 |     100 |                   
   Spinner.tsx      |     100 |      100 |     100 |     100 |                   
   StatusBadge.tsx  |     100 |      100 |     100 |     100 |                   
   Toast.tsx        |     100 |      100 |     100 |     100 |                   
- src/i18n          |   99.64 |    91.66 |     100 |   99.64 |                   
-  es.ts            |   99.62 |    91.07 |     100 |   99.62 | 269               
+  UserEditForm.tsx |     100 |    96.42 |     100 |     100 | 59                
+ src/i18n          |   99.73 |    92.53 |   98.18 |   99.73 |                   
+  es.ts            |   99.72 |    92.06 |   98.11 |   99.72 | 360               
   index.ts         |     100 |      100 |     100 |     100 |                   
- src/pages         |   99.82 |    94.28 |     100 |   99.82 |                   
-  ...etailPage.tsx |   99.47 |     95.5 |     100 |   99.47 | 1                 
-  ...tFormPage.tsx |     100 |    97.05 |     100 |     100 | 39                
-  ...tListPage.tsx |     100 |    94.73 |     100 |     100 | 29                
+ src/pages         |   99.57 |     94.5 |     100 |   99.57 |                   
+  ...UsersPage.tsx |    99.2 |    94.33 |     100 |    99.2 | 84                
+  ...etailPage.tsx |   99.55 |    95.91 |     100 |   99.55 | 1                 
+  ...tFormPage.tsx |   98.48 |    94.11 |     100 |   98.48 | 1                 
+  ...tListPage.tsx |      98 |    90.47 |     100 |      98 | 1                 
   LoginPage.tsx    |     100 |    86.66 |     100 |     100 | 20,41             
   NotFoundPage.tsx |     100 |      100 |     100 |     100 |                   
   ProfilePage.tsx  |     100 |    94.11 |     100 |     100 | 44,62             
-  RegisterPage.tsx |     100 |       90 |     100 |     100 | 46                
+  RegisterPage.tsx |     100 |       90 |     100 |     100 | 54                
+  ReportsPage.tsx  |     100 |    96.66 |     100 |     100 | 45,92,142         
   ...rFormPage.tsx |     100 |     87.5 |     100 |     100 | 27                
  src/routes        |     100 |      100 |     100 |     100 |                   
   ...ctedRoute.tsx |     100 |      100 |     100 |     100 |                   
