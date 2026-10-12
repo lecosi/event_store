@@ -1,10 +1,8 @@
 """Close past events: finish the published events whose end has already passed."""
 
+from app.application.cache_policy import EventCache
 from app.application.clock import Clock, utc_now
 from app.application.ports import (
-    EVENTS_NAMESPACE,
-    SESSIONS_NAMESPACE,
-    Cache,
     EventRepository,
     UnitOfWork,
     transaction,
@@ -16,7 +14,7 @@ from app.domain.event import validate_transition
 def close_past_events(
     events: EventRepository,
     uow: UnitOfWork,
-    cache: Cache,
+    cache: EventCache,
     clock: Clock = utc_now,
 ) -> int:
     """Move every PUBLISHED event with ``end_at`` before now to FINISHED; return how many.
@@ -32,6 +30,5 @@ def close_past_events(
             event.status = EventStatus.FINISHED
             events.update(event)
     if past:
-        cache.invalidate(EVENTS_NAMESPACE)
-        cache.invalidate(SESSIONS_NAMESPACE)
+        cache.invalidate_with_sessions()
     return len(past)

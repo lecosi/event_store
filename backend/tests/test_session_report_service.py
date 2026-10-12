@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from app.application.cache_policy import EventCache
 from app.application.errors import (
     EventNotFoundError,
     PermissionDeniedError,
@@ -50,7 +51,10 @@ class Scenario:
         )
         self.service = SessionReportService(
             EventService(
-                self.events, FakeEventUsageQueries(self.events), FakeUnitOfWork(), FakeCache()
+                self.events,
+                FakeEventUsageQueries(self.events),
+                FakeUnitOfWork(),
+                EventCache(FakeCache(), 60),
             ),
             self.sessions,
             self.enrollments,

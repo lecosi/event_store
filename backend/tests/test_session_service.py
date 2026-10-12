@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
+from app.application.cache_policy import SessionCache
 from app.application.errors import (
     EventNotFoundError,
     PermissionDeniedError,
@@ -71,7 +72,7 @@ class Env:
             self.speakers,
             FakeSessionEnrollmentLock(self.sessions),
             self.uow,
-            FakeCache(),
+            SessionCache(FakeCache(), 60),
         )
         self.event = self.add_event()
         self.speaker = self.speakers.add(Speaker(name="Ada", bio="", email=None))

@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.application.cache_policy import EventCache
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
 from app.domain.enums import EventStatus, Role
@@ -50,7 +51,9 @@ def uow() -> FakeUnitOfWork:
 
 @pytest.fixture
 def service(repo: FakeEventRepository, uow: FakeUnitOfWork) -> EventService:
-    return EventService(repo, FakeEventUsageQueries(repo), uow, FakeCache(), clock=lambda: NOW)
+    return EventService(
+        repo, FakeEventUsageQueries(repo), uow, EventCache(FakeCache(), 60), clock=lambda: NOW
+    )
 
 
 def test_create_starts_as_draft_and_owned_by_actor(service: EventService) -> None:

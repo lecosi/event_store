@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session
 
 from app.application.auth_service import AuthService, UserAdminService
+from app.application.cache_policy import EventCache, SessionCache, SpeakerCache
 from app.application.clock import utc_now
 from app.application.errors import InvalidTokenError
 from app.application.event_service import EventService
@@ -30,6 +31,7 @@ from app.application.ports import (
     UnitOfWork,
     UserRepository,
 )
+from app.application.readers import EventCatalogue, EventSchedule, SpeakerDirectory
 from app.application.registration_service import RegistrationService
 from app.application.report_service import ReportService, SessionReportService
 from app.application.session_registration_service import SessionRegistrationService
@@ -39,6 +41,11 @@ from app.core.config import Settings, get_settings
 from app.domain.enums import Role
 from app.domain.roles import ORGANIZING_ROLES
 from app.domain.user import UserAccount
+from app.infrastructure.cache.cached_readers import (
+    CachedEventCatalogue,
+    CachedEventSchedule,
+    CachedSpeakerDirectory,
+)
 from app.infrastructure.cache.null_cache import NullCache
 from app.infrastructure.cache.redis_cache import RedisCache
 from app.infrastructure.db.event_repository import SqlEventRepository
@@ -143,13 +150,38 @@ def get_event_usage_queries(session: Session = Depends(get_session)) -> EventUsa
     return SqlEventUsageQueries(session)
 
 
+def get_event_cache(
+    cache: Cache = Depends(get_cache), settings: Settings = Depends(get_settings)
+) -> EventCache:
+    return EventCache(cache, settings.cache_ttl_events_seconds)
+
+
+def get_session_cache(
+    cache: Cache = Depends(get_cache), settings: Settings = Depends(get_settings)
+) -> SessionCache:
+    return SessionCache(cache, settings.cache_ttl_sessions_seconds)
+
+
+def get_speaker_cache(
+    cache: Cache = Depends(get_cache), settings: Settings = Depends(get_settings)
+) -> SpeakerCache:
+    return SpeakerCache(cache, settings.cache_ttl_speakers_seconds)
+
+
 def get_event_service(
     events: EventRepository = Depends(get_event_repository),
     usage: EventUsageQueries = Depends(get_event_usage_queries),
     uow: UnitOfWork = Depends(get_unit_of_work),
-    cache: Cache = Depends(get_cache),
+    cache: EventCache = Depends(get_event_cache),
 ) -> EventService:
     return EventService(events, usage, uow, cache)
+
+
+def get_event_catalogue(
+    service: EventService = Depends(get_event_service),
+    cache: EventCache = Depends(get_event_cache),
+) -> EventCatalogue:
+    return CachedEventCatalogue(service, cache)
 
 
 def get_speaker_repository(session: Session = Depends(get_session)) -> SpeakerRepository:
@@ -168,9 +200,16 @@ def get_speaker_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
     usage: SpeakerUsageQueries = Depends(get_speaker_usage_queries),
     uow: UnitOfWork = Depends(get_unit_of_work),
-    cache: Cache = Depends(get_cache),
+    cache: SpeakerCache = Depends(get_speaker_cache),
 ) -> SpeakerService:
     return SpeakerService(speakers, usage, uow, cache)
+
+
+def get_speaker_directory(
+    service: SpeakerService = Depends(get_speaker_service),
+    cache: SpeakerCache = Depends(get_speaker_cache),
+) -> SpeakerDirectory:
+    return CachedSpeakerDirectory(service, cache)
 
 
 def get_session_registration_repository(
@@ -209,9 +248,16 @@ def get_session_service(
     speakers: SpeakerRepository = Depends(get_speaker_repository),
     enrollment_lock: SessionEnrollmentLock = Depends(get_enrollment_lock),
     uow: UnitOfWork = Depends(get_unit_of_work),
-    cache: Cache = Depends(get_cache),
+    cache: SessionCache = Depends(get_session_cache),
 ) -> SessionService:
     return SessionService(events, sessions, speakers, enrollment_lock, uow, cache)
+
+
+def get_event_schedule(
+    service: SessionService = Depends(get_session_service),
+    cache: SessionCache = Depends(get_session_cache),
+) -> EventSchedule:
+    return CachedEventSchedule(service, cache)
 
 
 def get_registration_repository(

@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.application.cache_policy import EventCache
 from app.application.close_past_events import close_past_events
 from app.application.ports import EVENTS_NAMESPACE, SESSIONS_NAMESPACE
 from app.domain.enums import EventStatus
@@ -42,7 +43,9 @@ class Env:
         )
 
     def close(self) -> int:
-        return close_past_events(self.events, self.uow, self.cache, clock=lambda: NOW)
+        return close_past_events(
+            self.events, self.uow, EventCache(self.cache, 60), clock=lambda: NOW
+        )
 
     def status_of(self, event: Event) -> EventStatus:
         stored = self.events.get(event.id or 0)
@@ -152,4 +155,6 @@ def test_registrations_and_session_enrollments_are_kept(env: Env) -> None:
 def test_works_with_a_null_cache(env: Env) -> None:
     env.event(EventStatus.PUBLISHED, timedelta(hours=-1))
 
-    assert close_past_events(env.events, env.uow, NullCache(), clock=lambda: NOW) == 1
+    assert (
+        close_past_events(env.events, env.uow, EventCache(NullCache(), 60), clock=lambda: NOW) == 1
+    )

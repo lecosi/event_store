@@ -1,12 +1,10 @@
 """Event use cases. Depend only on ports and pure domain rules."""
 
+from app.application.cache_policy import EventCache
 from app.application.clock import Clock, utc_now
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.guards import EventAccessPolicy
 from app.application.ports import (
-    EVENTS_NAMESPACE,
-    SESSIONS_NAMESPACE,
-    Cache,
     EventRepository,
     EventUsageQueries,
     UnitOfWork,
@@ -46,7 +44,7 @@ class EventService:
         events: EventRepository,
         usage: EventUsageQueries,
         uow: UnitOfWork,
-        cache: Cache,
+        cache: EventCache,
         clock: Clock = utc_now,
     ) -> None:
         self._events = events
@@ -73,7 +71,7 @@ class EventService:
                 organizer_id=actor.id,
             )
             created = self._events.add(event)
-        self._cache.invalidate(EVENTS_NAMESPACE)
+        self._cache.invalidate()
         return created
 
     def get(self, event_id: int, viewer: UserAccount | None) -> Event:
@@ -115,7 +113,7 @@ class EventService:
                 details.start_at, details.end_at, self._usage.session_bounds(event_id)
             )
             updated = self._events.update(event.with_details(details))
-        self._cache.invalidate(EVENTS_NAMESPACE)
+        self._cache.invalidate()
         return updated
 
     def change_status(self, actor: UserAccount, event_id: int, target: EventStatus) -> Event:
@@ -124,15 +122,14 @@ class EventService:
             validate_transition(event.status, target)
             event.status = target
             updated = self._events.update(event)
-        self._cache.invalidate(EVENTS_NAMESPACE)
+        self._cache.invalidate()
         return updated
 
     def delete(self, actor: UserAccount, event_id: int) -> None:
         with transaction(self._uow):
             self.ensure_can_manage(actor, event_id)
             self._events.delete(event_id)
-        self._cache.invalidate(EVENTS_NAMESPACE)
-        self._cache.invalidate(SESSIONS_NAMESPACE)
+        self._cache.invalidate_with_sessions()
 
     def ensure_can_manage(self, actor: UserAccount, event_id: int) -> Event:
         """Return the event when ``actor`` owns it or is an admin; raise otherwise."""

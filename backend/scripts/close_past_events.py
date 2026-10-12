@@ -7,6 +7,7 @@ finished events are never touched.
 
 from sqlmodel import Session
 
+from app.application.cache_policy import EventCache
 from app.application.close_past_events import close_past_events
 from app.application.ports import Cache
 from app.core.config import get_settings
@@ -24,7 +25,8 @@ def _cache() -> Cache:
 
 def main() -> int:
     with Session(get_engine()) as session:
-        closed = close_past_events(SqlEventRepository(session), SqlUnitOfWork(session), _cache())
+        cache = EventCache(_cache(), get_settings().cache_ttl_events_seconds)
+        closed = close_past_events(SqlEventRepository(session), SqlUnitOfWork(session), cache)
     print(f"Finished events: {closed}")
     return 0
 

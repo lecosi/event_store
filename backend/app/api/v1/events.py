@@ -2,11 +2,9 @@ from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from pydantic import TypeAdapter
 
-from app.api.cached_reads import read_through, text_digest
 from app.api.dependencies import (
-    get_cache,
+    get_event_catalogue,
     get_event_service,
     get_optional_user,
     get_registration_service,
@@ -29,20 +27,16 @@ from app.api.openapi_responses import (
     conflict,
 )
 from app.api.speaker_schemas import ScheduledSession, SessionResponse
-from app.application.event_service import EventService, is_public_view
-from app.application.ports import EVENTS_NAMESPACE, Cache
+from app.application.event_service import EventService
+from app.application.readers import EventCatalogue
 from app.application.registration_service import RegistrationService
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
-from app.core.config import Settings, get_settings
 from app.domain.enums import EventStatus
 from app.domain.event import Event, EventDetails
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events", tags=["events"])
-
-
-EVENT_PAGE = TypeAdapter(EventPageResponse)
 
 
 def _details(body: EventRequest) -> EventDetails:
@@ -115,9 +109,7 @@ def list_events(
     page: PageNumber = 1,
     size: PageSize = 10,
     viewer: UserAccount | None = Depends(get_optional_user),
-    service: EventService = Depends(get_event_service),
-    cache: Cache = Depends(get_cache),
-    settings: Settings = Depends(get_settings),
+    catalogue: EventCatalogue = Depends(get_event_catalogue),
 ) -> EventPageResponse:
     """Paginated event catalogue. Public; a token is optional.
 
@@ -126,22 +118,14 @@ def list_events(
     `status` to filter, and `page`/`size` to paginate.
     """
 
-    def build() -> EventPageResponse:
-        result = service.list(viewer, q=q, status=status_filter, page=page, size=size)
-        return EventPageResponse(
-            items=[EventResponse.model_validate(e, from_attributes=True) for e in result.items],
-            total=result.total,
-            page=result.page,
-            size=result.size,
-            pages=result.pages,
-        )
-
-    if not is_public_view(viewer):
-        return build()
-    status_part = status_filter.value if status_filter else "any"
-    key = f"list:{text_digest(q)}:{status_part}:{page}:{size}"
-    ttl = settings.cache_ttl_events_seconds
-    return read_through(cache, EVENTS_NAMESPACE, key, ttl, EVENT_PAGE, build)
+    result = catalogue.list(viewer, q=q, status=status_filter, page=page, size=size)
+    return EventPageResponse(
+        items=[EventResponse.model_validate(e, from_attributes=True) for e in result.items],
+        total=result.total,
+        page=result.page,
+        size=result.size,
+        pages=result.pages,
+    )
 
 
 @router.get(

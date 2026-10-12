@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import Session
 
 from app.application.auth_service import AuthService, normalize_email
+from app.application.cache_policy import EventCache, SessionCache, SpeakerCache
 from app.application.errors import EmailAlreadyRegisteredError
 from app.application.event_service import EventService
 from app.application.registration_service import RegistrationService
@@ -60,6 +61,9 @@ def _day(days: int, hour: int, hours: int = 1) -> tuple[datetime, datetime]:
     return start, start + timedelta(hours=hours)
 
 
+NULL_CACHE_TTL_SECONDS = 1
+
+
 def _event(name: str, description: str, location: str, days: int, capacity: int) -> EventDetails:
     start, end = _day(days, 9, hours=8)
     return EventDetails(name, description, location, start, end, capacity)
@@ -77,13 +81,21 @@ def main() -> int:
 
         events_repo = SqlEventRepository(db)
         cache = NullCache()
-        events = EventService(events_repo, SqlEventUsageQueries(db), uow, cache)
+        events = EventService(
+            events_repo,
+            SqlEventUsageQueries(db),
+            uow,
+            EventCache(cache, NULL_CACHE_TTL_SECONDS),
+        )
         if events.list(admin, size=1).total > 0:
             print("Events already exist: demo data skipped")
             return 0
 
         speaker_service = SpeakerService(
-            SqlSpeakerRepository(db), SqlSpeakerUsageQueries(db), uow, cache
+            SqlSpeakerRepository(db),
+            SqlSpeakerUsageQueries(db),
+            uow,
+            SpeakerCache(cache, NULL_CACHE_TTL_SECONDS),
         )
         speakers = [speaker_service.create(admin, details) for details in SPEAKERS]
         enrollment_repo = SqlSessionRegistrationRepository(db)
@@ -93,7 +105,7 @@ def main() -> int:
             SqlSpeakerRepository(db),
             enrollment_repo,
             uow,
-            cache,
+            SessionCache(cache, NULL_CACHE_TTL_SECONDS),
         )
         registrations = RegistrationService(
             events_repo,

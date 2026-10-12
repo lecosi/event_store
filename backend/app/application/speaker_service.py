@@ -1,5 +1,6 @@
 """Speaker use cases. Depend only on ports and pure domain rules."""
 
+from app.application.cache_policy import SpeakerCache
 from app.application.errors import (
     PermissionDeniedError,
     SpeakerEmailTakenError,
@@ -7,9 +8,6 @@ from app.application.errors import (
     SpeakerNotFoundError,
 )
 from app.application.ports import (
-    SESSIONS_NAMESPACE,
-    SPEAKERS_NAMESPACE,
-    Cache,
     SpeakerRepository,
     SpeakerUsageQueries,
     UnitOfWork,
@@ -31,7 +29,7 @@ class SpeakerService:
         speakers: SpeakerRepository,
         usage: SpeakerUsageQueries,
         uow: UnitOfWork,
-        cache: Cache,
+        cache: SpeakerCache,
     ) -> None:
         self._speakers = speakers
         self._usage = usage
@@ -46,7 +44,7 @@ class SpeakerService:
             created = self._speakers.add(
                 Speaker(name=details.name, bio=details.bio, email=details.email)
             )
-        self._cache.invalidate(SPEAKERS_NAMESPACE)
+        self._cache.invalidate()
         return created
 
     def get(self, speaker_id: int) -> Speaker:
@@ -67,7 +65,7 @@ class SpeakerService:
             details = _normalize(details)
             self._ensure_email_free(details.email, speaker_id=speaker_id)
             updated = self._speakers.update(speaker.with_details(details))
-        self._invalidate_speaker_and_sessions()
+        self._cache.invalidate_with_sessions()
         return updated
 
     def delete(self, actor: UserAccount, speaker_id: int) -> None:
@@ -77,11 +75,7 @@ class SpeakerService:
             if self._usage.count_sessions(speaker_id) > 0:
                 raise SpeakerInUseError(speaker_id)
             self._speakers.delete(speaker_id)
-        self._invalidate_speaker_and_sessions()
-
-    def _invalidate_speaker_and_sessions(self) -> None:
-        self._cache.invalidate(SPEAKERS_NAMESPACE)
-        self._cache.invalidate(SESSIONS_NAMESPACE)
+        self._cache.invalidate_with_sessions()
 
     def _ensure_email_free(self, email: str | None, speaker_id: int | None) -> None:
         if email is None:

@@ -1,9 +1,8 @@
 """Session use cases. Depend only on ports and pure domain rules."""
 
+from app.application.cache_policy import SessionCache
 from app.application.guards import EventAccessPolicy, get_event, get_session_in_event
 from app.application.ports import (
-    SESSIONS_NAMESPACE,
-    Cache,
     EventRepository,
     SessionEnrollmentLock,
     SessionRepository,
@@ -36,7 +35,7 @@ class SessionService:
         speakers: SpeakerRepository,
         enrollment_lock: SessionEnrollmentLock,
         uow: UnitOfWork,
-        cache: Cache,
+        cache: SessionCache,
     ) -> None:
         self._events = events
         self._access = EventAccessPolicy(events)
@@ -59,7 +58,7 @@ class SessionService:
             )
             self._validate(event, session)
             created = self._sessions.add(session)
-        self._cache.invalidate(SESSIONS_NAMESPACE)
+        self._cache.invalidate()
         return created
 
     def update(
@@ -75,7 +74,7 @@ class SessionService:
                 ensure_capacity_covers_enrollments(updated.capacity, enrollments)
                 ensure_schedule_unchanged(current, updated)
             saved = self._sessions.update(updated)
-        self._cache.invalidate(SESSIONS_NAMESPACE)
+        self._cache.invalidate()
         return saved
 
     def delete(self, actor: UserAccount, event_id: int, session_id: int) -> None:
@@ -86,7 +85,7 @@ class SessionService:
                 self._enrollment_lock.lock_and_count_enrollments(session_id)
             )
             self._sessions.delete(session_id)
-        self._cache.invalidate(SESSIONS_NAMESPACE)
+        self._cache.invalidate()
 
     def list_for_event(self, event_id: int) -> list[SessionWithSpeaker]:
         get_event(self._events, event_id)

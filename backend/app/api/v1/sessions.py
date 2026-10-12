@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status
-from pydantic import TypeAdapter
 
-from app.api.cached_reads import read_through
 from app.api.dependencies import (
-    get_cache,
+    get_event_schedule,
     get_event_service,
     get_optional_user,
     get_session_registration_service,
@@ -21,18 +19,15 @@ from app.api.openapi_responses import (
 )
 from app.api.speaker_schemas import ScheduledSession, SessionRequest, SessionResponse
 from app.application.event_service import EventService
-from app.application.ports import SESSIONS_NAMESPACE, Cache
+from app.application.readers import EventSchedule
 from app.application.session_registration_service import SessionRegistrationService
 from app.application.session_service import SessionService
-from app.core.config import Settings, get_settings
 from app.domain.session import SessionDetails
 from app.domain.session_registration import SessionAvailability
 from app.domain.user import UserAccount
 
 router = APIRouter(prefix="/events/{event_id}/sessions", tags=["sessions"])
 
-
-SCHEDULE = TypeAdapter(list[ScheduledSession])
 
 SESSION_CONFLICT = conflict(
     "The speaker has an overlapping session, or the event is cancelled or finished.",
@@ -73,10 +68,8 @@ def list_sessions(
     event_id: EventId,
     viewer: UserAccount | None = Depends(get_optional_user),
     events: EventService = Depends(get_event_service),
-    service: SessionService = Depends(get_session_service),
+    schedule_reader: EventSchedule = Depends(get_event_schedule),
     enrollments: SessionRegistrationService = Depends(get_session_registration_service),
-    cache: Cache = Depends(get_cache),
-    settings: Settings = Depends(get_settings),
 ) -> list[SessionResponse]:
     """Sessions of an event with their speaker. Public; a token is optional.
 
@@ -88,11 +81,7 @@ def list_sessions(
     """
     events.get(event_id, viewer)  # enforces event visibility (404 when hidden)
 
-    def build() -> list[ScheduledSession]:
-        return [ScheduledSession.from_domain(s) for s in service.list_for_event(event_id)]
-
-    ttl = settings.cache_ttl_sessions_seconds
-    schedule = read_through(cache, SESSIONS_NAMESPACE, f"event:{event_id}", ttl, SCHEDULE, build)
+    schedule = [ScheduledSession.from_domain(s) for s in schedule_reader.list_for_event(event_id)]
     capacities = {item.id: item.capacity for item in schedule}
     availability = enrollments.availability(event_id, capacities, viewer)
     return [SessionResponse.from_scheduled(item, availability[item.id]) for item in schedule]

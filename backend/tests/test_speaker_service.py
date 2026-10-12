@@ -1,5 +1,6 @@
 import pytest
 
+from app.application.cache_policy import SpeakerCache
 from app.application.errors import (
     PermissionDeniedError,
     SpeakerEmailTakenError,
@@ -50,7 +51,10 @@ def uow() -> FakeUnitOfWork:
 @pytest.fixture
 def service(sessions: FakeSessionRepository, uow: FakeUnitOfWork) -> SpeakerService:
     return SpeakerService(
-        FakeSpeakerRepository(), FakeSpeakerUsageQueries(sessions), uow, FakeCache()
+        FakeSpeakerRepository(),
+        FakeSpeakerUsageQueries(sessions),
+        uow,
+        SpeakerCache(FakeCache(), 60),
     )
 
 

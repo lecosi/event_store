@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.application.cache_policy import EventCache, SessionCache, SpeakerCache
 from app.application.errors import (
     EventNotFoundError,
     PermissionDeniedError,
@@ -59,7 +60,7 @@ class Env:
             self.events,
             FakeEventUsageQueries(self.events),
             self.uow,
-            self.cache,
+            EventCache(self.cache, 60),
             clock=lambda: NOW,
         )
         self.session_service = SessionService(
@@ -68,10 +69,13 @@ class Env:
             self.speakers,
             FakeSessionEnrollmentLock(self.sessions),
             self.uow,
-            self.cache,
+            SessionCache(self.cache, 60),
         )
         self.speaker_service = SpeakerService(
-            self.speakers, FakeSpeakerUsageQueries(self.sessions), self.uow, self.cache
+            self.speakers,
+            FakeSpeakerUsageQueries(self.sessions),
+            self.uow,
+            SpeakerCache(self.cache, 60),
         )
         self.event = self.events.add(
             Event(

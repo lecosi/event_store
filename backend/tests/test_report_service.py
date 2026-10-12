@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from app.application.cache_policy import EventCache
 from app.application.errors import EventNotFoundError, PermissionDeniedError
 from app.application.event_service import EventService
 from app.application.report_service import ParticipantParams, ReportService
@@ -39,7 +40,10 @@ class Scenario:
         self.registrations = FakeRegistrationRepository(self.events, self.users)
         self.service = ReportService(
             EventService(
-                self.events, FakeEventUsageQueries(self.events), FakeUnitOfWork(), FakeCache()
+                self.events,
+                FakeEventUsageQueries(self.events),
+                FakeUnitOfWork(),
+                EventCache(FakeCache(), 60),
             ),
             self.registrations,
         )
