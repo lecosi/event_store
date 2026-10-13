@@ -24,6 +24,9 @@ docker compose up -d --build
 docker compose ps                        # espera a que el backend esté "healthy"
 ```
 
+Un solo `docker compose up` levanta todo el sistema: PostgreSQL, Redis, el backend y el
+frontend.
+
 Crea el administrador una sola vez, cuando el backend esté saludable (`healthy`). Si se
 ejecuta antes falla con `relation "users" does not exist`, porque las migraciones se
 aplican al iniciar el backend:

@@ -40,7 +40,8 @@ npm run dev        # http://localhost:5173
 npm run build      # verifica tipos y genera dist/
 ```
 
-Con Docker Compose, desde la raíz del repositorio (nginx sirve el paquete estático):
+Con Docker Compose, desde la raíz del repositorio (nginx sirve el paquete estático). Es el
+mismo comando que levanta el backend: arranca todo el sistema, no solo el frontend.
 
 ```bash
 docker compose up -d --build        # frontend en http://localhost:5173

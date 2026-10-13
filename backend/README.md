@@ -38,7 +38,8 @@ Lista completa en [../docs/backend-operations.md](../docs/backend-operations.md)
 
 ## Ejecutar
 
-Con Docker Compose, desde la raíz del repositorio (aplica las migraciones al iniciar):
+Con Docker Compose, desde la raíz del repositorio. Este comando levanta todo el sistema
+(PostgreSQL, Redis, backend y frontend) y aplica las migraciones al iniciar:
 
 ```bash
 docker compose up -d --build
@@ -46,11 +47,13 @@ docker compose ps                         # espera a que el backend esté "healt
 curl http://localhost:8000/api/v1/health  # {"status":"ok"}
 ```
 
-Sin Docker para el backend, con PostgreSQL disponible:
+Sin Docker para el backend, con PostgreSQL disponible y Python 3.12. Si tu `python3` por
+defecto es otra versión, indícale a Poetry cuál usar antes de instalar:
 
 ```bash
 docker compose up -d db                   # desde la raíz, o cualquier PostgreSQL 16
 cd backend
+poetry env use python3.12                 # solo si tu python3 por defecto no es 3.12
 poetry install
 poetry run alembic upgrade head           # migraciones
 poetry run uvicorn app.main:app --reload  # http://localhost:8000
@@ -61,7 +64,8 @@ Crear el administrador y los datos de demostración: ver la sección de seed en
 
 ## Probar
 
-Las pruebas de integración necesitan PostgreSQL. Con la base de datos de Compose hay que
+Requiere las dependencias instaladas (`poetry install`, ver arriba). Las pruebas de
+integración necesitan PostgreSQL. Con la base de datos de Compose hay que
 indicar sus credenciales (`mis_eventos:mis_eventos`); el nombre de la base debe terminar
 en `_test` y se crea automáticamente.
 
